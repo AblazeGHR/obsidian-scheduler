@@ -1,7 +1,8 @@
-import { App } from "obsidian";
+import { App, TFile } from "obsidian";
 import { getDataviewApi } from "../utils/dataview-api";
 import { FieldMapping, PageEntry, SortConfig, FilterCondition } from "../types";
 import { mapPageEntry } from "../schema/field-mapping";
+import { extractTasksWithInlineFields, taskToPageEntry } from "../schema/inline-fields";
 
 /**
  * Query engine wraps Dataview API calls and applies field mapping + filtering.
@@ -36,6 +37,31 @@ export class QueryEngine {
 			entries.push(mapPageEntry(rawPage, path, mapping));
 		}
 		return entries;
+	}
+
+	/** Fetch inline-field-tagged tasks and convert to PageEntry format. */
+	async fetchInlineTasks(mapping: FieldMapping, folders: string[], existingEntries: PageEntry[]): Promise<PageEntry[]> {
+		const files = this.app.vault.getMarkdownFiles();
+		const result: PageEntry[] = [];
+		const existingSet = new Set(existingEntries.map((e) => e.path));
+
+		const scope = folders.length > 0
+			? files.filter((f) => folders.some((folder) => f.path.startsWith(folder)))
+			: files;
+
+		for (const file of scope) {
+			const tasks = await extractTasksWithInlineFields(this.app, file);
+			// Dataview page data for parent fields
+			const api = getDataviewApi(this.app);
+			const rawPage = api?.page(file.path);
+
+			for (const task of tasks) {
+				const entry = taskToPageEntry(task, (rawPage as Record<string, unknown> | undefined) ?? {}, file.path, mapping);
+				result.push(entry);
+			}
+		}
+
+		return result;
 	}
 
 	/** Static: apply sorting to entries (pure function, no state needed). */

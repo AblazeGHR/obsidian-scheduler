@@ -1,5 +1,5 @@
 import { h, render } from "preact";
-import { useState, useMemo } from "preact/hooks";
+import { useState, useMemo, useEffect } from "preact/hooks";
 import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
 import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
@@ -119,8 +119,21 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 	const [sort, setSort] = useState<SortConfig[]>([]);
 	const [filters, setFilters] = useState<FilterCondition[]>([]);
 	const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+	const [inlineEntries, setInlineEntries] = useState<PageEntry[]>([]);
 
 	const api = getDataviewApi(plugin.app);
+
+	// Load inline field tasks on mount
+	useEffect(() => {
+		if (plugin.settings.enableInlineTasks && api) {
+			const engine = new QueryEngine(plugin.app);
+			engine.fetchInlineTasks(plugin.settings.fieldMapping, plugin.settings.folders, entries)
+				.then((tasks) => setInlineEntries(tasks))
+				.catch(() => setInlineEntries([]));
+		} else {
+			setInlineEntries([]);
+		}
+	}, [plugin.settings.enableInlineTasks, plugin.settings.folders]);
 
 	if (!api) {
 		return (
@@ -133,7 +146,12 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 
 	const engine = new QueryEngine(plugin.app);
 	const entries = engine.fetchPages(plugin.settings.fieldMapping, plugin.settings.folders);
-	const columns = useMemo(() => collectColumns(entries, plugin.settings.fieldMapping), [entries]);
+	// Merge page entries with inline task entries
+	const allEntries = useMemo(
+		() => entries.concat(inlineEntries),
+		[entries, inlineEntries]
+	);
+	const columns = useMemo(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
 
 	/** Handle drag-drop date change: write new date to file frontmatter */
 	function handleDateChange(path: string, newDateStr: string) {
@@ -198,7 +216,7 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 			<div class="scheduler-view-content">
 				{viewType === "table" && (
 					<TableView
-						entries={entries}
+						entries={allEntries}
 						columns={columns}
 						mapping={plugin.settings.fieldMapping}
 						sort={sort}
@@ -210,10 +228,10 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 					/>
 				)}
 				{viewType === "calendar" && (
-					<CalendarView entries={entries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
+					<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
 				)}
 				{viewType === "timeline" && (
-					<TimelineView entries={entries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
+					<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
 				)}
 			</div>
 		</div>

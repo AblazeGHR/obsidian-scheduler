@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: SchedulerSettings = {
 		filterableFields: ["due", "title", "tags", "priority", "status", "folder", "ctime", "mtime", "start", "end"],
 	},
 	folders: [],
+	enableInlineTasks: true,
 	defaultView: "table",
 };
 
@@ -97,6 +98,18 @@ export class SchedulerSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.style.width = "300px";
 			});
+
+		containerEl.createEl("h3", { text: "Inline Fields" });
+
+		new Setting(containerEl)
+			.setName("Extract tasks from inline fields")
+			.setDesc("When enabled, lines with [key:: value] patterns are extracted as separate entries in all views. Each task becomes a row in the table, an event in the calendar, and a block on the timeline.")
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.enableInlineTasks).onChange(async (value) => {
+					this.plugin.settings.enableInlineTasks = value;
+					await this.plugin.saveSettings();
+				})
+			);
 
 		containerEl.createEl("h3", { text: "Display" });
 

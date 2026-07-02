@@ -43,6 +43,8 @@ export interface PageEntry {
 /** Plugin settings */
 export interface SchedulerSettings {
     fieldMapping: FieldMapping;
+    /** Extract [key:: value] inline fields from task items as separate entries */
+    enableInlineTasks: boolean;
     /** Folders to include (empty = entire vault) */
     folders: string[];
     /** Default view mode */
