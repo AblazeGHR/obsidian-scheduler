@@ -1,0 +1,22 @@
+{
+  "name": "obsidian-scheduler",
+  "version": "0.1.0",
+  "description": "Flexible schedule management with calendar, timeline, and table views powered by Dataview.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "deploy": "npm run build && cp main.js manifest.json styles.css ../test-vault/.obsidian/plugins/obsidian-scheduler/"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.19.0",
+    "obsidian": "^1.4.0",
+    "preact": "^10.19.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.0"
+  }
+}

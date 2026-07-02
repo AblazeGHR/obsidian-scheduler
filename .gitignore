@@ -1,0 +1,6 @@
+.obsidian/
+node_modules/
+main.js
+main.js.map
+*.js
+*.js.map

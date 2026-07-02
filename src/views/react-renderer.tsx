@@ -1,0 +1,487 @@
+import { h, render } from "preact";
+import { useState, useMemo } from "preact/hooks";
+import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
+import type SchedulerPlugin from "../main";
+import { getDataviewApi } from "../utils/dataview-api";
+import { QueryEngine } from "../query/query-engine";
+import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
+
+// ============================================================
+// ReactRenderer bridge
+// ============================================================
+
+export class ReactRenderer extends MarkdownRenderChild {
+	private _unmount: (() => void) | null = null;
+
+	constructor(
+		container: HTMLElement,
+		public element: h.JSX.Element
+	) {
+		super(container);
+	}
+
+	onload(): void {
+		const root = document.createElement("div");
+		root.className = "scheduler-root";
+		this.containerEl.appendChild(root);
+		render(this.element, root);
+		this._unmount = () => render(null, root);
+	}
+
+	onunload(): void {
+		if (this._unmount) {
+			this._unmount();
+			this._unmount = null;
+		}
+		this.containerEl.empty();
+	}
+}
+
+// ============================================================
+// Fields helpers
+// ============================================================
+
+const INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
+
+function isInternalField(key: string): boolean {
+	return INTERNAL_FIELD_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+function isDisplayableValue(val: unknown): boolean {
+	if (val === null || val === undefined) return false;
+	if (typeof val === "string") return val.length > 0;
+	if (typeof val === "number") return true;
+	if (typeof val === "boolean") return true;
+	if (val instanceof Date) return !isNaN(val.getTime());
+	if (Array.isArray(val)) {
+		const first = val[0];
+		return typeof first === "string";
+	}
+	return false;
+}
+
+/** Collect all user-facing sorted column names from entries */
+function collectColumns(entries: PageEntry[], mapping: FieldMapping): string[] {
+	const allKeys = new Set<string>();
+	for (const entry of entries) {
+		for (const key of Object.keys(entry.fields ?? {})) {
+			if (!isInternalField(key)) allKeys.add(key);
+		}
+	}
+	const baseColumns = ["title", "date", ...mapping.tagFields];
+	const extra = Array.from(allKeys).filter(
+		(k) => k !== mapping.titleField && k !== mapping.dateField && !baseColumns.includes(k)
+	);
+	return [...baseColumns, ...extra].filter((c, i, arr) => arr.indexOf(c) === i);
+}
+
+function formatCellValue(entry: PageEntry, column: string): string {
+	switch (column) {
+		case "title":
+			return entry.title;
+		case "date":
+			return entry.date ? formatDate(entry.date) : "";
+		default:
+			const val = entry.fields?.[column];
+			if (val === null || val === undefined) return "";
+			if (isDisplayableValue(val)) {
+				if (Array.isArray(val)) return val.join(", ");
+				if (val instanceof Date) return formatDate(val);
+				return String(val);
+			}
+			return "";
+	}
+}
+
+function formatDate(val: unknown): string {
+	if (val instanceof Date) return val.toLocaleDateString();
+	if (typeof val === "number") return new Date(val).toLocaleDateString();
+	if (typeof val === "string") {
+		const d = new Date(val);
+		if (!isNaN(d.getTime())) return d.toLocaleDateString();
+	}
+	return String(val ?? "");
+}
+
+// ============================================================
+// Root component: SchedulerApp
+// ============================================================
+
+interface SchedulerAppProps {
+	plugin: SchedulerPlugin;
+	initialView?: ViewType;
+}
+
+export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
+	const [viewType, setViewType] = useState<ViewType>(initialView ?? plugin.settings.defaultView);
+	const [sort, setSort] = useState<SortConfig[]>([]);
+	const [filters, setFilters] = useState<FilterCondition[]>([]);
+	const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+
+	const api = getDataviewApi(plugin.app);
+
+	if (!api) {
+		return (
+			<div class="scheduler-dataview-missing">
+				<p>Dataview plugin is not installed or enabled.</p>
+				<p>This plugin requires Dataview for indexing and querying markdown frontmatter.</p>
+			</div>
+		);
+	}
+
+	const engine = new QueryEngine(plugin.app);
+	const entries = engine.fetchPages(plugin.settings.fieldMapping, plugin.settings.folders);
+	const columns = useMemo(() => collectColumns(entries, plugin.settings.fieldMapping), [entries]);
+
+	return (
+		<div class="scheduler-root">
+			<SchedulerViewTabs current={viewType} onChange={setViewType} />
+			<div class="scheduler-view-content">
+				{viewType === "table" && (
+					<TableView
+						entries={entries}
+						columns={columns}
+						mapping={plugin.settings.fieldMapping}
+						sort={sort}
+						onSortChange={setSort}
+						filters={filters}
+						onFiltersChange={setFilters}
+						hiddenCols={hiddenCols}
+						onHiddenColsChange={setHiddenCols}
+					/>
+				)}
+				{viewType === "calendar" && <CalendarPlaceholder />}
+				{viewType === "timeline" && <TimelinePlaceholder />}
+			</div>
+		</div>
+	);
+}
+
+// ============================================================
+// Tab bar
+// ============================================================
+
+function SchedulerViewTabs({ current, onChange }: { current: ViewType; onChange: (v: ViewType) => void }) {
+	const tabs: { type: ViewType; label: string }[] = [
+		{ type: "table", label: "Table" },
+		{ type: "calendar", label: "Calendar" },
+		{ type: "timeline", label: "Timeline" },
+	];
+
+	return (
+		<div class="scheduler-view-tabs">
+			{tabs.map((tab) => (
+				<button
+					class={`scheduler-view-tab${tab.type === current ? " active" : ""}`}
+					onClick={() => onChange(tab.type)}
+				>
+					{tab.label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+// ============================================================
+// Table View
+// ============================================================
+
+interface TableViewProps {
+	entries: PageEntry[];
+	columns: string[];
+	mapping: FieldMapping;
+	sort: SortConfig[];
+	onSortChange: (sort: SortConfig[]) => void;
+	filters: FilterCondition[];
+	onFiltersChange: (filters: FilterCondition[]) => void;
+	hiddenCols: Set<string>;
+	onHiddenColsChange: (cols: Set<string>) => void;
+}
+
+function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange }: TableViewProps) {
+	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
+
+	// Apply filters then sort (both are pure static functions)
+	const filtered = filters.length > 0 ? QueryEngine.applyFilters(entries, filters) : entries;
+	const sorted = sort.length > 0 ? QueryEngine.applySort(filtered, sort) : filtered;
+
+	function handleSort(column: string) {
+		const existing = sort.find((s) => s.field === column);
+		if (!existing) {
+			onSortChange([...sort, { field: column, direction: "asc" }]);
+		} else if (existing.direction === "asc") {
+			onSortChange(sort.map((s) => (s.field === column ? { ...s, direction: "desc" } : s)));
+		} else {
+			onSortChange(sort.filter((s) => s.field !== column));
+		}
+	}
+
+	function getSortIcon(column: string): string {
+		const idx = sort.findIndex((s) => s.field === column);
+		if (idx === -1) return "";
+		const arrow = sort[idx].direction === "asc" ? "\u2191" : "\u2193";
+		const prio = idx + 1;
+		return ` ${arrow}${prio}`;
+	}
+
+	function getSortTitle(column: string): string {
+		const idx = sort.findIndex((s) => s.field === column);
+		if (idx === -1) return `Sort by ${column}`;
+		const dir = sort[idx].direction === "asc" ? "ascending" : "descending";
+		return `Sort #${idx + 1}: ${column} (${dir}) — click to toggle, delete last to remove`;
+	}
+
+	if (entries.length === 0) {
+		return (
+			<div class="scheduler-empty">
+				<p>No entries found. Create markdown files with frontmatter fields to see data here.</p>
+			</div>
+		);
+	}
+
+	return (
+		<div>
+			<FilterBar
+				columns={columns}
+				filters={filters}
+				onFiltersChange={onFiltersChange}
+				hiddenCols={hiddenCols}
+				onHiddenColsChange={onHiddenColsChange}
+				entriesCount={sorted.length}
+				totalCount={entries.length}
+			/>
+			<table class="scheduler-table">
+				<thead>
+					<tr>
+						{visibleCols.map((col) => (
+							<th onClick={() => handleSort(col)} title={getSortTitle(col)}>
+								{col}
+								<span class="scheduler-sort-icon">{getSortIcon(col)}</span>
+							</th>
+						))}
+					</tr>
+				</thead>
+				<tbody>
+					{sorted.map((entry) => (
+						<tr key={entry.path}>
+							{visibleCols.map((col) => (
+								<td>{formatCellValue(entry, col)}</td>
+							))}
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	);
+}
+
+// ============================================================
+// Filter Bar
+// ============================================================
+
+interface FilterBarProps {
+	columns: string[];
+	filters: FilterCondition[];
+	onFiltersChange: (filters: FilterCondition[]) => void;
+	hiddenCols: Set<string>;
+	onHiddenColsChange: (cols: Set<string>) => void;
+	entriesCount: number;
+	totalCount: number;
+}
+
+function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount }: FilterBarProps) {
+	const operators = [
+		{ value: "equals", label: "=" },
+		{ value: "contains", label: "contains" },
+		{ value: "greater_than", label: ">" },
+		{ value: "less_than", label: "<" },
+		{ value: "before", label: "< date" },
+		{ value: "after", label: "> date" },
+	];
+
+	function addFilter() {
+		onFiltersChange([
+			...filters,
+			{ field: columns[0] ?? "title", operator: "contains", value: "" },
+		]);
+	}
+
+	function updateFilter(index: number, patch: Partial<FilterCondition>) {
+		const next = [...filters];
+		next[index] = { ...next[index], ...patch };
+		onFiltersChange(next);
+	}
+
+	function removeFilter(index: number) {
+		onFiltersChange(filters.filter((_, i) => i !== index));
+	}
+
+	function clearFilters() {
+		onFiltersChange([]);
+	}
+
+	function toggleColumn(col: string) {
+		const next = new Set(hiddenCols);
+		if (next.has(col)) {
+			next.delete(col);
+		} else {
+			next.add(col);
+		}
+		onHiddenColsChange(next);
+	}
+
+	// Show column toggle dropdown state
+	const [showColMenu, setShowColMenu] = useState(false);
+
+	return (
+		<div class="scheduler-filter-bar">
+			<div class="scheduler-filter-bar-left">
+				{filters.map((f, i) => (
+					<div class="scheduler-filter-row" key={i}>
+						<select
+							class="scheduler-filter-select"
+							value={f.field}
+							onChange={(e: any) => updateFilter(i, { field: e.target.value })}
+						>
+							{columns.map((c) => (
+								<option value={c}>{c}</option>
+							))}
+						</select>
+						<select
+							class="scheduler-filter-operator"
+							value={f.operator}
+							onChange={(e: any) => updateFilter(i, { operator: e.target.value })}
+						>
+							{operators.map((op) => (
+								<option value={op.value}>{op.label}</option>
+							))}
+						</select>
+						<input
+							class="scheduler-filter-value"
+							type="text"
+							value={f.value}
+							placeholder="value..."
+							onInput={(e: any) => updateFilter(i, { value: e.target.value })}
+						/>
+						<button class="scheduler-filter-remove" onClick={() => removeFilter(i)} title="Remove filter">
+							&times;
+						</button>
+					</div>
+				))}
+				<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
+					+ Filter
+				</button>
+				{filters.length > 0 && (
+					<button class="scheduler-filter-clear" onClick={clearFilters}>
+						Clear
+					</button>
+				)}
+			</div>
+
+			<div class="scheduler-filter-bar-right">
+				<span class="scheduler-filter-count">
+					{entriesCount === totalCount
+						? `${totalCount} entries`
+						: `${entriesCount} / ${totalCount} entries`}
+				</span>
+
+				<div class="scheduler-col-toggle">
+					<button
+						class="scheduler-col-toggle-btn"
+						onClick={() => setShowColMenu(!showColMenu)}
+						title="Toggle columns"
+					>
+						Columns
+					</button>
+					{showColMenu && (
+						<div class="scheduler-col-menu">
+							{columns.map((col) => (
+								<label class="scheduler-col-menu-item">
+									<input
+										type="checkbox"
+										checked={!hiddenCols.has(col)}
+										onChange={() => toggleColumn(col)}
+									/>
+									{col}
+								</label>
+							))}
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ============================================================
+// Placeholders
+// ============================================================
+
+function CalendarPlaceholder() {
+	return (
+		<div class="scheduler-empty">
+			<p>Calendar view - coming in Phase 3</p>
+		</div>
+	);
+}
+
+function TimelinePlaceholder() {
+	return (
+		<div class="scheduler-empty">
+			<p>Timeline view - coming in Phase 4</p>
+		</div>
+	);
+}
+
+// ============================================================
+// Obsidian ItemView
+// ============================================================
+
+export const VIEW_TYPE_SCHEDULER = "obsidian-scheduler-view";
+
+export class SchedulerView extends ItemView {
+	plugin: SchedulerPlugin;
+
+	constructor(leaf: WorkspaceLeaf, plugin: SchedulerPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
+
+	getViewType(): string {
+		return VIEW_TYPE_SCHEDULER;
+	}
+
+	getDisplayText(): string {
+		return "Scheduler";
+	}
+
+	getIcon(): string {
+		return "calendar-clock";
+	}
+
+	async onOpen(): Promise<void> {
+		const container = this.containerEl.children[1];
+		container.empty();
+		container.className = "scheduler-root";
+		render(<SchedulerApp plugin={this.plugin} />, container);
+	}
+
+	async onClose(): Promise<void> {
+		const container = this.containerEl.children[1];
+		if (container) {
+			render(null, container);
+		}
+	}
+}
+
+// ============================================================
+// Codeblock helper
+// ============================================================
+
+export function createCodeblockRenderer(
+	el: HTMLElement,
+	plugin: SchedulerPlugin,
+	initialView?: ViewType
+): ReactRenderer {
+	return new ReactRenderer(el, <SchedulerApp plugin={plugin} initialView={initialView} />);
+}
