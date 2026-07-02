@@ -5,6 +5,7 @@ import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
 import { CalendarView } from "./calendar/calendar-view";
+import { TimelineView } from "./timeline/timeline-view";
 import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
 
 // ============================================================
@@ -162,6 +163,35 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 		);
 	}
 
+	/** Handle time block drag/resize: write new start/end to file frontmatter */
+	function handleTimeChange(path: string, newStart: string, newEnd: string) {
+		const startField = plugin.settings.fieldMapping.startField;
+		const endField = plugin.settings.fieldMapping.endField;
+		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
+		if (!file) return;
+
+		plugin.app.vault.process(file, (data: string) => {
+			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+			const match = data.match(frontmatterRegex);
+			if (!match) {
+				return `---\n${startField}: ${newStart}\n${endField}: ${newEnd}\n---\n\n${data}`;
+			}
+			let fm = match[1];
+
+			const startRegex = new RegExp(`^(${startField}\\s*:\\s*).+`, "m");
+			const endRegex = new RegExp(`^(${endField}\\s*:\\s*).+`, "m");
+
+			fm = fm.replace(startRegex, `$1${newStart}`);
+			fm = fm.replace(endRegex, `$1${newEnd}`);
+
+			// If fields don't exist, append them
+			if (!startRegex.test(fm)) fm += `\n${startField}: ${newStart}`;
+			if (!endRegex.test(fm)) fm += `\n${endField}: ${newEnd}`;
+
+			return data.replace(frontmatterRegex, `---\n${fm}\n---`);
+		});
+	}
+
 	return (
 		<div class="scheduler-root">
 			<SchedulerViewTabs current={viewType} onChange={setViewType} />
@@ -182,7 +212,9 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 				{viewType === "calendar" && (
 					<CalendarView entries={entries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
 				)}
-				{viewType === "timeline" && <TimelinePlaceholder />}
+				{viewType === "timeline" && (
+					<TimelineView entries={entries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
+				)}
 			</div>
 		</div>
 	);
@@ -440,26 +472,6 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 					)}
 				</div>
 			</div>
-		</div>
-	);
-}
-
-// ============================================================
-// Placeholders
-// ============================================================
-
-function CalendarPlaceholder() {
-	return (
-		<div class="scheduler-empty">
-			<p>Calendar view - coming in Phase 3</p>
-		</div>
-	);
-}
-
-function TimelinePlaceholder() {
-	return (
-		<div class="scheduler-empty">
-			<p>Timeline view - coming in Phase 4</p>
 		</div>
 	);
 }
