@@ -51,6 +51,26 @@ status: 进行中
 - `start` / `end` → 时间表视图中的时间块
 - 所有其他 frontmatter 字段均可用于筛选和排序
 
+### Inline Fields（行内字段）
+
+在 Markdown 正文中，可以使用 `[key:: value]` 标记任务级别的字段：
+
+```markdown
+---
+title: 本周任务
+due: 2026-07-15
+---
+
+- [ ] 重构前端 [priority:: 高] [effort:: 8h]
+- [ ] Code Review [priority:: 中] [effort:: 2h]
+```
+
+每个带 inline field 的行会被提取为独立记录，并**继承所在页面的 frontmatter**。例如上面会生成 3 条记录（1 条页面级 + 2 条任务级）。
+
+任务级记录可以通过 `priority`、`effort` 等字段筛选和排序，也可以在日历和时间表中显示（如果继承了 `due` 字段）。
+
+**设置**：Settings → Scheduler → "Extract tasks from inline fields"（默认开启）
+
 ---
 
 ## 4. 使用方式
