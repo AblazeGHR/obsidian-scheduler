@@ -4,6 +4,7 @@ import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
 import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
+import { CalendarView } from "./calendar/calendar-view";
 import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
 
 // ============================================================
@@ -133,6 +134,34 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 	const entries = engine.fetchPages(plugin.settings.fieldMapping, plugin.settings.folders);
 	const columns = useMemo(() => collectColumns(entries, plugin.settings.fieldMapping), [entries]);
 
+	/** Handle drag-drop date change: write new date to file frontmatter */
+	function handleDateChange(path: string, newDateStr: string) {
+		const dateField = plugin.settings.fieldMapping.dateField;
+		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
+		if (!file) return;
+		plugin.app.vault.process(file,
+			(data: string) => {
+				// Match the YAML frontmatter block
+				const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+				const match = data.match(frontmatterRegex);
+				if (!match) {
+					// No frontmatter — prepend one
+					return `---\n${dateField}: ${newDateStr}\n---\n\n${data}`;
+				}
+				const fm = match[1];
+				const dateRegex = new RegExp(`^(${dateField}\\s*:\\s*).+`, "m");
+				if (dateRegex.test(fm)) {
+					const newFm = fm.replace(dateRegex, `$1${newDateStr}`);
+					return data.replace(frontmatterRegex, `---\n${newFm}\n---`);
+				} else {
+					// Field doesn't exist — append it
+					const newFm = fm + `\n${dateField}: ${newDateStr}`;
+					return data.replace(frontmatterRegex, `---\n${newFm}\n---`);
+				}
+			}
+		);
+	}
+
 	return (
 		<div class="scheduler-root">
 			<SchedulerViewTabs current={viewType} onChange={setViewType} />
@@ -150,7 +179,9 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 						onHiddenColsChange={setHiddenCols}
 					/>
 				)}
-				{viewType === "calendar" && <CalendarPlaceholder />}
+				{viewType === "calendar" && (
+					<CalendarView entries={entries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
+				)}
 				{viewType === "timeline" && <TimelinePlaceholder />}
 			</div>
 		</div>
