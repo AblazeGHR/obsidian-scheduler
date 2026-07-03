@@ -1,4 +1,4 @@
-import { h, render } from "preact";
+import { h, render, Component } from "preact";
 import { useState, useMemo, useEffect } from "preact/hooks";
 import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
 import type SchedulerPlugin from "../main";
@@ -7,6 +7,37 @@ import { QueryEngine } from "../query/query-engine";
 import { CalendarView } from "./calendar/calendar-view";
 import { TimelineView } from "./timeline/timeline-view";
 import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
+
+// ============================================================
+// Error Boundary — catches render errors and shows them
+// ============================================================
+
+interface ErrorBoundaryState {
+	error: Error | null;
+}
+
+class ErrorBoundary extends Component<{ children: any }, ErrorBoundaryState> {
+	state: ErrorBoundaryState = { error: null };
+
+	static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+		return { error };
+	}
+
+	componentDidCatch(error: Error) {
+		console.error("[scheduler] View render error:", error);
+	}
+
+	render() {
+		if (this.state.error) {
+			return (
+				<div class="scheduler-empty">
+					<p style="color: var(--text-error)">Render error: {this.state.error.message}</p>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}
 
 // ============================================================
 // ReactRenderer bridge
@@ -210,6 +241,30 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 		});
 	}
 
+	/** Handle table cell edit: write new value to frontmatter field */
+	function handleCellEdit(path: string, field: string, newValue: string) {
+		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
+		if (!file) return;
+
+		plugin.app.vault.process(file, (data: string) => {
+			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+			const match = data.match(frontmatterRegex);
+			if (!match) {
+				return `---\n${field}: ${newValue}\n---\n\n${data}`;
+			}
+			let fm = match[1];
+
+			const fieldRegex = new RegExp(`^(${field}\\s*:\\s*).+`, "m");
+			if (fieldRegex.test(fm)) {
+				fm = fm.replace(fieldRegex, `$1${newValue}`);
+			} else {
+				fm += `\n${field}: ${newValue}`;
+			}
+
+			return data.replace(frontmatterRegex, `---\n${fm}\n---`);
+		});
+	}
+
 	return (
 		<div class="scheduler-root">
 			<SchedulerViewTabs current={viewType} onChange={setViewType} />
@@ -225,13 +280,18 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 						onFiltersChange={setFilters}
 						hiddenCols={hiddenCols}
 						onHiddenColsChange={setHiddenCols}
+						onCellEdit={handleCellEdit}
 					/>
 				)}
 				{viewType === "calendar" && (
-					<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
+					<ErrorBoundary>
+						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
+					</ErrorBoundary>
 				)}
 				{viewType === "timeline" && (
-					<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
+					<ErrorBoundary>
+						<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
+					</ErrorBoundary>
 				)}
 			</div>
 		</div>
@@ -277,9 +337,10 @@ interface TableViewProps {
 	onFiltersChange: (filters: FilterCondition[]) => void;
 	hiddenCols: Set<string>;
 	onHiddenColsChange: (cols: Set<string>) => void;
+	onCellEdit?: (path: string, field: string, value: string) => void;
 }
 
-function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange }: TableViewProps) {
+function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange, onCellEdit }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
 	// Apply filters then sort (both are pure static functions)
@@ -346,13 +407,94 @@ function TableView({ entries, columns, mapping, sort, onSortChange, filters, onF
 					{sorted.map((entry) => (
 						<tr key={entry.path}>
 							{visibleCols.map((col) => (
-								<td>{formatCellValue(entry, col)}</td>
+								<td>
+									{col === "title" ? (
+										<span
+											class="scheduler-table-title"
+											onClick={() => {
+												const app = (globalThis as any).app;
+												if (app) app.workspace.openLinkText(entry.path, "", false);
+											}}
+											title="Click to open file"
+										>
+											{formatCellValue(entry, col)}
+										</span>
+									) : onCellEdit ? (
+										<EditableCell
+											value={formatCellValue(entry, col)}
+											onCommit={(newVal) => onCellEdit(entry.path, col, newVal)}
+										/>
+									) : (
+										formatCellValue(entry, col)
+									)}
+								</td>
 							))}
 						</tr>
 					))}
 				</tbody>
 			</table>
 		</div>
+	);
+}
+
+// ============================================================
+// Editable Cell — double-click to edit, Enter/blur to commit
+// ============================================================
+
+interface EditableCellProps {
+	value: string;
+	onCommit: (newValue: string) => void;
+}
+
+function EditableCell({ value, onCommit }: EditableCellProps) {
+	const [editing, setEditing] = useState(false);
+	const [draft, setDraft] = useState(value);
+
+	function handleDoubleClick() {
+		setEditing(true);
+		setDraft(value);
+	}
+
+	function commit() {
+		setEditing(false);
+		const trimmed = draft.trim();
+		if (trimmed !== value) {
+			onCommit(trimmed);
+		}
+	}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			commit();
+		} else if (e.key === "Escape") {
+			setEditing(false);
+			setDraft(value);
+		}
+	}
+
+	if (!editing) {
+		return (
+			<span
+				class="scheduler-cell-display"
+				onDblClick={handleDoubleClick}
+				title="Double-click to edit"
+			>
+				{value || "\u00A0"}
+			</span>
+		);
+	}
+
+	return (
+		<input
+			class="scheduler-cell-input"
+			type="text"
+			value={draft}
+			onInput={(e: any) => setDraft(e.target.value)}
+			onBlur={commit}
+			onKeyDown={handleKeyDown}
+			autoFocus
+		/>
 	);
 }
 

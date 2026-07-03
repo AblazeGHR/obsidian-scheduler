@@ -88,6 +88,40 @@
     background-color: var(--background-modifier-hover);
 }
 
+.scheduler-table-title {
+    color: var(--link-color);
+    cursor: pointer;
+}
+
+.scheduler-table-title:hover {
+    text-decoration: underline;
+}
+
+.scheduler-cell-display {
+    display: inline-block;
+    width: 100%;
+    min-height: 18px;
+    cursor: text;
+    padding: 1px 0;
+}
+
+.scheduler-cell-input {
+    width: 100%;
+    padding: 2px 4px;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 2px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: inherit;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.scheduler-cell-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent-hover);
+}
+
 .scheduler-config-missing {
     display: flex;
     align-items: center;

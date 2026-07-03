@@ -1,9 +1,16 @@
 import { h } from "preact";
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 
 const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+/** Compare two dates by year-month-day (local time, avoids timezone offset) */
+function sameDay(a: Date, b: Date): boolean {
+	return a.getFullYear() === b.getFullYear()
+		&& a.getMonth() === b.getMonth()
+		&& a.getDate() === b.getDate();
+}
 
 interface TimelineViewProps {
 	entries: PageEntry[];
@@ -89,10 +96,13 @@ export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewPro
 
 	const { allDay, timed } = splitEntries(entries);
 
-	// Build time blocks for today's date
-	const dateStr = selectedDate.toISOString().slice(0, 10);
+	// Build time blocks for selected date
+	const dayAllDay = allDay.filter((e) => {
+		return e.date && sameDay(e.date, selectedDate);
+	});
+
 	const dayTimed = timed.filter((e) => {
-		return e.date && e.date.toISOString().slice(0, 10) === dateStr;
+		return e.date && sameDay(e.date, selectedDate);
 	});
 
 	const blocks = dayTimed.map((e) => {
@@ -107,7 +117,7 @@ export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewPro
 	const now = new Date();
 	const nowMinutes = now.getHours() * 60 + now.getMinutes();
 	const nowTop = (nowMinutes / 60) * HOUR_HEIGHT;
-	const isToday = dateStr === now.toISOString().slice(0, 10);
+	const isToday = sameDay(selectedDate, now);
 
 	function prevDay() {
 		const d = new Date(selectedDate);
@@ -131,34 +141,39 @@ export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewPro
 		setDragging({ path, type, startY: e.clientY, originalStart: new Date(start), originalEnd: new Date(end) });
 	}
 
-	function handleMouseMove(e: MouseEvent) {
-		if (!dragging || !onTimeChange) return;
-		const deltaY = e.clientY - dragging.startY;
-		const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60 / 15) * 15; // snap to 15min
+	// Register document-level drag listeners (properly cleaned up)
+	useEffect(() => {
+		if (!dragging) return;
 
-		if (dragging.type === "move") {
-			const newStart = new Date(dragging.originalStart.getTime() + deltaMinutes * 60000);
-			const duration = dragging.originalEnd.getTime() - dragging.originalStart.getTime();
-			const newEnd = new Date(newStart.getTime() + duration);
-			onTimeChange(dragging.path, newStart.toISOString(), newEnd.toISOString());
-		} else {
-			const newEnd = new Date(dragging.originalEnd.getTime() + deltaMinutes * 60000);
-			if (newEnd.getTime() > dragging.originalStart.getTime() + 60000) {
-				onTimeChange(dragging.path, dragging.originalStart.toISOString(), newEnd.toISOString());
+		function onMouseUp() {
+			setDragging(null);
+		}
+
+		function onMouseMove(e: MouseEvent) {
+			if (!dragging) return;
+			const deltaY = e.clientY - dragging.startY;
+			const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60 / 15) * 15;
+
+			if (dragging.type === "move") {
+				const newStart = new Date(dragging.originalStart.getTime() + deltaMinutes * 60000);
+				const duration = dragging.originalEnd.getTime() - dragging.originalStart.getTime();
+				const newEnd = new Date(newStart.getTime() + duration);
+				onTimeChange?.(dragging.path, newStart.toISOString(), newEnd.toISOString());
+			} else {
+				const newEnd = new Date(dragging.originalEnd.getTime() + deltaMinutes * 60000);
+				if (newEnd.getTime() > dragging.originalStart.getTime() + 60000) {
+					onTimeChange?.(dragging.path, dragging.originalStart.toISOString(), newEnd.toISOString());
+				}
 			}
 		}
-	}
 
-	function handleMouseUp() {
-		setDragging(null);
-	}
-
-	// Track dragging state
-	if (dragging) {
-		// We use document-level handlers for smooth drag
-		document.addEventListener("mouseup", handleMouseUp, { once: true });
-		document.addEventListener("mousemove", handleMouseMove as any);
-	}
+		document.addEventListener("mouseup", onMouseUp);
+		document.addEventListener("mousemove", onMouseMove);
+		return () => {
+			document.removeEventListener("mouseup", onMouseUp);
+			document.removeEventListener("mousemove", onMouseMove);
+		};
+	}, [dragging, onTimeChange]);
 
 	const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -175,11 +190,11 @@ export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewPro
 			</div>
 
 			{/* All-day entries section */}
-			{allDay.length > 0 && (
+			{dayAllDay.length > 0 && (
 				<div class="scheduler-timeline-allday">
 					<div class="scheduler-timeline-allday-label">All day</div>
 					<div class="scheduler-timeline-allday-events">
-						{allDay.map((e) => (
+						{dayAllDay.map((e) => (
 							<div
 								class="scheduler-timeline-allday-event"
 								onClick={() => {
