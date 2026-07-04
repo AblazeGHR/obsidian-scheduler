@@ -162,7 +162,20 @@ view: calendar
 
 ---
 
-## 8. 常见问题
+## 8. 创建新条目
+
+所有三个视图的顶部都有 **+ New** 按钮。点击后输入标题，自动创建一个 MD 文件，其 frontmatter **继承当前激活的筛选条件**：
+
+| 筛选条件 | 新文件 frontmatter |
+|---------|------------------|
+| `status = 进行中` | `status: 进行中` |
+| `priority > 中` | `priority: 高`（边界值） |
+| `due > date 2026-07-01` | `due: <当天日期>` |
+| `tags contains work` | `tags: work` |
+
+文件会创建在 Settings 中配置的第一个文件夹下（无配置则在 vault 根目录）。
+
+## 9. 常见问题
 
 **Q: 代码块没有任何显示？**
 A: 确保 Dataview 插件已安装并启用。Ctrl+R 重新加载 Obsidian。

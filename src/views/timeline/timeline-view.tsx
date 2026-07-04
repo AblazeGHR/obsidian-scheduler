@@ -16,6 +16,7 @@ interface TimelineViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
 	onTimeChange?: (path: string, newStart: string, newEnd: string) => void;
+	onCreateEntry?: () => void;
 }
 
 /** Format a Date to HH:MM */
@@ -90,7 +91,7 @@ function layoutOverlaps(blocks: Array<{ id: string; top: number; height: number;
 	return result;
 }
 
-export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewProps) {
+export function TimelineView({ entries, mapping, onTimeChange, onCreateEntry }: TimelineViewProps) {
 	const [selectedDate, setSelectedDate] = useState(() => new Date());
 	const [dragging, setDragging] = useState<{ path: string; type: "move" | "resize"; startY: number; originalStart: Date; originalEnd: Date } | null>(null);
 
@@ -187,6 +188,9 @@ export function TimelineView({ entries, mapping, onTimeChange }: TimelineViewPro
 				</div>
 				<button class="scheduler-timeline-nav" onClick={nextDay}>&rsaquo;</button>
 				<button class="scheduler-timeline-today" onClick={goToToday}>Today</button>
+				{onCreateEntry && (
+					<button class="scheduler-timeline-new" onClick={onCreateEntry} title="New entry with current filters">+ New</button>
+				)}
 			</div>
 
 			{/* All-day entries section */}

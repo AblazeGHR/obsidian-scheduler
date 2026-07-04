@@ -6,6 +6,7 @@ interface CalendarViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
 	onDateChange?: (path: string, newDate: string) => void;
+	onCreateEntry?: () => void;
 }
 
 /** Weekday header labels */
@@ -41,7 +42,7 @@ function firstWeekday(year: number, month: number): number {
 	return new Date(year, month, 1).getDay();
 }
 
-export function CalendarView({ entries, mapping, onDateChange }: CalendarViewProps) {
+export function CalendarView({ entries, mapping, onDateChange, onCreateEntry }: CalendarViewProps) {
 	const [viewDate, setViewDate] = useState(() => {
 		const now = new Date();
 		return { year: now.getFullYear(), month: now.getMonth() };
@@ -108,6 +109,9 @@ export function CalendarView({ entries, mapping, onDateChange }: CalendarViewPro
 				</div>
 				<button class="scheduler-calendar-nav" onClick={nextMonth} title="Next month">&rsaquo;</button>
 				<button class="scheduler-calendar-today" onClick={today}>Today</button>
+				{onCreateEntry && (
+					<button class="scheduler-calendar-new" onClick={onCreateEntry} title="New entry with current filters">+ New</button>
+				)}
 			</div>
 
 			{/* Weekday headers */}

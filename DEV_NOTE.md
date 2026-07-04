@@ -84,6 +84,34 @@
 
 ---
 
+## 设计原则
+
+### 视图中新增文件自动继承筛选条件
+
+在任意视图（Table / Calendar / Timeline）中创建新 MD 文件时，新文件的前置元数据必须自动包含当前激活的全部筛选条件，确保文件能在当前视图中显示。
+
+**规则：**
+
+1. **精确匹配条件**（`equals`）→ 直接写入对应字段值。
+   - 示例：筛选 `status = 进行中` → 新文件 frontmatter 包含 `status: 进行中`
+
+2. **包含条件**（`contains`）→ 写入该值的第一个单词或整体作为标签。
+   - 示例：筛选 `tags contains work` → 新文件 frontmatter 包含 `tags: [work]`
+
+3. **比较条件**（`greater_than` / `less_than`）→ 写入一个边界值，确保满足筛选。
+   - 示例：筛选 `priority > 中` → 新文件 frontmatter 包含 `priority: 高`（字母序 > "中"）
+   - 优先级映射："低" < "中" < "高" < "紧急"
+
+4. **日期比较条件**（`before` / `after`）→ 以当天日期为边界填充。
+   - 示例：筛选 `due > date 2026-07-01` → 新文件 frontmatter 包含 `due: <当天日期>`
+
+5. **Date Field 自动填充** → 始终包含当前视图的日期上下文。
+   - Table 视图：用当前日期
+   - Calendar 视图：用当前选中的日期格
+   - Timeline 视图：用当前选中日
+
+---
+
 ## 未完成功能
 
 ### 优先级高

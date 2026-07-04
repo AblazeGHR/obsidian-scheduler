@@ -7,6 +7,8 @@ import { QueryEngine } from "../query/query-engine";
 import { CalendarView } from "./calendar/calendar-view";
 import { TimelineView } from "./timeline/timeline-view";
 import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
+import { filtersToFrontmatter, buildFrontmatterString, sanitizeFilename } from "../utils/new-file-builder";
+import { NewEntryModal } from "../utils/new-entry-modal";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -265,6 +267,47 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 		});
 	}
 
+	/** Create a new MD file with frontmatter inherited from current filters */
+	function handleCreateEntry(dateStr?: string) {
+		const today = new Date().toISOString().slice(0, 10);
+		const baseDate = dateStr ?? today;
+
+		// Convert filters to frontmatter
+		const fmFields = filtersToFrontmatter(filters, baseDate);
+
+		// Ensure dateField is set
+		const dateField = plugin.settings.fieldMapping.dateField;
+		if (!(dateField in fmFields)) {
+			fmFields[dateField] = baseDate;
+		}
+
+		new NewEntryModal(plugin.app, (title) => {
+			const filename = sanitizeFilename(title);
+			const fm = buildFrontmatterString(
+				fmFields,
+				plugin.settings.fieldMapping.titleField,
+				dateField,
+				fmFields[dateField] as string
+			);
+			// Insert title into frontmatter
+			const titleLine = `${plugin.settings.fieldMapping.titleField}: ${title}`;
+			const finalFm = fm.replace("---\n", `---\n${titleLine}\n`);
+
+			// Determine folder
+			const folders = plugin.settings.folders;
+			const folder = folders.length > 0 ? folders[0] : "";
+			const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+
+			plugin.app.vault.create(filePath, finalFm).catch(() => {
+				// If file exists, append a number
+				plugin.app.vault.create(
+					folder ? `${folder}/${filename} 1.md` : `${filename} 1.md`,
+					finalFm
+				);
+			});
+		}).open();
+	}
+
 	return (
 		<div class="scheduler-root">
 			<SchedulerViewTabs current={viewType} onChange={setViewType} />
@@ -281,16 +324,17 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 						hiddenCols={hiddenCols}
 						onHiddenColsChange={setHiddenCols}
 						onCellEdit={handleCellEdit}
+						onCreateEntry={() => handleCreateEntry()}
 					/>
 				)}
 				{viewType === "calendar" && (
 					<ErrorBoundary>
-						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} />
+						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onCreateEntry={() => handleCreateEntry()} />
 					</ErrorBoundary>
 				)}
 				{viewType === "timeline" && (
 					<ErrorBoundary>
-						<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} />
+						<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onCreateEntry={() => handleCreateEntry()} />
 					</ErrorBoundary>
 				)}
 			</div>
@@ -338,9 +382,10 @@ interface TableViewProps {
 	hiddenCols: Set<string>;
 	onHiddenColsChange: (cols: Set<string>) => void;
 	onCellEdit?: (path: string, field: string, value: string) => void;
+	onCreateEntry?: () => void;
 }
 
-function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange, onCellEdit }: TableViewProps) {
+function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange, onCellEdit, onCreateEntry }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
 	// Apply filters then sort (both are pure static functions)
@@ -391,6 +436,7 @@ function TableView({ entries, columns, mapping, sort, onSortChange, filters, onF
 				onHiddenColsChange={onHiddenColsChange}
 				entriesCount={sorted.length}
 				totalCount={entries.length}
+				onCreateEntry={onCreateEntry}
 			/>
 			<table class="scheduler-table">
 				<thead>
@@ -407,94 +453,37 @@ function TableView({ entries, columns, mapping, sort, onSortChange, filters, onF
 					{sorted.map((entry) => (
 						<tr key={entry.path}>
 							{visibleCols.map((col) => (
-								<td>
-									{col === "title" ? (
-										<span
-											class="scheduler-table-title"
-											onClick={() => {
-												const app = (globalThis as any).app;
-												if (app) app.workspace.openLinkText(entry.path, "", false);
-											}}
-											title="Click to open file"
-										>
-											{formatCellValue(entry, col)}
-										</span>
-									) : onCellEdit ? (
-										<EditableCell
-											value={formatCellValue(entry, col)}
-											onCommit={(newVal) => onCellEdit(entry.path, col, newVal)}
-										/>
-									) : (
-										formatCellValue(entry, col)
-									)}
-								</td>
+								col === "title" ? (
+									<td
+										class="scheduler-cell-title"
+										onClick={() => {
+											const app = (globalThis as any).app;
+											if (app) app.workspace.openLinkText(entry.path, "", false);
+										}}
+									>
+										{formatCellValue(entry, col)}
+									</td>
+								) : (
+									<td
+										contentEditable={true}
+										class="scheduler-cell-editable"
+										onBlur={(e) => {
+											const text = (e.target as HTMLElement).textContent?.trim() ?? "";
+											const prev = formatCellValue(entry, col);
+											if (text !== prev) {
+												onCellEdit?.(entry.path, col, text);
+											}
+										}}
+									>
+										{formatCellValue(entry, col)}
+									</td>
+								)
 							))}
 						</tr>
 					))}
 				</tbody>
 			</table>
 		</div>
-	);
-}
-
-// ============================================================
-// Editable Cell — double-click to edit, Enter/blur to commit
-// ============================================================
-
-interface EditableCellProps {
-	value: string;
-	onCommit: (newValue: string) => void;
-}
-
-function EditableCell({ value, onCommit }: EditableCellProps) {
-	const [editing, setEditing] = useState(false);
-	const [draft, setDraft] = useState(value);
-
-	function handleDoubleClick() {
-		setEditing(true);
-		setDraft(value);
-	}
-
-	function commit() {
-		setEditing(false);
-		const trimmed = draft.trim();
-		if (trimmed !== value) {
-			onCommit(trimmed);
-		}
-	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			commit();
-		} else if (e.key === "Escape") {
-			setEditing(false);
-			setDraft(value);
-		}
-	}
-
-	if (!editing) {
-		return (
-			<span
-				class="scheduler-cell-display"
-				onDblClick={handleDoubleClick}
-				title="Double-click to edit"
-			>
-				{value || "\u00A0"}
-			</span>
-		);
-	}
-
-	return (
-		<input
-			class="scheduler-cell-input"
-			type="text"
-			value={draft}
-			onInput={(e: any) => setDraft(e.target.value)}
-			onBlur={commit}
-			onKeyDown={handleKeyDown}
-			autoFocus
-		/>
 	);
 }
 
@@ -510,9 +499,10 @@ interface FilterBarProps {
 	onHiddenColsChange: (cols: Set<string>) => void;
 	entriesCount: number;
 	totalCount: number;
+	onCreateEntry?: () => void;
 }
 
-function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount }: FilterBarProps) {
+function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, onCreateEntry }: FilterBarProps) {
 	const operators = [
 		{ value: "equals", label: "=" },
 		{ value: "contains", label: "contains" },
@@ -602,6 +592,11 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 			</div>
 
 			<div class="scheduler-filter-bar-right">
+				{onCreateEntry && (
+					<button class="scheduler-filter-new" onClick={onCreateEntry} title="New entry with current filters">
+						+ New
+					</button>
+				)}
 				<span class="scheduler-filter-count">
 					{entriesCount === totalCount
 						? `${totalCount} entries`

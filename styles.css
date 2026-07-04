@@ -88,38 +88,17 @@
     background-color: var(--background-modifier-hover);
 }
 
-.scheduler-table-title {
+.scheduler-cell-title {
     color: var(--link-color);
     cursor: pointer;
 }
 
-.scheduler-table-title:hover {
+.scheduler-cell-title:hover {
     text-decoration: underline;
 }
 
-.scheduler-cell-display {
-    display: inline-block;
-    width: 100%;
-    min-height: 18px;
-    cursor: text;
-    padding: 1px 0;
-}
-
-.scheduler-cell-input {
-    width: 100%;
-    padding: 2px 4px;
-    border: 1px solid var(--interactive-accent);
-    border-radius: 2px;
-    background: var(--background-primary);
-    color: var(--text-normal);
-    font-size: inherit;
-    font-family: inherit;
-    box-sizing: border-box;
-}
-
-.scheduler-cell-input:focus {
+.scheduler-cell-editable {
     outline: none;
-    border-color: var(--interactive-accent-hover);
 }
 
 .scheduler-config-missing {
@@ -243,6 +222,24 @@
     font-size: 12px;
     color: var(--text-muted);
     white-space: nowrap;
+}
+
+.scheduler-filter-new,
+.scheduler-calendar-new,
+.scheduler-timeline-new {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 3px;
+    padding: 2px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.scheduler-filter-new:hover,
+.scheduler-calendar-new:hover,
+.scheduler-timeline-new:hover {
+    opacity: 0.85;
 }
 
 /* Column toggle dropdown */
