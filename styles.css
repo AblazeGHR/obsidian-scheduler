@@ -402,6 +402,7 @@
 }
 
 .scheduler-calendar-cell {
+    position: relative;
     border-right: 1px solid var(--background-modifier-border);
     border-bottom: 1px solid var(--background-modifier-border);
     padding: 3px;
@@ -471,6 +472,33 @@
     color: var(--text-muted);
     padding: 1px 3px;
     cursor: default;
+}
+
+.scheduler-calendar-cell-add {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: var(--background-modifier-hover);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 16px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.scheduler-calendar-cell:hover .scheduler-calendar-cell-add {
+    opacity: 1;
+}
+
+.scheduler-calendar-cell-add:hover {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
 }
 
 /* ============================================================

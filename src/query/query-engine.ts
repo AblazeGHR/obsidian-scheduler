@@ -110,26 +110,49 @@ export function getFieldValue(entry: PageEntry, field: string): unknown {
 function compareValues(a: unknown, b: unknown): number {
 	if (a === null || a === undefined) return b === null || b === undefined ? 0 : -1;
 	if (b === null || b === undefined) return 1;
-	if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
+	if (a instanceof Date && b instanceof Date) return dateCompare(a, b);
 	return String(a).localeCompare(String(b));
 }
 
+/** Compare two dates by year-month-day (local time), ignoring time portion */
+function dateCompare(a: Date, b: Date): number {
+	const y = a.getFullYear() - b.getFullYear();
+	if (y !== 0) return y;
+	const m = a.getMonth() - b.getMonth();
+	if (m !== 0) return m;
+	return a.getDate() - b.getDate();
+}
+
 function evaluateFilter(val: unknown, filter: FilterCondition): boolean {
-	const valStr = val instanceof Date ? val.toISOString() : String(val ?? "");
 	const fv = filter.value;
 
+	// For Date values, compare by local date components
+	if (val instanceof Date) {
+		const filterDate = new Date(fv);
+		const d = val;
+
+		switch (filter.operator) {
+			case "equals": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) === 0;
+			case "not_equals": return isNaN(filterDate.getTime()) ? true : dateCompare(d, filterDate) !== 0;
+			case "greater_than":
+			case "after": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) > 0;
+			case "less_than":
+			case "before": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) < 0;
+			case "contains": return d.toLocaleDateString().toLowerCase().includes(fv.toLowerCase());
+			default: return true;
+		}
+	}
+
+	// String comparison for non-date values
+	const valStr = String(val ?? "");
 	switch (filter.operator) {
 		case "equals": return valStr.toLowerCase() === fv.toLowerCase();
 		case "not_equals": return valStr.toLowerCase() !== fv.toLowerCase();
 		case "contains": return valStr.toLowerCase().includes(fv.toLowerCase());
 		case "greater_than": return valStr > fv;
 		case "less_than": return valStr < fv;
-		case "before":
-			if (val instanceof Date) return val.getTime() < new Date(fv).getTime();
-			return valStr < fv;
-		case "after":
-			if (val instanceof Date) return val.getTime() > new Date(fv).getTime();
-			return valStr > fv;
+		case "before": return valStr < fv;
+		case "after": return valStr > fv;
 		default: return true;
 	}
 }

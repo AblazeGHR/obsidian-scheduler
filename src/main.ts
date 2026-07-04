@@ -105,8 +105,9 @@ export default class SchedulerPlugin extends Plugin {
 			// Parse block parameters (key: value pairs, one per line)
 			const params = this.parseBlockParams(source);
 			const initialView = (params["view"] as ViewType) ?? opts.initialView ?? this.settings.defaultView;
+			const newFileFolder = params["folder"];
 
-			const root = createCodeblockRenderer(el, this, initialView);
+			const root = createCodeblockRenderer(el, this, initialView, newFileFolder);
 			ctx.addChild(root);
 		};
 	}

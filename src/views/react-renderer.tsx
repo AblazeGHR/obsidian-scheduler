@@ -145,9 +145,11 @@ function formatDate(val: unknown): string {
 interface SchedulerAppProps {
 	plugin: SchedulerPlugin;
 	initialView?: ViewType;
+	/** Override folder for new file creation (from codeblock param) */
+	newFileFolder?: string;
 }
 
-export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
+export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAppProps) {
 	const [viewType, setViewType] = useState<ViewType>(initialView ?? plugin.settings.defaultView);
 	const [sort, setSort] = useState<SortConfig[]>([]);
 	const [filters, setFilters] = useState<FilterCondition[]>([]);
@@ -278,10 +280,9 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 		// Convert filters to frontmatter
 		const fmFields = filtersToFrontmatter(filters, baseDate);
 
-		// Only auto-fill dateField when there are active filters
+		// Set dateField: always when a specific date is provided, or when filters include it
 		const dateField = plugin.settings.fieldMapping.dateField;
-		const hasDateFilters = filters.some((f) => f.field === dateField);
-		if (filters.length > 0 && hasDateFilters && !(dateField in fmFields)) {
+		if (dateStr || (filters.length > 0 && filters.some((f) => f.field === dateField))) {
 			fmFields[dateField] = baseDate;
 		}
 
@@ -297,9 +298,8 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 			const titleLine = `${plugin.settings.fieldMapping.titleField}: ${title}`;
 			const finalFm = fm.replace("---\n", `---\n${titleLine}\n`);
 
-			// Determine folder
-			const folders = plugin.settings.folders;
-			const folder = folders.length > 0 ? folders[0] : "";
+			// Determine folder: codeblock param > settings folders > vault root
+			const folder = newFileFolder ?? (plugin.settings.folders.length > 0 ? plugin.settings.folders[0] : "");
 			const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
 
 			plugin.app.vault.create(filePath, finalFm)
@@ -334,7 +334,7 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 				)}
 				{viewType === "calendar" && (
 					<ErrorBoundary>
-						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onCreateEntry={() => handleCreateEntry()} />
+						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} />
 					</ErrorBoundary>
 				)}
 				{viewType === "timeline" && (
@@ -693,7 +693,8 @@ export class SchedulerView extends ItemView {
 export function createCodeblockRenderer(
 	el: HTMLElement,
 	plugin: SchedulerPlugin,
-	initialView?: ViewType
+	initialView?: ViewType,
+	newFileFolder?: string
 ): ReactRenderer {
-	return new ReactRenderer(el, <SchedulerApp plugin={plugin} initialView={initialView} />);
+	return new ReactRenderer(el, <SchedulerApp plugin={plugin} initialView={initialView} newFileFolder={newFileFolder} />);
 }

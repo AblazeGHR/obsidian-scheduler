@@ -6,7 +6,7 @@ interface CalendarViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
 	onDateChange?: (path: string, newDate: string) => void;
-	onCreateEntry?: () => void;
+	onCreateEntry?: (dateStr?: string) => void;
 }
 
 /** Weekday header labels */
@@ -110,7 +110,7 @@ export function CalendarView({ entries, mapping, onDateChange, onCreateEntry }: 
 				<button class="scheduler-calendar-nav" onClick={nextMonth} title="Next month">&rsaquo;</button>
 				<button class="scheduler-calendar-today" onClick={today}>Today</button>
 				{onCreateEntry && (
-					<button class="scheduler-calendar-new" onClick={onCreateEntry} title="New entry with current filters">+ New</button>
+					<button class="scheduler-calendar-new" onClick={() => onCreateEntry()} title="New entry with current filters">+ New</button>
 				)}
 			</div>
 
@@ -141,6 +141,7 @@ export function CalendarView({ entries, mapping, onDateChange, onCreateEntry }: 
 									entries={dayEntries}
 									todayClass={todayClass}
 									onDateChange={onDateChange}
+									onCreateEntry={onCreateEntry}
 								/>
 							);
 						})}
@@ -163,9 +164,10 @@ interface CalendarCellProps {
 	entries: PageEntry[];
 	todayClass: string;
 	onDateChange?: (path: string, newDate: string) => void;
+	onCreateEntry?: (dateStr?: string) => void;
 }
 
-function CalendarCell({ day, dateStr, entries, todayClass, onDateChange }: CalendarCellProps) {
+function CalendarCell({ day, dateStr, entries, todayClass, onDateChange, onCreateEntry }: CalendarCellProps) {
 	const visible = entries.slice(0, MAX_VISIBLE_EVENTS);
 	const overflow = entries.length - MAX_VISIBLE_EVENTS;
 
@@ -219,6 +221,15 @@ function CalendarCell({ day, dateStr, entries, todayClass, onDateChange }: Calen
 					</div>
 				)}
 			</div>
+			{onCreateEntry && (
+				<button
+					class="scheduler-calendar-cell-add"
+					onClick={(e) => { e.stopPropagation(); onCreateEntry(dateStr); }}
+					title={`New entry on ${dateStr}`}
+				>
+					+
+				</button>
+			)}
 		</div>
 	);
 }
