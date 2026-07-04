@@ -88,6 +88,19 @@
     background-color: var(--background-modifier-hover);
 }
 
+.scheduler-table-add-row td {
+    text-align: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px;
+    font-style: italic;
+}
+
+.scheduler-table-add-row td:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+}
+
 .scheduler-cell-title {
     color: var(--link-color);
     cursor: pointer;

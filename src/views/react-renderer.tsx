@@ -153,6 +153,7 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 	const [filters, setFilters] = useState<FilterCondition[]>([]);
 	const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
 	const [inlineEntries, setInlineEntries] = useState<PageEntry[]>([]);
+	const [dataVersion, setDataVersion] = useState(0);
 
 	const api = getDataviewApi(plugin.app);
 
@@ -166,7 +167,7 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 		} else {
 			setInlineEntries([]);
 		}
-	}, [plugin.settings.enableInlineTasks, plugin.settings.folders]);
+	}, [plugin.settings.enableInlineTasks, plugin.settings.folders, dataVersion]);
 
 	if (!api) {
 		return (
@@ -298,12 +299,13 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 			const folder = folders.length > 0 ? folders[0] : "";
 			const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
 
-			plugin.app.vault.create(filePath, finalFm).catch(() => {
-				// If file exists, append a number
+			plugin.app.vault.create(filePath, finalFm)
+				.then(() => setDataVersion((v) => v + 1))
+				.catch(() => {
 				plugin.app.vault.create(
 					folder ? `${folder}/${filename} 1.md` : `${filename} 1.md`,
 					finalFm
-				);
+				).then(() => setDataVersion((v) => v + 1));
 			});
 		}).open();
 	}
@@ -482,6 +484,15 @@ function TableView({ entries, columns, mapping, sort, onSortChange, filters, onF
 						</tr>
 					))}
 				</tbody>
+				{onCreateEntry && (
+					<tfoot>
+						<tr>
+							<td colspan={visibleCols.length} class="scheduler-table-add-row" onClick={onCreateEntry}>
+								+ New entry
+							</td>
+						</tr>
+					</tfoot>
+				)}
 			</table>
 		</div>
 	);
