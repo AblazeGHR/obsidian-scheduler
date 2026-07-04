@@ -270,15 +270,18 @@ export function SchedulerApp({ plugin, initialView }: SchedulerAppProps) {
 
 	/** Create a new MD file with frontmatter inherited from current filters */
 	function handleCreateEntry(dateStr?: string) {
-		const today = new Date().toISOString().slice(0, 10);
-		const baseDate = dateStr ?? today;
+		// Use local time to avoid timezone offset
+		const now = new Date();
+		const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+		const baseDate = dateStr ?? todayLocal;
 
 		// Convert filters to frontmatter
 		const fmFields = filtersToFrontmatter(filters, baseDate);
 
-		// Ensure dateField is set
+		// Only auto-fill dateField when there are active filters
 		const dateField = plugin.settings.fieldMapping.dateField;
-		if (!(dateField in fmFields)) {
+		const hasDateFilters = filters.some((f) => f.field === dateField);
+		if (filters.length > 0 && hasDateFilters && !(dateField in fmFields)) {
 			fmFields[dateField] = baseDate;
 		}
 
