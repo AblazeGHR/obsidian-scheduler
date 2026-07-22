@@ -450,7 +450,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						onCellEdit={handleCellEdit}
 						onOpenEntry={handleOpenEntry}
 						onCreateEntry={() => handleCreateEntry()}
-						app={plugin.app}
 					/>
 				)}
 			{viewType === "calendar" && (
