@@ -17,6 +17,10 @@ export function mapPageEntry(rawPage: Record<string, unknown>, path: string, map
 	const dateRaw = fields[mapping.dateField];
 	const date = coerceToDate(dateRaw);
 
+	// Extract optional end date for multi-day events
+	const dateEndRaw = mapping.endDateField ? fields[mapping.endDateField] : undefined;
+	const dateEnd = dateEndRaw !== undefined ? coerceToDate(dateEndRaw) : null;
+
 	// Extract start/end times
 	const startRaw = fields[mapping.startField];
 	const endRaw = fields[mapping.endField];
@@ -47,6 +51,7 @@ export function mapPageEntry(rawPage: Record<string, unknown>, path: string, map
 		path,
 		title,
 		date,
+		dateEnd,
 		start,
 		end,
 		tags,

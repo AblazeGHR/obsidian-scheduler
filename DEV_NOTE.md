@@ -117,49 +117,49 @@
 ### 优先级高
 
 #### Table 视图增强
-- [ ] 表格分页（大量条目时的性能优化）
-- [ ] 列宽拖拽调整
-- [ ] 多选 + 批量修改
-- [ ] 行内编辑支持日期字段（日期选择器）
-- [ ] 行内编辑支持标签字段（多值输入）
-- [ ] 编辑后自动刷新 Dataview 索引（等待重新索引）
+- [x] 表格分页（25/50/100/全部，上一页/下一页 + 页码指示）
+- [x] 列宽拖拽调整（表头右缘拖拽手柄，colgroup 固定布局）
+- [x] 多选 + 批量修改（行复选框 + 页全选 + 批量工具条）
+- [x] 行内编辑支持日期字段（日期选择器 `<input type="date">`）
+- [x] 行内编辑支持标签字段（逗号分隔多值，写回 YAML 数组）
+- [x] 编辑后自动刷新（cell/date/time 编辑后延时触发 Dataview 重新索引）
 
 #### Calendar 视图增强
-- [ ] 周视图切换
-- [ ] 日期选择器跳转
-- [ ] 跨月事件（跨多天的事件在单元格间连线）
-- [ ] 左侧 Ribbon 显示小号日历
+- [x] 周视图切换（Month/Week 切换，导航按模式步进）
+- [x] 日期选择器跳转（`<input type="month">` 直接跳到任意月份）
+- [x] 跨月/多天事件（新增可选 `endDateField`；事件按 [date, dateEnd] 展开，跨单元格以连通条显示）
+- [ ] 左侧 Ribbon 显示小号日历（需在左侧边栏注册独立视图，架构改动较大，留待后续）
 
 #### Timeline 视图增强
-- [ ] 多日视图（5 天 / 7 天列并排）
-- [ ] 时间段选取创建新事件
-- [ ] 在时间轴上拖拽创建新时间块
-- [ ] 拖拽时视觉反馈（半透明阴影跟随）
+- [x] 多日视图（1/3/5/7 天列并排，顶部天数列选择器；导航按可见天数步进）
+- [x] 时间段选取创建新事件（在空白时间轴拖拽选取区间 → 带日期+起止时间创建新文件）
+- [x] 在时间轴上拖拽创建新时间块（同上，落点即创建，写回 startField/endField）
+- [x] 拖拽时视觉反馈（半透明 ghost 预览，仅 mouseup 时提交一次）
 
 ### 优先级中
 
 #### 数据层
-- [ ] 编辑后自动触发 Dataview 重新索引（目前需手动切换视图或重启插件刷新）
-- [ ] `Key:: Value` 整行字段格式支持（目前仅支持 `[key:: value]`）
-- [ ] 字段类型自动推断（数字/日期/布尔等类型化存储）
-- [ ] 数据缓存层（减少重复 vault.process 调用）
+- [x] 编辑后自动触发 Dataview 重新索引（编辑后 `setDataVersion` 延时重查询 + 数据缓存层失效，无需手动切换）
+- [x] `Key:: Value` 整行字段格式支持（数据缓存层合并 Obsidian `metadataCache.inlineFields`，整行 `key:: value` 与括号 `[key:: value]` 形式均识别并进入 `fields`/可筛选）
+- [x] 字段类型自动推断（`src/schema/field-types.ts`：按字段值推断 date/number/tags/text，驱动单元格编辑器与筛选默认操作符；数组字段自动按标签处理）
+- [x] 数据缓存层（`src/query/data-cache.ts`：签名缓存 + vault/metadata 变更自动失效，避免每次渲染重复查询）
 
 #### 通用功能
-- [ ] Markdown 导出视图
-- [ ] 主题自适应优化（dark/light 模式细化）
-- [ ] 移动端响应式适配
-- [ ] 键盘快捷键（表格导航、日历翻页等）
-- [ ] 撤销 / 重做支持
-- [ ] 搜索框（全文搜索条目标题）
+- [x] 搜索框（全局搜索，匹配标题与字段值，跨 Table/Calendar/Timeline 生效）
+- [x] 主题自适应优化（统一使用 Obsidian CSS 变量，自动适配 dark/light）
+- [x] 移动端响应式适配（`@media` 窄屏布局 + `prefers-reduced-motion`）
+- [x] Markdown 导出视图（命令 + 工具栏「Export .md」按钮，将当前条目导出为 Markdown 表格笔记）
+- [x] 键盘快捷键（表格↑/↓ 移动高亮行、Enter 打开文件；命令面板可绑定「Open Scheduler panel」等）
+- [x] 撤销 / 重做支持（UndoManager 快照每次 frontmatter 改写前后全文，命令 `undo-edit` / `redo-edit`，还原后自动刷新视图）
 
 ### 优先级低（Phase 6）
 
-- [ ] 看板（Kanban）视图
-- [ ] 重复事件支持（RRULE 或自定义语法）
-- [ ] 通知 / 提醒系统（Obsidian 系统通知）
-- [ ] 多字段排序 UI 细化（拖拽调整排序优先级）
-- [ ] iCal 导入/导出
-- [ ] 视图模板保存（快速切换常用视图配置）
+- [x] 看板（Kanban）视图（分组字段可选；卡片拖拽跨列改写字段值；列内 + 创建继承列值；支持空列新增、"Unassigned" 列）
+- [x] 重复事件支持（RRULE 或自定义语法）
+- [x] 通知 / 提醒系统（Obsidian 系统通知；加载后定时扫描，到期弹出 Notice 并可点击打开文件；支持提前量、重复事件按次提醒）
+- [x] 多字段排序 UI 细化（工具栏 "Sort" 面板，拖拽调整排序优先级，可切换升/降序、删除、新增字段；列头点击仍可快速排序）
+- [x] iCal 导入/导出（导出 VEVENT 含 DTSTART/DTEND/RRULE；导入解析 VEVENT 生成 frontmatter 笔记；工具栏 Export/Import 按钮 + 命令）
+- [x] 视图模板保存（视图工具栏下拉套用预设 + "Save" 内联命名保存当前视图；codeblock 参数 `template: <name>` 自动加载预设；设置页可管理/删除）
 
 ---
 
@@ -167,10 +167,19 @@
 
 | 问题 | 严重度 | 说明 |
 |------|--------|------|
-| 编辑后数据不刷新 | 中 | `vault.process` 修改后，Dataview 需要重新索引才能反映在 Scheduler 中。目前需手动切换 Tab 触发刷新 |
-| 拖拽写入 ISO 时间含时区偏移 | 低 | Timeline 拖拽后用 `toISOString()` 写入，可能包含 UTC 偏移。日历拖拽已用本地时间处理 |
-| 大量条目（>1000）时表格性能 | 低 | 未做虚拟滚动或分页，大量条目时可能卡顿 |
-| Tab 切换时状态丢失 | 低 | 切换到不同 Tab 后，排序/筛选/导航位置重置 |
+| 编辑后数据不刷新 | 低 | 已通过编辑后 `setDataVersion` 延时触发重新查询 + Dataview 自动重索引缓解；撤销/重做还原后也会经 `notifyDataChanged` 自动刷新；极少数情况下可手动切换 Tab 强制刷新 |
+| 拖拽写入 ISO 时间含时区偏移 | 低 | 已修复：Timeline 拖拽/创建改写本地时间 `YYYY-MM-DDTHH:MM`，不再含 UTC 偏移 |
+| 大量条目（>1000）时表格性能 | 低 | 已加分页（默认 50/页），极端情况仍可能卡顿 |
+| Tab 切换时状态丢失 | 低 | 切换到不同视图类型（如 表格↔日历）后，排序/筛选/导航位置重置（Table 内部状态在反复分页时保留）。此为有意设计，非缺陷 |
+| 重复事件拖拽/编辑影响锚点 | 低 | 重复事件的某次出现被拖拽或单元格编辑时，写入的是文件根 `date`/`start`/`end` 字段（即锚点），会整体平移整个序列；v1 暂不支持「仅此一次」例外 |
+
+### 代码打磨（近期）
+
+- **撤销/重做原子化**：`UndoManager.capture()` + 独立 `vault.process()` 改为单次 `vault.process()` 内的 `apply()`，读取与写入在同一回调中完成，`before` 快照始终为真实当前内容，避免同文件快速连续编辑时快照错乱。
+- **frontmatter 写入去重 + `$` 注入修复**：四个编辑 handler（日期/时间/单元格/字段）重复的 YAML 改写逻辑收敛为 `setFrontmatterField` / `setFrontmatterFields`，替换使用函数式 replacer，值中含 `$`（如标签）时不再被当作正则反向引用。
+- **移除 `globalThis.app` 全局 hack**：Table / Calendar / Timeline 打开文件改为经 `onOpenEntry` 回调（与 Kanban 一致），不再依赖 Obsidian 桌面端暴露的全局 `app`。
+- **清理死代码**：移除 `main.ts`/`react-renderer.tsx` 中未使用的 `new QueryEngine(...)`；导出命令改用 `dataCache.getEntries()` 复用缓存。
+- 新增 `README.md` / `RELEASE.md`（发布清单）。
 
 ---
 
@@ -179,27 +188,43 @@
 ```
 obsidian-scheduler/
 ├── src/
-│   ├── main.ts                    # 插件入口
+│   ├── main.ts                    # 插件入口：注册视图/命令/codeblock、提醒扫描、iCal/Markdown 导出、撤销重做
 │   ├── settings.ts                # 设置面板 + 默认值
-│   ├── types.ts                   # 共享类型
+│   ├── types.ts                   # 共享类型（FieldMapping / PageEntry / SchedulerSettings / ViewTemplate ...）
 │   ├── schema/
 │   │   ├── field-mapping.ts       # Dataview 数据 → PageEntry 映射
-│   │   └── inline-fields.ts       # [key:: value] 解析
+│   │   ├── inline-fields.ts       # [key:: value] / 整行 key:: value 解析
+│   │   └── field-types.ts         # 字段类型推断（date/number/tags/text）+ 筛选默认操作符
 │   ├── query/
-│   │   └── query-engine.ts        # Dataview API 封装 + sort/filter
+│   │   ├── query-engine.ts        # Dataview API 封装 + 纯函数 applySort/applyFilters
+│   │   └── data-cache.ts          # 签名缓存层（vault/metadata 变更自动失效）
 │   ├── utils/
-│   │   └── dataview-api.ts        # Dataview 运行时检测
+│   │   ├── dataview-api.ts        # Dataview 运行时检测
+│   │   ├── recurrence.ts          # RRULE 子集解析 + 重复事件展开
+│   │   ├── reminders.ts           # 提醒派生（due 时刻 + 通知判定）
+│   │   ├── ical.ts                 # iCal 导出/导入（RFC5545 行折叠展开）
+│   │   ├── markdown-export.ts     # 条目导出为 Markdown 表格
+│   │   ├── undo-manager.ts        # 撤销/重做（frontmatter 全文快照，单次 vault.process 原子写）
+│   │   ├── new-file-builder.ts    # 筛选 → frontmatter + 文件名清洗
+│   │   └── new-entry-modal.ts     # 新建条目标题输入弹窗
 │   └── views/
-│       ├── react-renderer.tsx      # Preact 根组件 + TableView + FilterBar + EditableCell
+│       ├── react-renderer.tsx     # Preact 根组件 SchedulerApp + 工具栏 + 4 个 frontmatter 编辑 handler + ItemView
+│       ├── table/
+│       │   ├── table-view.tsx      # 表格视图（分页/列宽/多选/排序管理器/键盘导航）
+│       │   └── table-utils.ts      # 列收集、单元格格式化、标签/日期格式化
 │       ├── calendar/
-│       │   └── calendar-view.tsx   # Calendar 月视图
-│       └── timeline/
-│           └── timeline-view.tsx   # Timeline 日时间轴
+│       │   └── calendar-view.tsx   # 月/周历（拖拽改期、多天连通条、↻ 标记）
+│       ├── timeline/
+│       │   └── timeline-view.tsx   # 日时间轴（多日列、拖拽移动/缩放、区段选取创建）
+│       └── kanban/
+│           └── kanban-view.tsx     # 看板（分组字段、卡片跨列拖拽改字段值、+Add 继承）
 ├── styles.css                     # 全局样式
 ├── manifest.json                  # Obsidian 插件清单
 ├── package.json                   # 构建脚本
 ├── tsconfig.json                  # TypeScript 配置
 ├── esbuild.config.mjs             # 构建入口
 ├── USER_GUIDE.md                  # 使用文档
+├── README.md                      # 项目 README（安装/特性/开发）
+├── RELEASE.md                     # 发布清单
 └── DEV_NOTE.md                    # 本文件
 ```

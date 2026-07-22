@@ -5,6 +5,8 @@ import { SchedulerSettings } from "./types";
 export const DEFAULT_SETTINGS: SchedulerSettings = {
 	fieldMapping: {
 		dateField: "due",
+		endDateField: "",
+		recurrenceField: "recurrence",
 		startField: "start",
 		endField: "end",
 		titleField: "title",
@@ -13,6 +15,9 @@ export const DEFAULT_SETTINGS: SchedulerSettings = {
 	},
 	folders: [],
 	enableInlineTasks: true,
+	enableReminders: true,
+	reminderLeadMinutes: 0,
+	templates: [],
 	defaultView: "table",
 };
 
@@ -37,6 +42,16 @@ export class SchedulerSettingTab extends PluginSettingTab {
 		});
 
 		this.addTextSetting("Date Field", "Which frontmatter field holds the primary date (e.g. 'due', 'date')", "dateField");
+		this.addTextSetting(
+			"End Date Field",
+			"Optional. Frontmatter field holding the end date for multi-day events. Leave empty for single-day events.",
+			"endDateField"
+		);
+		this.addTextSetting(
+			"Recurrence Field",
+			"Optional. Frontmatter field holding an RRULE string (e.g. 'FREQ=WEEKLY;BYDAY=MO,WE'). Leave empty to disable recurring events.",
+			"recurrenceField"
+		);
 		this.addTextSetting("Title Field", "Which frontmatter field holds the display title (defaults to filename if empty)", "titleField");
 		this.addTextSetting(
 			"Start Field",
@@ -121,12 +136,64 @@ export class SchedulerSettingTab extends PluginSettingTab {
 					.addOption("table", "Table")
 					.addOption("calendar", "Calendar")
 					.addOption("timeline", "Timeline")
+					.addOption("kanban", "Kanban")
 					.setValue(this.plugin.settings.defaultView)
 					.onChange(async (value) => {
-						this.plugin.settings.defaultView = value as "table" | "calendar" | "timeline";
+						this.plugin.settings.defaultView = value as "table" | "calendar" | "timeline" | "kanban";
 						await this.plugin.saveSettings();
 					})
 			);
+
+		containerEl.createEl("h3", { text: "Reminders" });
+
+		new Setting(containerEl)
+			.setName("Enable reminders")
+			.setDesc("Show an Obsidian notification when an entry becomes due (date-only = on its day, timed = at its start time).")
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.enableReminders).onChange(async (value) => {
+					this.plugin.settings.enableReminders = value;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Reminder lead time (minutes)")
+			.setDesc("Notify this many minutes before a timed event's start. 0 = notify at the start time.")
+			.addText((text) =>
+				text
+					.setPlaceholder("0")
+					.setValue(String(this.plugin.settings.reminderLeadMinutes))
+					.onChange(async (value) => {
+						const n = parseInt(value, 10);
+						this.plugin.settings.reminderLeadMinutes = isNaN(n) || n < 0 ? 0 : n;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		containerEl.createEl("h3", { text: "View templates" });
+		containerEl.createEl("p", {
+			text: "Saved view presets (view + sort + filters). Apply them from the view toolbar dropdown, or load one automatically with a codeblock param: template: <name>.",
+			cls: "setting-item-description",
+		});
+
+		const templates = this.plugin.settings.templates ?? [];
+		if (templates.length === 0) {
+			containerEl.createEl("p", { text: "No templates yet. Open a scheduler view and use “Save” to store the current view.", cls: "setting-item-description" });
+		}
+		for (const tpl of templates) {
+			const sortDesc = tpl.sort.length > 0 ? tpl.sort.map((s) => `${s.field} ${s.direction}`).join(", ") : "none";
+			const filterDesc = tpl.filters.length > 0 ? tpl.filters.map((f) => `${f.field} ${f.operator} ${f.value}`).join(", ") : "none";
+			new Setting(containerEl)
+				.setName(tpl.name)
+				.setDesc(`View: ${tpl.viewType} · Sort: ${sortDesc} · Filters: ${filterDesc}`)
+				.addButton((btn) =>
+					btn.setButtonText("Delete").onClick(async () => {
+						this.plugin.settings.templates = this.plugin.settings.templates.filter((t) => t.name !== tpl.name);
+						await this.plugin.saveSettings();
+						this.display();
+					})
+				);
+		}
 	}
 
 	private addTextSetting(name: string, desc: string, key: keyof SchedulerSettings["fieldMapping"]): void {

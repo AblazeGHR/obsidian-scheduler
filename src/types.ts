@@ -4,6 +4,10 @@
 export interface FieldMapping {
     /** Which frontmatter field represents the primary date (e.g. "due", "date", "scheduled") */
     dateField: string;
+    /** Optional end-date field for multi-day calendar events (e.g. "endDate"). Empty = single day. */
+    endDateField: string;
+    /** Optional recurrence field holding an RRULE string (e.g. "recurrence"). Empty = no recurrence. */
+    recurrenceField: string;
     /** Start time field for time-range events (e.g. "start", "begin") */
     startField: string;
     /** End time field for time-range events (e.g. "end", "finish") */
@@ -24,6 +28,14 @@ export interface PageEntry {
     title: string;
     /** Primary date value (parsed DateTime or null) */
     date: Date | null;
+    /** End date for multi-day events (parsed DateTime or null) */
+    dateEnd: Date | null;
+    /** Raw recurrence rule string if this entry repeats (RRULE syntax) */
+    recurrenceRule?: string;
+    /** True for synthesized occurrences of a recurring entry (not the anchor) */
+    isRecurrence?: boolean;
+    /** Stable unique id per row/occurrence (path-based for singles, path@date for recurrences) */
+    occurrenceId?: string;
     /** Start time (parsed DateTime or null) */
     start: Date | null;
     /** End time (parsed DateTime or null) */
@@ -43,16 +55,22 @@ export interface PageEntry {
 /** Plugin settings */
 export interface SchedulerSettings {
     fieldMapping: FieldMapping;
-    /** Extract [key:: value] inline fields from task items as separate entries */
-    enableInlineTasks: boolean;
+	/** Extract [key:: value] inline fields from task items as separate entries */
+	enableInlineTasks: boolean;
+	/** Show Obsidian notifications when entries become due */
+	enableReminders: boolean;
+	/** How many minutes before a timed event's start to notify (0 = at start time) */
+	reminderLeadMinutes: number;
+	/** Saved view configuration presets */
+	templates: ViewTemplate[];
     /** Folders to include (empty = entire vault) */
     folders: string[];
     /** Default view mode */
-    defaultView: "table" | "calendar" | "timeline";
+    defaultView: "table" | "calendar" | "timeline" | "kanban";
 }
 
 /** Supported view types */
-export type ViewType = "table" | "calendar" | "timeline";
+export type ViewType = "table" | "calendar" | "timeline" | "kanban";
 
 /** Sort configuration */
 export interface SortConfig {
@@ -62,9 +80,21 @@ export interface SortConfig {
 
 /** Filter condition */
 export interface FilterCondition {
-    field: string;
-    operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "before" | "after";
-    value: string;
+	field: string;
+	operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "before" | "after";
+	value: string;
+}
+
+/** A saved view configuration preset */
+export interface ViewTemplate {
+	/** Unique preset name */
+	name: string;
+	/** Which view to show */
+	viewType: ViewType;
+	/** Sort configuration */
+	sort: SortConfig[];
+	/** Active filters */
+	filters: FilterCondition[];
 }
 
 /** View state passed to rendering components */

@@ -13,6 +13,53 @@
     padding: 0 8px;
     gap: 4px;
     flex-shrink: 0;
+    flex: 1;
+}
+
+/* toolbar: tabs + global search */
+.scheduler-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.scheduler-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.scheduler-search-input {
+    width: 180px;
+    padding: 3px 22px 3px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 12px;
+}
+
+.scheduler-search-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.scheduler-search-clear {
+    position: absolute;
+    right: 4px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.scheduler-search-clear:hover {
+    color: var(--text-normal);
 }
 
 .scheduler-view-tab {
@@ -61,9 +108,11 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: fixed;
 }
 
 .scheduler-table th {
+    position: relative;
     text-align: left;
     padding: 6px 10px;
     border-bottom: 2px solid var(--background-modifier-border);
@@ -72,6 +121,8 @@
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .scheduler-table th:hover {
@@ -112,6 +163,159 @@
 
 .scheduler-cell-editable {
     outline: none;
+}
+
+/* --- inline editable cells --- */
+.scheduler-cell {
+    padding: 0;
+    vertical-align: middle;
+}
+
+.scheduler-cell-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    font: inherit;
+    padding: 5px 10px;
+    outline: none;
+}
+
+.scheduler-cell-input:focus {
+    background: var(--background-modifier-active-hover);
+    box-shadow: inset 0 0 0 2px var(--interactive-accent);
+    border-radius: 3px;
+}
+
+.scheduler-cell-date {
+    cursor: text;
+}
+
+/* --- selection column --- */
+.scheduler-col-select {
+    width: 36px;
+    text-align: center;
+    padding: 5px 4px !important;
+    cursor: default;
+}
+
+.scheduler-row-selected td {
+    background-color: var(--background-modifier-active-hover);
+}
+
+/* --- column resize handle --- */
+.scheduler-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+}
+
+.scheduler-resize-handle:hover {
+    background: var(--interactive-accent);
+    opacity: 0.6;
+}
+
+/* --- horizontal scroll wrapper --- */
+.scheduler-table-scroll {
+    overflow-x: auto;
+    width: 100%;
+}
+
+/* --- batch edit bar --- */
+.scheduler-batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    margin: 6px 0;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.scheduler-batch-count {
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.scheduler-batch-field,
+.scheduler-batch-value {
+    padding: 4px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.scheduler-batch-value {
+    min-width: 140px;
+}
+
+.scheduler-batch-apply {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+}
+
+.scheduler-batch-apply:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.scheduler-batch-clear {
+    padding: 4px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* --- pagination --- */
+.scheduler-pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.scheduler-page-btn {
+    padding: 3px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.scheduler-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.scheduler-page-info {
+    min-width: 90px;
+    text-align: center;
+}
+
+.scheduler-page-size {
+    margin-left: auto;
+    padding: 3px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
 }
 
 .scheduler-config-missing {
@@ -373,6 +577,36 @@
     color: var(--text-on-accent);
 }
 
+.scheduler-calendar-modes {
+    display: inline-flex;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.scheduler-calendar-mode {
+    background: none;
+    border: none;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.scheduler-calendar-mode.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.scheduler-calendar-jump {
+    padding: 2px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 12px;
+}
+
 .scheduler-calendar-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -472,6 +706,27 @@
     color: var(--text-muted);
     padding: 1px 3px;
     cursor: default;
+}
+
+/* --- week view: taller single row --- */
+.scheduler-calendar-grid.week .scheduler-calendar-cell {
+    min-height: 140px;
+}
+
+/* --- multi-day event spanning connectors --- */
+.scheduler-calendar-event.span-start {
+    border-radius: 3px 0 0 3px;
+    margin: 0 -3px;
+}
+
+.scheduler-calendar-event.span-end {
+    border-radius: 0 3px 3px 0;
+    margin: 0 -3px;
+}
+
+.scheduler-calendar-event.span-mid {
+    border-radius: 0;
+    margin: 0 -3px;
 }
 
 .scheduler-calendar-cell-add {
@@ -593,8 +848,7 @@
 
 .scheduler-timeline-scroll {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
 }
 
 .scheduler-timeline-grid {
@@ -719,5 +973,691 @@
     cursor: ns-resize;
 }
 
+/* --- multi-day columns layout --- */
+.scheduler-timeline-body {
+    display: flex;
+    min-height: 100%;
+}
 
+.scheduler-timeline-labels-col {
+    width: 48px;
+    flex-shrink: 0;
+    position: sticky;
+    left: 0;
+    background: var(--background-primary);
+    z-index: 4;
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.scheduler-timeline-col-head-spacer {
+    height: 46px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.scheduler-timeline-daycol {
+    flex: 1;
+    min-width: 96px;
+    border-right: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.scheduler-timeline-col-head {
+    height: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    line-height: 1.1;
+}
+
+.scheduler-timeline-col-head.today {
+    background: var(--interactive-accent);
+}
+
+.scheduler-timeline-col-head.today .scheduler-timeline-col-weekday,
+.scheduler-timeline-col-head.today .scheduler-timeline-col-date {
+    color: var(--text-on-accent);
+}
+
+.scheduler-timeline-col-weekday {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.scheduler-timeline-col-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+/* per-column all-day strip */
+.scheduler-timeline-allday {
+    min-height: 18px;
+    padding: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+}
+
+.scheduler-timeline-allday-event {
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* slots become crosshair to hint drag-to-create */
+.scheduler-timeline-slots {
+    cursor: crosshair;
+}
+
+/* --- day-count selector --- */
+.scheduler-timeline-daycount {
+    display: inline-flex;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.scheduler-timeline-daycount-btn {
+    background: none;
+    border: none;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.scheduler-timeline-daycount-btn.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.scheduler-timeline-new {
+    background: none;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: var(--interactive-accent);
+    cursor: pointer;
+}
+
+.scheduler-timeline-new:hover {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+/* --- drag ghost preview --- */
+.scheduler-timeline-block.dragging {
+    opacity: 0.3;
+}
+
+.scheduler-timeline-block-ghost {
+    position: absolute;
+    background: var(--interactive-accent);
+    opacity: 0.4;
+    border-radius: 4px;
+    z-index: 6;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.scheduler-timeline-block-ghost .scheduler-timeline-block-time {
+    color: var(--text-on-accent);
+}
+
+/* --- create selection --- */
+.scheduler-timeline-create-selection {
+    position: absolute;
+    background: var(--interactive-accent);
+    opacity: 0.25;
+    border: 1px dashed var(--interactive-accent);
+    border-radius: 4px;
+    z-index: 6;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.scheduler-timeline-create-selection .scheduler-timeline-block-time {
+    color: var(--text-on-accent);
+}
+
+
+
+
+/* ============================================================
+ * Responsive & theme refinements
+ * ============================================================ */
+
+/* Use Obsidian theme variables everywhere (dark/light auto-adapt).
+   The following ensure consistent surfaces across themes. */
+.scheduler-batch-bar,
+.scheduler-filter-bar,
+.scheduler-toolbar {
+    background: transparent;
+}
+
+/* Narrow / mobile layout */
+@media (max-width: 600px) {
+    .scheduler-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .scheduler-search-input {
+        width: 140px;
+    }
+
+    .scheduler-view-tabs {
+        flex: 1 1 100%;
+        order: -1;
+    }
+
+    .scheduler-search {
+        margin: 4px 8px 0 0;
+    }
+
+.scheduler-table {
+    font-size: 12px;
+}
+
+.scheduler-row-active > td {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-table-scroll:focus {
+    outline: none;
+}
+
+    .scheduler-calendar-cell {
+        min-height: 42px;
+    }
+
+    .scheduler-timeline-daycol {
+        min-width: 64px;
+    }
+
+    .scheduler-pagination {
+        flex-wrap: wrap;
+    }
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .scheduler-view-tab,
+    .scheduler-calendar-cell-add,
+    .scheduler-timeline-new,
+    .scheduler-timeline-today {
+        transition: none;
+    }
+}
+
+/* ============================================================
+   Kanban view
+   ============================================================ */
+.scheduler-kanban {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 8px;
+}
+
+.scheduler-kanban-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.scheduler-kanban-group-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scheduler-kanban-group-select {
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.scheduler-kanban-hint {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.scheduler-kanban-board {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    align-items: flex-start;
+    flex: 1 1 auto;
+}
+
+.scheduler-kanban-column {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    width: 240px;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+.scheduler-kanban-column.drag-over {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-translucent, rgba(120, 160, 255, 0.3));
+}
+
+.scheduler-kanban-column-unassigned {
+    opacity: 0.85;
+}
+
+.scheduler-kanban-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-normal);
+    position: sticky;
+    top: 0;
+    background: var(--background-secondary);
+    border-radius: 8px 8px 0 0;
+}
+
+.scheduler-kanban-column-count {
+    background: var(--background-modifier-hover);
+    color: var(--text-muted);
+    border-radius: 10px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.scheduler-kanban-column-body {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.scheduler-kanban-card {
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.scheduler-kanban-card:hover {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.scheduler-kanban-card[draggable="true"]:active {
+    opacity: 0.6;
+}
+
+.scheduler-kanban-card-title {
+    font-size: 13px;
+    color: var(--text-normal);
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.scheduler-kanban-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.scheduler-kanban-card-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.scheduler-kanban-card-tag {
+    font-size: 10px;
+    background: var(--tag-background, rgba(120, 160, 255, 0.18));
+    color: var(--tag-color, var(--text-accent));
+    border-radius: 4px;
+    padding: 0 6px;
+}
+
+.scheduler-kanban-add {
+    margin: 0 8px 8px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-kanban-add:hover {
+    color: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+.scheduler-kanban-column-add {
+    width: 200px;
+    min-width: 200px;
+    background: transparent;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+}
+
+.scheduler-kanban-add-input {
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.scheduler-kanban-add-confirm {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* Narrow screens: stack columns vertically */
+@media (max-width: 600px) {
+    .scheduler-kanban-board {
+        flex-direction: column;
+        overflow-x: hidden;
+    }
+
+    .scheduler-kanban-column,
+    .scheduler-kanban-column-add {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+   Recurrence markers
+   ============================================================ */
+.scheduler-recurring-mark {
+    color: var(--text-accent);
+    font-size: 11px;
+    margin-left: 4px;
+    opacity: 0.8;
+}
+
+.scheduler-event-recurring {
+    color: var(--text-accent);
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.85;
+}
+
+.scheduler-calendar-event.recurring {
+    font-style: italic;
+}
+
+/* ============================================================
+   View templates (toolbar)
+   ============================================================ */
+.scheduler-templates {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scheduler-template-select {
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    max-width: 140px;
+}
+
+.scheduler-template-save-btn {
+    background: var(--interactive-secondary, var(--background-modifier-form-field));
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-template-save-btn:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+.scheduler-template-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.scheduler-template-name {
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    width: 130px;
+    font-size: 12px;
+}
+
+.scheduler-template-confirm {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-template-confirm:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* ============================================================
+   iCal export / import (toolbar)
+   ============================================================ */
+.scheduler-ical {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.scheduler-ical-btn {
+    background: var(--interactive-secondary, var(--background-modifier-form-field));
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-ical-btn:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+/* ============================================================
+   Sort manager (multi-field, drag to reorder)
+   ============================================================ */
+.scheduler-sort-manager {
+    position: relative;
+    display: inline-block;
+}
+
+.scheduler-sort-btn {
+    background: var(--interactive-secondary, var(--background-modifier-form-field));
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 4px;
+}
+
+.scheduler-sort-btn:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+.scheduler-sort-panel {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    min-width: 240px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.scheduler-sort-empty {
+    font-size: 11px;
+    color: var(--text-faint);
+    padding: 4px 2px;
+}
+
+.scheduler-sort-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 3px 6px;
+    cursor: grab;
+}
+
+.scheduler-sort-row.dragging {
+    opacity: 0.5;
+    border-color: var(--interactive-accent);
+}
+
+.scheduler-sort-grip {
+    color: var(--text-faint);
+    font-size: 11px;
+    cursor: grab;
+}
+
+.scheduler-sort-prio {
+    background: var(--interactive-accent-translucent, rgba(120, 160, 255, 0.25));
+    color: var(--text-accent);
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 5px;
+}
+
+.scheduler-sort-field {
+    flex: 1 1 auto;
+    font-size: 12px;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scheduler-sort-dir,
+.scheduler-sort-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 4px;
+}
+
+.scheduler-sort-dir:hover {
+    color: var(--interactive-accent);
+}
+
+.scheduler-sort-remove:hover {
+    color: var(--text-error);
+}
+
+.scheduler-sort-add {
+    display: flex;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.scheduler-sort-add-field {
+    flex: 1 1 auto;
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.scheduler-sort-add-btn {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-sort-add-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
 

@@ -6,9 +6,14 @@ import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
 import { CalendarView } from "./calendar/calendar-view";
 import { TimelineView } from "./timeline/timeline-view";
-import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping } from "../types";
+import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping, ViewTemplate } from "../types";
 import { filtersToFrontmatter, buildFrontmatterString, sanitizeFilename } from "../utils/new-file-builder";
 import { NewEntryModal } from "../utils/new-entry-modal";
+import { collectColumns, formatTagValue } from "./table/table-utils";
+import { TableView, FilterBar } from "./table/table-view";
+import { KanbanView } from "./kanban/kanban-view";
+import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
+import { entriesToMarkdown } from "../utils/markdown-export";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -39,6 +44,48 @@ class ErrorBoundary extends Component<{ children: any }, ErrorBoundaryState> {
 		}
 		return this.props.children;
 	}
+}
+
+// ============================================================
+// Frontmatter editing helpers
+//
+// Set one or more frontmatter fields. Replacement uses a function so values
+// containing `$` (e.g. inside a tag) are written literally and never treated as
+// a regex back-reference. A single `---\n ... \n---` block is expected.
+// ============================================================
+
+const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---/;
+
+/** Set a single frontmatter field (append if missing, replace if present). */
+function setFrontmatterField(data: string, field: string, value: string): string {
+	if (!FRONTMATTER_RE.test(data)) {
+		return `---\n${field}: ${value}\n---\n\n${data}`;
+	}
+	return data.replace(FRONTMATTER_RE, (_m, fm: string) => {
+		const fieldRe = new RegExp(`^(${field}\\s*:\\s*).+`, "m");
+		const newFm = fieldRe.test(fm)
+			? fm.replace(fieldRe, (_s, p1) => `${p1}${value}`)
+			: `${fm}\n${field}: ${value}`;
+		return `---\n${newFm}\n---`;
+	});
+}
+
+/** Set several frontmatter fields at once (used for start/end fields). */
+function setFrontmatterFields(data: string, fields: Record<string, string>): string {
+	if (!FRONTMATTER_RE.test(data)) {
+		const body = Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join("\n");
+		return `---\n${body}\n---\n\n${data}`;
+	}
+	return data.replace(FRONTMATTER_RE, (_m, fm: string) => {
+		let newFm = fm;
+		for (const [field, value] of Object.entries(fields)) {
+			const fieldRe = new RegExp(`^(${field}\\s*:\\s*).+`, "m");
+			newFm = fieldRe.test(newFm)
+				? newFm.replace(fieldRe, (_s, p1) => `${p1}${value}`)
+				: `${newFm}\n${field}: ${value}`;
+		}
+		return `---\n${newFm}\n---`;
+	});
 }
 
 // ============================================================
@@ -73,72 +120,6 @@ export class ReactRenderer extends MarkdownRenderChild {
 }
 
 // ============================================================
-// Fields helpers
-// ============================================================
-
-const INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
-
-function isInternalField(key: string): boolean {
-	return INTERNAL_FIELD_PREFIXES.some((prefix) => key.startsWith(prefix));
-}
-
-function isDisplayableValue(val: unknown): boolean {
-	if (val === null || val === undefined) return false;
-	if (typeof val === "string") return val.length > 0;
-	if (typeof val === "number") return true;
-	if (typeof val === "boolean") return true;
-	if (val instanceof Date) return !isNaN(val.getTime());
-	if (Array.isArray(val)) {
-		const first = val[0];
-		return typeof first === "string";
-	}
-	return false;
-}
-
-/** Collect all user-facing sorted column names from entries */
-function collectColumns(entries: PageEntry[], mapping: FieldMapping): string[] {
-	const allKeys = new Set<string>();
-	for (const entry of entries) {
-		for (const key of Object.keys(entry.fields ?? {})) {
-			if (!isInternalField(key)) allKeys.add(key);
-		}
-	}
-	const baseColumns = ["title", "date", ...mapping.tagFields];
-	const extra = Array.from(allKeys).filter(
-		(k) => k !== mapping.titleField && k !== mapping.dateField && !baseColumns.includes(k)
-	);
-	return [...baseColumns, ...extra].filter((c, i, arr) => arr.indexOf(c) === i);
-}
-
-function formatCellValue(entry: PageEntry, column: string): string {
-	switch (column) {
-		case "title":
-			return entry.title;
-		case "date":
-			return entry.date ? formatDate(entry.date) : "";
-		default:
-			const val = entry.fields?.[column];
-			if (val === null || val === undefined) return "";
-			if (isDisplayableValue(val)) {
-				if (Array.isArray(val)) return val.join(", ");
-				if (val instanceof Date) return formatDate(val);
-				return String(val);
-			}
-			return "";
-	}
-}
-
-function formatDate(val: unknown): string {
-	if (val instanceof Date) return val.toLocaleDateString();
-	if (typeof val === "number") return new Date(val).toLocaleDateString();
-	if (typeof val === "string") {
-		const d = new Date(val);
-		if (!isNaN(d.getTime())) return d.toLocaleDateString();
-	}
-	return String(val ?? "");
-}
-
-// ============================================================
 // Root component: SchedulerApp
 // ============================================================
 
@@ -147,15 +128,23 @@ interface SchedulerAppProps {
 	initialView?: ViewType;
 	/** Override folder for new file creation (from codeblock param) */
 	newFileFolder?: string;
+	/** Name of a saved template to apply on mount (from codeblock param) */
+	initialTemplate?: string;
 }
 
-export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAppProps) {
+export function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate }: SchedulerAppProps) {
 	const [viewType, setViewType] = useState<ViewType>(initialView ?? plugin.settings.defaultView);
 	const [sort, setSort] = useState<SortConfig[]>([]);
 	const [filters, setFilters] = useState<FilterCondition[]>([]);
 	const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
 	const [inlineEntries, setInlineEntries] = useState<PageEntry[]>([]);
 	const [dataVersion, setDataVersion] = useState(0);
+	const [search, setSearch] = useState("");
+
+	// View templates (mirrored from settings so the toolbar updates after saving)
+	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
+	const [saveOpen, setSaveOpen] = useState(false);
+	const [saveName, setSaveName] = useState("");
 
 	const api = getDataviewApi(plugin.app);
 
@@ -180,8 +169,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAp
 		);
 	}
 
-	const engine = new QueryEngine(plugin.app);
-	const entries = engine.fetchPages(plugin.settings.fieldMapping, plugin.settings.folders);
+	const entries = plugin.dataCache.getEntries(plugin.settings.fieldMapping, plugin.settings.folders);
 	// Merge page entries with inline task entries
 	const allEntries = useMemo(
 		() => entries.concat(inlineEntries),
@@ -189,89 +177,116 @@ export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAp
 	);
 	const columns = useMemo(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
 
+	// Global search: filter by title + any field value (case-insensitive)
+	const filteredEntries = useMemo(() => {
+		const q = search.trim().toLowerCase();
+		if (!q) return allEntries;
+		return allEntries.filter((e) => {
+			if (e.title.toLowerCase().includes(q)) return true;
+			const haystack = Object.entries(e.fields ?? {})
+				.map(([k, v]) => `${k} ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+				.join(" ");
+			return haystack.toLowerCase().includes(q);
+		});
+	}, [allEntries, search]);
+
+	/** Re-query data after an edit. Bumps dataVersion after a short delay so Dataview
+	 * has time to reindex the modified file. */
+	function refreshData() {
+		setTimeout(() => setDataVersion((v) => v + 1), 150);
+	}
+
+	// --- View templates ---
+	/** Apply a saved template by name (sets view type, sort and filters). */
+	function applyTemplate(name: string) {
+		if (!name) return;
+		const t = templates.find((x) => x.name === name);
+		if (!t) return;
+		setViewType(t.viewType);
+		setSort(t.sort.map((s) => ({ ...s })));
+		setFilters(t.filters.map((f) => ({ ...f })));
+	}
+
+	/** Save the current view (type + sort + filters) as a new named template. */
+	async function saveTemplate() {
+		const name = saveName.trim();
+		if (!name) return;
+		const tpl: ViewTemplate = {
+			name,
+			viewType,
+			sort: sort.map((s) => ({ ...s })),
+			filters: filters.map((f) => ({ ...f })),
+		};
+		const next = [...templates.filter((t) => t.name !== name), tpl];
+		plugin.settings.templates = next;
+		await plugin.saveSettings();
+		setTemplates(next);
+		setSaveOpen(false);
+		setSaveName("");
+	}
+
+	// Apply a template passed via codeblock param on mount
+	useEffect(() => {
+		if (initialTemplate) {
+			const t = (plugin.settings.templates ?? []).find((x) => x.name === initialTemplate);
+			if (t) {
+				setViewType(t.viewType);
+				setSort(t.sort.map((s) => ({ ...s })));
+				setFilters(t.filters.map((f) => ({ ...f })));
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// Refresh when data changes externally (e.g. after undo/redo restore)
+	useEffect(() => {
+		const cb = () => setDataVersion((v) => v + 1);
+		plugin.onDataChanged(cb);
+		return () => plugin.offDataChanged(cb);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	/** Handle drag-drop date change: write new date to file frontmatter */
 	function handleDateChange(path: string, newDateStr: string) {
 		const dateField = plugin.settings.fieldMapping.dateField;
-		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
-		if (!file) return;
-		plugin.app.vault.process(file,
-			(data: string) => {
-				// Match the YAML frontmatter block
-				const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-				const match = data.match(frontmatterRegex);
-				if (!match) {
-					// No frontmatter — prepend one
-					return `---\n${dateField}: ${newDateStr}\n---\n\n${data}`;
-				}
-				const fm = match[1];
-				const dateRegex = new RegExp(`^(${dateField}\\s*:\\s*).+`, "m");
-				if (dateRegex.test(fm)) {
-					const newFm = fm.replace(dateRegex, `$1${newDateStr}`);
-					return data.replace(frontmatterRegex, `---\n${newFm}\n---`);
-				} else {
-					// Field doesn't exist — append it
-					const newFm = fm + `\n${dateField}: ${newDateStr}`;
-					return data.replace(frontmatterRegex, `---\n${newFm}\n---`);
-				}
-			}
-		);
+		plugin.undo.apply(path, (data) => setFrontmatterField(data, dateField, newDateStr)).then(() => refreshData());
 	}
 
 	/** Handle time block drag/resize: write new start/end to file frontmatter */
 	function handleTimeChange(path: string, newStart: string, newEnd: string) {
 		const startField = plugin.settings.fieldMapping.startField;
 		const endField = plugin.settings.fieldMapping.endField;
-		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
-		if (!file) return;
-
-		plugin.app.vault.process(file, (data: string) => {
-			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-			const match = data.match(frontmatterRegex);
-			if (!match) {
-				return `---\n${startField}: ${newStart}\n${endField}: ${newEnd}\n---\n\n${data}`;
-			}
-			let fm = match[1];
-
-			const startRegex = new RegExp(`^(${startField}\\s*:\\s*).+`, "m");
-			const endRegex = new RegExp(`^(${endField}\\s*:\\s*).+`, "m");
-
-			fm = fm.replace(startRegex, `$1${newStart}`);
-			fm = fm.replace(endRegex, `$1${newEnd}`);
-
-			// If fields don't exist, append them
-			if (!startRegex.test(fm)) fm += `\n${startField}: ${newStart}`;
-			if (!endRegex.test(fm)) fm += `\n${endField}: ${newEnd}`;
-
-			return data.replace(frontmatterRegex, `---\n${fm}\n---`);
-		});
+		plugin.undo
+			.apply(path, (data) => setFrontmatterFields(data, { [startField]: newStart, [endField]: newEnd }))
+			.then(() => refreshData());
 	}
 
 	/** Handle table cell edit: write new value to frontmatter field */
 	function handleCellEdit(path: string, field: string, newValue: string) {
-		const file = plugin.app.vault.getAbstractFileByPath(path) as import("obsidian").TFile;
-		if (!file) return;
-
-		plugin.app.vault.process(file, (data: string) => {
-			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-			const match = data.match(frontmatterRegex);
-			if (!match) {
-				return `---\n${field}: ${newValue}\n---\n\n${data}`;
-			}
-			let fm = match[1];
-
-			const fieldRegex = new RegExp(`^(${field}\\s*:\\s*).+`, "m");
-			if (fieldRegex.test(fm)) {
-				fm = fm.replace(fieldRegex, `$1${newValue}`);
-			} else {
-				fm += `\n${field}: ${newValue}`;
-			}
-
-			return data.replace(frontmatterRegex, `---\n${fm}\n---`);
-		});
+		plugin.undo.apply(path, (data) => setFrontmatterField(data, field, newValue)).then(() => refreshData());
 	}
 
-	/** Create a new MD file with frontmatter inherited from current filters */
-	function handleCreateEntry(dateStr?: string) {
+	/** Tag-aware field writer used by the Kanban view: writes a scalar value, or a
+	 * single-element YAML array when the field is a configured tag field. */
+	function handleFieldWrite(path: string, field: string, value: string) {
+		const isTag = plugin.settings.fieldMapping.tagFields.includes(field);
+		const formatted = isTag ? formatTagValue([value]) : value;
+		plugin.undo.apply(path, (data) => setFrontmatterField(data, field, formatted)).then(() => refreshData());
+	}
+
+	/** Open an entry's file in the workspace */
+	function handleOpenEntry(path: string) {
+		plugin.app.workspace.openLinkText(path, "", false);
+	}
+
+	/** Create a new MD file with frontmatter inherited from current filters.
+	 * `inheritFields` lets callers (e.g. Kanban) seed extra fields by column value. */
+	function handleCreateEntry(
+		dateStr?: string,
+		startTime?: string,
+		endTime?: string,
+		inheritFields?: Record<string, string>
+	) {
 		// Use local time to avoid timezone offset
 		const now = new Date();
 		const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -284,6 +299,23 @@ export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAp
 		const dateField = plugin.settings.fieldMapping.dateField;
 		if (dateStr || (filters.length > 0 && filters.some((f) => f.field === dateField))) {
 			fmFields[dateField] = baseDate;
+		}
+
+		// Optional time range for timeline-created events
+		const startField = plugin.settings.fieldMapping.startField;
+		const endField = plugin.settings.fieldMapping.endField;
+		if (startTime && endTime) {
+			fmFields[startField] = startTime;
+			fmFields[endField] = endTime;
+		}
+
+		// Inherit additional fields (e.g. Kanban column value)
+		if (inheritFields) {
+			for (const [k, v] of Object.entries(inheritFields)) {
+				fmFields[k] = plugin.settings.fieldMapping.tagFields.includes(k)
+					? formatTagValue([v])
+					: v;
+			}
 		}
 
 		new NewEntryModal(plugin.app, (title) => {
@@ -315,11 +347,98 @@ export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAp
 
 	return (
 		<div class="scheduler-root">
-			<SchedulerViewTabs current={viewType} onChange={setViewType} />
+			<div class="scheduler-toolbar">
+				<SchedulerViewTabs current={viewType} onChange={setViewType} />
+				<div class="scheduler-search">
+					<input
+						class="scheduler-search-input"
+						type="text"
+						value={search}
+						placeholder="Search titles & fields…"
+						onInput={(e: any) => setSearch(e.target.value)}
+					/>
+					{search && (
+						<button class="scheduler-search-clear" onClick={() => setSearch("")} title="Clear search">
+							&times;
+						</button>
+					)}
+				</div>
+				<div class="scheduler-templates">
+					<select
+						class="scheduler-template-select"
+						value=""
+						title="Apply a saved view template"
+						onChange={(e: any) => applyTemplate(e.target.value)}
+					>
+						<option value="">Templates…</option>
+						{templates.map((t) => (
+							<option value={t.name}>{t.name}</option>
+						))}
+					</select>
+					<button
+						class="scheduler-template-save-btn"
+						onClick={() => {
+							setSaveOpen((o) => !o);
+							setSaveName("");
+						}}
+						title="Save the current view as a template"
+					>
+						Save
+					</button>
+					{saveOpen && (
+						<span class="scheduler-template-save">
+							<input
+								class="scheduler-template-name"
+								type="text"
+								value={saveName}
+								placeholder="Template name"
+								onInput={(e: any) => setSaveName(e.target.value)}
+								onKeyDown={(e: any) => {
+									if (e.key === "Enter") saveTemplate();
+									if (e.key === "Escape") {
+										setSaveOpen(false);
+										setSaveName("");
+									}
+								}}
+							/>
+							<button
+								class="scheduler-template-confirm"
+								onClick={saveTemplate}
+								disabled={!saveName.trim()}
+							>
+								OK
+							</button>
+						</span>
+					)}
+				</div>
+				<div class="scheduler-ical">
+					<button
+						class="scheduler-ical-btn"
+						onClick={() => plugin.exportEntriesToIcal(filteredEntries)}
+						title="Export the current entries to an .ics file"
+					>
+						Export .ics
+					</button>
+					<button
+						class="scheduler-ical-btn"
+						onClick={() => plugin.exportEntriesToMarkdown(filteredEntries, columns)}
+						title="Export the current entries as a Markdown table"
+					>
+						Export .md
+					</button>
+					<button
+						class="scheduler-ical-btn"
+						onClick={() => triggerIcsFilePicker((text) => plugin.importIcalFromText(text))}
+						title="Import an .ics file as markdown notes"
+					>
+						Import .ics
+					</button>
+				</div>
+			</div>
 			<div class="scheduler-view-content">
 				{viewType === "table" && (
 					<TableView
-						entries={allEntries}
+						entries={filteredEntries}
 						columns={columns}
 						mapping={plugin.settings.fieldMapping}
 						sort={sort}
@@ -329,19 +448,31 @@ export function SchedulerApp({ plugin, initialView, newFileFolder }: SchedulerAp
 						hiddenCols={hiddenCols}
 						onHiddenColsChange={setHiddenCols}
 						onCellEdit={handleCellEdit}
+						onOpenEntry={handleOpenEntry}
 						onCreateEntry={() => handleCreateEntry()}
 					/>
 				)}
-				{viewType === "calendar" && (
-					<ErrorBoundary>
-						<CalendarView entries={allEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} />
-					</ErrorBoundary>
-				)}
-				{viewType === "timeline" && (
-					<ErrorBoundary>
-						<TimelineView entries={allEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onCreateEntry={() => handleCreateEntry()} />
-					</ErrorBoundary>
-				)}
+			{viewType === "calendar" && (
+				<ErrorBoundary>
+					<CalendarView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} />
+				</ErrorBoundary>
+			)}
+			{viewType === "timeline" && (
+				<ErrorBoundary>
+					<TimelineView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime)} />
+				</ErrorBoundary>
+			)}
+			{viewType === "kanban" && (
+				<ErrorBoundary>
+					<KanbanView
+						entries={filteredEntries}
+						mapping={plugin.settings.fieldMapping}
+						onGroupChange={handleFieldWrite}
+						onOpenEntry={handleOpenEntry}
+						onCreateEntry={(groupField, value) => handleCreateEntry(undefined, undefined, undefined, { [groupField]: value })}
+					/>
+				</ErrorBoundary>
+			)}
 			</div>
 		</div>
 	);
@@ -356,6 +487,7 @@ function SchedulerViewTabs({ current, onChange }: { current: ViewType; onChange:
 		{ type: "table", label: "Table" },
 		{ type: "calendar", label: "Calendar" },
 		{ type: "timeline", label: "Timeline" },
+		{ type: "kanban", label: "Kanban" },
 	];
 
 	return (
@@ -368,279 +500,6 @@ function SchedulerViewTabs({ current, onChange }: { current: ViewType; onChange:
 					{tab.label}
 				</button>
 			))}
-		</div>
-	);
-}
-
-// ============================================================
-// Table View
-// ============================================================
-
-interface TableViewProps {
-	entries: PageEntry[];
-	columns: string[];
-	mapping: FieldMapping;
-	sort: SortConfig[];
-	onSortChange: (sort: SortConfig[]) => void;
-	filters: FilterCondition[];
-	onFiltersChange: (filters: FilterCondition[]) => void;
-	hiddenCols: Set<string>;
-	onHiddenColsChange: (cols: Set<string>) => void;
-	onCellEdit?: (path: string, field: string, value: string) => void;
-	onCreateEntry?: () => void;
-}
-
-function TableView({ entries, columns, mapping, sort, onSortChange, filters, onFiltersChange, hiddenCols, onHiddenColsChange, onCellEdit, onCreateEntry }: TableViewProps) {
-	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
-
-	// Apply filters then sort (both are pure static functions)
-	const filtered = filters.length > 0 ? QueryEngine.applyFilters(entries, filters) : entries;
-	const sorted = sort.length > 0 ? QueryEngine.applySort(filtered, sort) : filtered;
-
-	function handleSort(column: string) {
-		const existing = sort.find((s) => s.field === column);
-		if (!existing) {
-			onSortChange([...sort, { field: column, direction: "asc" }]);
-		} else if (existing.direction === "asc") {
-			onSortChange(sort.map((s) => (s.field === column ? { ...s, direction: "desc" } : s)));
-		} else {
-			onSortChange(sort.filter((s) => s.field !== column));
-		}
-	}
-
-	function getSortIcon(column: string): string {
-		const idx = sort.findIndex((s) => s.field === column);
-		if (idx === -1) return "";
-		const arrow = sort[idx].direction === "asc" ? "\u2191" : "\u2193";
-		const prio = idx + 1;
-		return ` ${arrow}${prio}`;
-	}
-
-	function getSortTitle(column: string): string {
-		const idx = sort.findIndex((s) => s.field === column);
-		if (idx === -1) return `Sort by ${column}`;
-		const dir = sort[idx].direction === "asc" ? "ascending" : "descending";
-		return `Sort #${idx + 1}: ${column} (${dir}) — click to toggle, delete last to remove`;
-	}
-
-	if (entries.length === 0) {
-		return (
-			<div class="scheduler-empty">
-				<p>No entries found. Create markdown files with frontmatter fields to see data here.</p>
-			</div>
-		);
-	}
-
-	return (
-		<div>
-			<FilterBar
-				columns={columns}
-				filters={filters}
-				onFiltersChange={onFiltersChange}
-				hiddenCols={hiddenCols}
-				onHiddenColsChange={onHiddenColsChange}
-				entriesCount={sorted.length}
-				totalCount={entries.length}
-				onCreateEntry={onCreateEntry}
-			/>
-			<table class="scheduler-table">
-				<thead>
-					<tr>
-						{visibleCols.map((col) => (
-							<th onClick={() => handleSort(col)} title={getSortTitle(col)}>
-								{col}
-								<span class="scheduler-sort-icon">{getSortIcon(col)}</span>
-							</th>
-						))}
-					</tr>
-				</thead>
-				<tbody>
-					{sorted.map((entry) => (
-						<tr key={entry.path}>
-							{visibleCols.map((col) => (
-								col === "title" ? (
-									<td
-										class="scheduler-cell-title"
-										onClick={() => {
-											const app = (globalThis as any).app;
-											if (app) app.workspace.openLinkText(entry.path, "", false);
-										}}
-									>
-										{formatCellValue(entry, col)}
-									</td>
-								) : (
-									<td
-										contentEditable={true}
-										class="scheduler-cell-editable"
-										onBlur={(e) => {
-											const text = (e.target as HTMLElement).textContent?.trim() ?? "";
-											const prev = formatCellValue(entry, col);
-											if (text !== prev) {
-												onCellEdit?.(entry.path, col, text);
-											}
-										}}
-									>
-										{formatCellValue(entry, col)}
-									</td>
-								)
-							))}
-						</tr>
-					))}
-				</tbody>
-				{onCreateEntry && (
-					<tfoot>
-						<tr>
-							<td colspan={visibleCols.length} class="scheduler-table-add-row" onClick={onCreateEntry}>
-								+ New entry
-							</td>
-						</tr>
-					</tfoot>
-				)}
-			</table>
-		</div>
-	);
-}
-
-// ============================================================
-// Filter Bar
-// ============================================================
-
-interface FilterBarProps {
-	columns: string[];
-	filters: FilterCondition[];
-	onFiltersChange: (filters: FilterCondition[]) => void;
-	hiddenCols: Set<string>;
-	onHiddenColsChange: (cols: Set<string>) => void;
-	entriesCount: number;
-	totalCount: number;
-	onCreateEntry?: () => void;
-}
-
-function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, onCreateEntry }: FilterBarProps) {
-	const operators = [
-		{ value: "equals", label: "=" },
-		{ value: "contains", label: "contains" },
-		{ value: "greater_than", label: ">" },
-		{ value: "less_than", label: "<" },
-		{ value: "before", label: "< date" },
-		{ value: "after", label: "> date" },
-	];
-
-	function addFilter() {
-		onFiltersChange([
-			...filters,
-			{ field: columns[0] ?? "title", operator: "contains", value: "" },
-		]);
-	}
-
-	function updateFilter(index: number, patch: Partial<FilterCondition>) {
-		const next = [...filters];
-		next[index] = { ...next[index], ...patch };
-		onFiltersChange(next);
-	}
-
-	function removeFilter(index: number) {
-		onFiltersChange(filters.filter((_, i) => i !== index));
-	}
-
-	function clearFilters() {
-		onFiltersChange([]);
-	}
-
-	function toggleColumn(col: string) {
-		const next = new Set(hiddenCols);
-		if (next.has(col)) {
-			next.delete(col);
-		} else {
-			next.add(col);
-		}
-		onHiddenColsChange(next);
-	}
-
-	// Show column toggle dropdown state
-	const [showColMenu, setShowColMenu] = useState(false);
-
-	return (
-		<div class="scheduler-filter-bar">
-			<div class="scheduler-filter-bar-left">
-				{filters.map((f, i) => (
-					<div class="scheduler-filter-row" key={i}>
-						<select
-							class="scheduler-filter-select"
-							value={f.field}
-							onChange={(e: any) => updateFilter(i, { field: e.target.value })}
-						>
-							{columns.map((c) => (
-								<option value={c}>{c}</option>
-							))}
-						</select>
-						<select
-							class="scheduler-filter-operator"
-							value={f.operator}
-							onChange={(e: any) => updateFilter(i, { operator: e.target.value })}
-						>
-							{operators.map((op) => (
-								<option value={op.value}>{op.label}</option>
-							))}
-						</select>
-						<input
-							class="scheduler-filter-value"
-							type="text"
-							value={f.value}
-							placeholder="value..."
-							onInput={(e: any) => updateFilter(i, { value: e.target.value })}
-						/>
-						<button class="scheduler-filter-remove" onClick={() => removeFilter(i)} title="Remove filter">
-							&times;
-						</button>
-					</div>
-				))}
-				<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
-					+ Filter
-				</button>
-				{filters.length > 0 && (
-					<button class="scheduler-filter-clear" onClick={clearFilters}>
-						Clear
-					</button>
-				)}
-			</div>
-
-			<div class="scheduler-filter-bar-right">
-				{onCreateEntry && (
-					<button class="scheduler-filter-new" onClick={onCreateEntry} title="New entry with current filters">
-						+ New
-					</button>
-				)}
-				<span class="scheduler-filter-count">
-					{entriesCount === totalCount
-						? `${totalCount} entries`
-						: `${entriesCount} / ${totalCount} entries`}
-				</span>
-
-				<div class="scheduler-col-toggle">
-					<button
-						class="scheduler-col-toggle-btn"
-						onClick={() => setShowColMenu(!showColMenu)}
-						title="Toggle columns"
-					>
-						Columns
-					</button>
-					{showColMenu && (
-						<div class="scheduler-col-menu">
-							{columns.map((col) => (
-								<label class="scheduler-col-menu-item">
-									<input
-										type="checkbox"
-										checked={!hiddenCols.has(col)}
-										onChange={() => toggleColumn(col)}
-									/>
-									{col}
-								</label>
-							))}
-						</div>
-					)}
-				</div>
-			</div>
 		</div>
 	);
 }
@@ -694,7 +553,16 @@ export function createCodeblockRenderer(
 	el: HTMLElement,
 	plugin: SchedulerPlugin,
 	initialView?: ViewType,
-	newFileFolder?: string
+	newFileFolder?: string,
+	initialTemplate?: string
 ): ReactRenderer {
-	return new ReactRenderer(el, <SchedulerApp plugin={plugin} initialView={initialView} newFileFolder={newFileFolder} />);
+	return new ReactRenderer(
+		el,
+		<SchedulerApp
+			plugin={plugin}
+			initialView={initialView}
+			newFileFolder={newFileFolder}
+			initialTemplate={initialTemplate}
+		/>
+	);
 }
