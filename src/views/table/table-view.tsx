@@ -1,5 +1,5 @@
 import { h, Fragment } from "preact";
-import { useState, useMemo, useEffect } from "preact/hooks";
+import { useState, useMemo, useEffect, useRef } from "preact/hooks";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterCondition } from "../../types";
 import {
@@ -7,6 +7,7 @@ import {
 	getCellKind,
 	writeFieldFor,
 	toInputDate,
+	toISODate,
 	formatTagValue,
 } from "./table-utils";
 import { expandRecurring } from "../../utils/recurrence";
@@ -24,22 +25,54 @@ interface EditableCellProps {
 	onEdit?: (path: string, field: string, value: string) => void;
 }
 
+/** Parse user-typed text into an ISO yyyy-mm-dd string, or null if unparseable. */
+function parseDateInput(s: string): string | null {
+	const t = s.trim();
+	if (!t) return null;
+	if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+	const d = new Date(t);
+	if (!isNaN(d.getTime())) return toISODate(d);
+	return null;
+}
+
+/**
+ * Excel-style inline cell: shows plain text; on click the same text becomes
+ * directly editable in place (contentEditable). No input box, no style change.
+ * Commits on blur / Enter; Escape cancels.
+ */
 function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellProps) {
 	const kind = getCellKind(column, mapping, kinds);
 	const field = writeFieldFor(column, mapping);
 	const raw = column === "date" ? entry.date : entry.fields?.[column];
 	const display = formatCellValue(entry, column);
 
-	const [draft, setDraft] = useState(display);
-	// Keep local buffer in sync when the underlying value changes (e.g. after refresh)
-	useEffect(() => {
-		setDraft(display);
-	}, [display]);
+	const [editing, setEditing] = useState(false);
+	const cellRef = useRef<HTMLTableCellElement | null>(null);
 
-	function commitValue(val: string) {
-		if (!onEdit) return;
+	// On entering edit mode, seed the cell with the displayed text and focus it
+	// (caret at end). Runs only when `editing` flips, so typing isn't clobbered.
+	useEffect(() => {
+		if (editing && cellRef.current) {
+			cellRef.current.textContent = display;
+			cellRef.current.focus();
+			const range = document.createRange();
+			range.selectNodeContents(cellRef.current);
+			range.collapse(false);
+			const sel = window.getSelection();
+			sel?.removeAllRanges();
+			sel?.addRange(range);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [editing]);
+
+	function commit() {
+		const el = cellRef.current;
+		setEditing(false);
+		if (!el || !onEdit) return;
+		const val = el.textContent ?? "";
 		if (kind === "date") {
-			onEdit(entry.path, field, val); // yyyy-mm-dd from native date input
+			const iso = parseDateInput(val);
+			if (iso && iso !== toInputDate(raw)) onEdit(entry.path, field, iso);
 		} else if (kind === "tags") {
 			if (val.trim() !== display.trim()) {
 				const arr = val.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
@@ -50,32 +83,34 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellPro
 		}
 	}
 
-	if (kind === "date") {
-		const iso = toInputDate(raw);
+	if (editing) {
 		return (
-			<td class="scheduler-cell">
-				<input
-					class="scheduler-cell-input scheduler-cell-date"
-					type="date"
-					value={iso}
-					onChange={(e: any) => commitValue(e.target.value)}
-				/>
-			</td>
+			<td
+				ref={cellRef}
+			class="scheduler-cell scheduler-cell-display"
+			contentEditable
+			onBlur={commit}
+				onKeyDown={(e: any) => {
+					if (e.key === "Enter") {
+						e.preventDefault();
+						commit();
+					} else if (e.key === "Escape") {
+						if (cellRef.current) cellRef.current.textContent = display;
+						commit();
+					}
+				}}
+			/>
 		);
 	}
 
 	return (
-		<td class="scheduler-cell">
-			<input
-				class="scheduler-cell-input"
-				type="text"
-				value={draft}
-				onInput={(e: any) => setDraft(e.target.value)}
-				onBlur={(e: any) => commitValue(e.target.value)}
-				onKeyDown={(e: any) => {
-					if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-				}}
-			/>
+		<td
+			ref={cellRef}
+			class="scheduler-cell scheduler-cell-display"
+			onClick={() => setEditing(true)}
+			title="Click to edit"
+		>
+			{display}
 		</td>
 	);
 }
