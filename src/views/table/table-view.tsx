@@ -1,5 +1,6 @@
 import { h, Fragment } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
+import { App } from "obsidian";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterCondition } from "../../types";
 import {
@@ -465,6 +466,8 @@ interface TableViewProps {
 	onCellEdit?: (path: string, field: string, value: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: () => void;
+	/** Obsidian app, forwarded to the date picker so it can use the internal DateTimeInput */
+	app?: App;
 }
 
 const PAGE_SIZES = [25, 50, 100, 0]; // 0 = all
@@ -482,6 +485,7 @@ function TableView({
 	onCellEdit,
 	onOpenEntry,
 	onCreateEntry,
+	app,
 }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
@@ -718,7 +722,7 @@ function TableView({
 								</td>
 							) : getCellKind(col, mapping, fieldKinds) === "date" ? (
 								<td class="scheduler-cell scheduler-cell-display">
-									<DateCell entry={entry} column={col} mapping={mapping} onEdit={onCellEdit} />
+									<DateCell entry={entry} column={col} mapping={mapping} app={app} onEdit={onCellEdit} />
 								</td>
 							) : (
 									<EditableCell
