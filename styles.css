@@ -195,6 +195,146 @@
     outline: none;
 }
 
+/* --- native-style date cell (text + calendar icon + popover) --- */
+.scheduler-date-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    max-width: 100%;
+}
+
+.scheduler-date-text {
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scheduler-date-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+.scheduler-date-icon:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-date-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    margin-top: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.25));
+    padding: 8px;
+    width: 224px;
+}
+
+.scheduler-date-pop-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.scheduler-date-nav {
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.scheduler-date-nav:hover {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-date-title {
+    font-weight: 600;
+}
+
+.scheduler-date-weekdays,
+.scheduler-date-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.scheduler-date-wd {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 0;
+}
+
+.scheduler-date-cell {
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    border-radius: 4px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-date-cell:hover {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-date-cell.empty {
+    visibility: hidden;
+    cursor: default;
+}
+
+.scheduler-date-cell.today {
+    color: var(--interactive-accent);
+    font-weight: 700;
+}
+
+.scheduler-date-cell.selected {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.scheduler-date-cell.selected:hover {
+    background: var(--interactive-accent);
+}
+
+.scheduler-date-pop-footer {
+    text-align: center;
+    margin-top: 6px;
+}
+
+.scheduler-date-today {
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-normal);
+    border-radius: 4px;
+    padding: 2px 12px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.scheduler-date-today:hover {
+    background: var(--background-modifier-hover);
+}
+
 /* --- selection column --- */
 .scheduler-col-select {
     width: 36px;
