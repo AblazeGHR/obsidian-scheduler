@@ -12,6 +12,7 @@ import {
 } from "./table-utils";
 import { expandRecurring } from "../../utils/recurrence";
 import { inferEntryFieldKinds, FieldKind, defaultOperatorForKind } from "../../schema/field-types";
+import { DateCell } from "./date-cell";
 
 // ============================================================
 // EditableCell — inline editing with date / tag / text support
@@ -67,9 +68,12 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellPro
 
 	function commit() {
 		const el = cellRef.current;
+		const val = el ? (el.textContent ?? "") : "";
+		// Clear the manually-set text so React's display re-render inserts a
+		// single value (otherwise the stale text node lingers and doubles up).
+		if (el) el.textContent = "";
 		setEditing(false);
-		if (!el || !onEdit) return;
-		const val = el.textContent ?? "";
+		if (!onEdit) return;
 		if (kind === "date") {
 			const iso = parseDateInput(val);
 			if (iso && iso !== toInputDate(raw)) onEdit(entry.path, field, iso);
@@ -702,26 +706,30 @@ function TableView({
 									onChange={() => toggleRow(entry.path)}
 								/>
 							</td>
-							{visibleCols.map((col) =>
-								col === "title" ? (
-									<td class="scheduler-cell-title" onClick={() => openFile(entry.path)}>
-										{formatCellValue(entry, col)}
-										{entry.recurrenceRule && (
-											<span class="scheduler-recurring-mark" title={`Repeats: ${entry.recurrenceRule}`}>
-												↻
-											</span>
-										)}
-									</td>
-								) : (
-										<EditableCell
-											entry={entry}
-											column={col}
-											mapping={mapping}
-											kinds={fieldKinds}
-											onEdit={onCellEdit}
-										/>
-									)
-								)}
+						{visibleCols.map((col) =>
+							col === "title" ? (
+								<td class="scheduler-cell-title" onClick={() => openFile(entry.path)}>
+									{formatCellValue(entry, col)}
+									{entry.recurrenceRule && (
+										<span class="scheduler-recurring-mark" title={`Repeats: ${entry.recurrenceRule}`}>
+											↻
+										</span>
+									)}
+								</td>
+							) : getCellKind(col, mapping, fieldKinds) === "date" ? (
+								<td class="scheduler-cell scheduler-cell-display">
+									<DateCell entry={entry} column={col} mapping={mapping} onEdit={onCellEdit} />
+								</td>
+							) : (
+									<EditableCell
+										entry={entry}
+										column={col}
+										mapping={mapping}
+										kinds={fieldKinds}
+										onEdit={onCellEdit}
+									/>
+								)
+						)}
 							</tr>
 						))}
 					</tbody>
