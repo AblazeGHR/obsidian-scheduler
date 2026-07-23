@@ -1,6 +1,4 @@
 .obsidian/
 node_modules/
-main.js
-main.js.map
-*.js
-*.js.map
+# Keep compiled output — required by Obsidian community plugins
+# main.js and main.js.map are committed intentionally
