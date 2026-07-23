@@ -1517,6 +1517,36 @@
     background: var(--background-modifier-hover);
 }
 
+.scheduler-dropdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.scheduler-dropdown-item-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.scheduler-dropdown-del {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+.scheduler-dropdown-del:hover {
+    color: var(--text-error);
+    background: var(--background-modifier-hover);
+}
+
 .scheduler-dropdown-separator {
     border-top: 1px solid var(--background-modifier-border);
     margin: 4px 0;

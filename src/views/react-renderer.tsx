@@ -234,6 +234,13 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		setSaveName("");
 	}
 
+	async function deleteTemplate(name: string) {
+		const next = templates.filter((t) => t.name !== name);
+		plugin.settings.templates = next;
+		await plugin.saveSettings();
+		setTemplates(next);
+	}
+
 	// Apply a template passed via codeblock param on mount
 	useEffect(() => {
 		if (initialTemplate) {
@@ -465,8 +472,16 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 				<ToolbarDropdown label="Templates">
 					{templates.length > 0
 						? templates.map((t) => (
-							<div class="scheduler-dropdown-item" onClick={() => applyTemplate(t.name)}>
-								{t.name}
+							<div class="scheduler-dropdown-item scheduler-dropdown-row">
+								<span class="scheduler-dropdown-item-text" onClick={() => applyTemplate(t.name)}>{t.name}</span>
+								<button
+									class="scheduler-dropdown-del"
+									type="button"
+									title="Delete template"
+									onClick={(e: any) => { e.stopPropagation(); deleteTemplate(t.name); }}
+								>
+									&times;
+								</button>
 							</div>
 						))
 						: (
@@ -477,7 +492,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					}
 					<div class="scheduler-dropdown-separator" />
 					<div class="scheduler-dropdown-item" onClick={() => { setSaveOpen((o) => !o); setSaveName(""); }}>
-						Save current view…
+						Save view…
 					</div>
 					{saveOpen && (
 						<div class="scheduler-dropdown-save" onClick={(e: any) => e.stopPropagation()}>
