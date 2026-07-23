@@ -6,7 +6,7 @@ import { expandRecurring } from "../../utils/recurrence";
 interface CalendarViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
-	onDateChange?: (path: string, newDate: string) => void;
+	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
 }
@@ -251,7 +251,7 @@ interface CalendarCellProps {
 	dateStr: string;
 	calEntries: CalEntry[];
 	today: boolean;
-	onDateChange?: (path: string, newDate: string) => void;
+	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
 }
@@ -259,10 +259,11 @@ interface CalendarCellProps {
 function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry }: CalendarCellProps) {
 	const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
 	const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
+	const [dragOver, setDragOver] = useState(false);
 
 	function handleDragStart(e: DragEvent, entry: PageEntry) {
 		if (!e.dataTransfer) return;
-		e.dataTransfer.setData("text/plain", entry.path);
+		e.dataTransfer.setData("text/plain", JSON.stringify({ path: entry.path, sourceDate: dateStr }));
 		e.dataTransfer.effectAllowed = "move";
 	}
 
@@ -273,16 +274,25 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
-		const path = e.dataTransfer!.getData("text/plain");
-		if (path && onDateChange) {
-			onDateChange(path, dateStr);
+		const raw = e.dataTransfer?.getData("text/plain");
+		if (!raw || !onDateChange) return;
+		try {
+			const parsed = JSON.parse(raw);
+			if (parsed.path) {
+				onDateChange(parsed.path, dateStr, parsed.sourceDate);
+			}
+		} catch {
+			// Plain text fallback for simple entries (single line `path`)
+			onDateChange(raw, dateStr);
 		}
 	}
 
 	return (
 		<div
-			class={`scheduler-calendar-cell${today ? " today" : ""}${calEntries.length > 0 ? " has-events" : ""}`}
+			class={`scheduler-calendar-cell${today ? " today" : ""}${calEntries.length > 0 ? " has-events" : ""}${dragOver ? " dragover" : ""}`}
 			onDragOver={handleDragOver}
+			onDragEnter={() => setDragOver(true)}
+			onDragLeave={() => setDragOver(false)}
 			onDrop={handleDrop}
 		>
 			<div class="scheduler-calendar-day-num">{date.getDate()}</div>

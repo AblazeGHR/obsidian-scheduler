@@ -307,10 +307,48 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		return () => document.removeEventListener("mousedown", onMouseDown, true);
 	}, []);
 
-	/** Handle drag-drop date change: write new date to file frontmatter */
-	function handleDateChange(path: string, newDateStr: string) {
+	/** Handle drag-drop date change: write new date to file frontmatter.
+	 *  When sourceDate is provided, also shifts dateEnd by the same offset
+	 *  so multi-day entries keep their span. */
+	function handleDateChange(path: string, newDateStr: string, sourceDate?: string) {
 		const dateField = plugin.settings.fieldMapping.dateField;
-		plugin.undo.apply(path, (data) => setFrontmatterField(data, dateField, newDateStr)).then(() => refreshData());
+		const endDateField = plugin.settings.fieldMapping.endDateField;
+
+		plugin.undo
+			.apply(path, (data) => {
+				let result = setFrontmatterField(data, dateField, newDateStr);
+
+				// Shift the end-date by the same number of days when
+				// dragging a multi-day entry across the calendar.
+				if (sourceDate && endDateField) {
+					const src = new Date(sourceDate);
+					const dst = new Date(newDateStr);
+					const offsetDays = Math.round(
+						(dst.getTime() - src.getTime()) / 86400000
+					);
+					if (offsetDays !== 0) {
+						const fm = result.match(FRONTMATTER_RE);
+						if (fm) {
+							const re = new RegExp(`^${endDateField}\\s*:\\s*(.+)$`, "m");
+							const endMatch = fm[1].match(re);
+							if (endMatch) {
+								const oldEnd = new Date(endMatch[1].trim());
+								if (!isNaN(oldEnd.getTime())) {
+									const newEnd = new Date(oldEnd);
+									newEnd.setDate(newEnd.getDate() + offsetDays);
+									const y = newEnd.getFullYear();
+									const m = String(newEnd.getMonth() + 1).padStart(2, "0");
+									const d = String(newEnd.getDate()).padStart(2, "0");
+									result = setFrontmatterField(result, endDateField, `${y}-${m}-${d}`);
+								}
+							}
+						}
+					}
+				}
+
+				return result;
+			})
+			.then(() => refreshData());
 	}
 
 	/** Handle time block drag/resize: write new start/end to file frontmatter */

@@ -688,6 +688,12 @@
     background: var(--background-modifier-hover);
 }
 
+.scheduler-calendar-cell.dragover {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: -2px;
+    background: var(--background-modifier-hover);
+}
+
 .scheduler-calendar-day-num {
     text-align: right;
     padding: 1px 3px;

@@ -343,6 +343,9 @@ export default class SchedulerPlugin extends Plugin {
 					if (params["folder"] != null) keepParams["folder"] = params["folder"];
 					if (params["template"] != null) keepParams["template"] = params["template"];
 					const newSource = serializeViewState(state, keepParams);
+					// Skip the file write if nothing actually changed —
+					// avoids an unnecessary markdown re-render + scroll shift.
+					if (newSource === source.trim()) return;
 					writeCodeblockState(this.app, ctx.sourcePath, blockType, source, newSource);
 				}
 				: undefined;
