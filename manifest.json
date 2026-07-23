@@ -3,8 +3,9 @@
   "name": "Scheduler",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
-  "description": "Flexible schedule management with calendar, timeline, and table views powered by Dataview.",
-  "author": "",
-  "authorUrl": "",
+  "description": "Flexible schedule management with calendar, timeline, kanban, and table views powered by Dataview.",
+  "author": "ablaze",
+  "authorUrl": "https://github.com/ablazespace",
+  "fundingUrl": "",
   "isDesktopOnly": false
 }

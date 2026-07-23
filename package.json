@@ -1,15 +1,33 @@
 {
   "name": "obsidian-scheduler",
   "version": "0.1.0",
-  "description": "Flexible schedule management with calendar, timeline, and table views powered by Dataview.",
+  "description": "Flexible schedule management with calendar, timeline, kanban, and table views powered by Dataview.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "deploy": "npm run build && cp main.js manifest.json styles.css ../test-vault/.obsidian/plugins/obsidian-scheduler/"
   },
-  "author": "",
+  "author": "ablaze",
   "license": "MIT",
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "scheduler",
+    "calendar",
+    "timeline",
+    "kanban",
+    "dataview",
+    "task",
+    "schedule"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ablazespace/obsidian-scheduler"
+  },
+  "bugs": {
+    "url": "https://github.com/ablazespace/obsidian-scheduler/issues"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "builtin-modules": "^3.3.0",
