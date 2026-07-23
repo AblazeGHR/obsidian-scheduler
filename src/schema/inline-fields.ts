@@ -103,13 +103,21 @@ export function taskToPageEntry(
 		}
 	}
 
-	// Use task text as title if no title field, or prefixed with parent
+	// Title: prefer the task's own inline title field, then the stripped
+	// task text, then the parent-page title, then empty.
 	const titleField = mapping.titleField;
-	let title = task.text || (parentPage[titleField] as string) || "";
-	// If there's a title in inline fields, use it
+	let title: string;
 	if (task.fields[titleField]) {
 		title = task.fields[titleField];
+	} else if (task.text) {
+		title = task.text;
+	} else {
+		title = (parentPage[titleField] as string) || "";
 	}
+
+	// Override the parent-page title so mapPageEntry picks up the
+	// task-specific value instead of inheriting the file's title.
+	mergedFields[titleField] = title;
 
 	// Unique path: file path + line number
 	const uniquePath = `${filePath}#L${task.line}`;

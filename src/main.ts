@@ -18,14 +18,26 @@ export default class SchedulerPlugin extends Plugin {
 	undo!: UndoManager;
 	/** Listeners notified when underlying data changes (e.g. after undo/redo) */
 	private dataChangeListeners = new Set<() => void>();
+	private resolveTimer?: number;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
 		// Data cache layer (invalidated on vault / metadata changes)
 		this.dataCache = new SchedulerDataCache(this.app);
-		this.registerEvent(this.app.metadataCache.on("changed", () => this.dataCache.invalidate()));
-		this.registerEvent(this.app.metadataCache.on("resolved", () => this.dataCache.invalidate()));
+		// Debounced refresh: on each metadata change invalidate the cache and
+		// notify views after a short silence so we don't re-render hundreds of
+		// times during initial vault indexing.
+		const scheduleRefresh = () => {
+			this.dataCache.invalidate();
+			window.clearTimeout(this.resolveTimer);
+			this.resolveTimer = window.setTimeout(() => {
+				this.notifyDataChanged();
+				this.resolveTimer = undefined;
+			}, 200);
+		};
+		this.registerEvent(this.app.metadataCache.on("changed", scheduleRefresh));
+		this.registerEvent(this.app.metadataCache.on("resolved", scheduleRefresh));
 		this.registerEvent(this.app.vault.on("rename", () => this.dataCache.invalidate()));
 		this.registerEvent(this.app.vault.on("delete", () => this.dataCache.invalidate()));
 		this.registerEvent(this.app.vault.on("create", () => this.dataCache.invalidate()));
@@ -125,6 +137,7 @@ export default class SchedulerPlugin extends Plugin {
 	}
 
 	onunload(): void {
+		window.clearTimeout(this.resolveTimer);
 		console.log("Scheduler plugin unloaded");
 	}
 
