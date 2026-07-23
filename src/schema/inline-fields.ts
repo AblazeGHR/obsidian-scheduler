@@ -17,9 +17,13 @@ export interface TaskEntry {
 /** Regex to match inline fields: [key:: value] where value is anything except ] */
 const INLINE_FIELD_RE = /\[([^\]:]+)::\s*([^\]]*)\]/g;
 
+/** Match markdown task checkbox prefix like `- [ ] ` or `* [x] ` */
+const TASK_PREFIX_RE = /^[-*+]\s*\[.\]\s*/;
+
 /**
  * Extract inline fields from a single line of text.
- * Returns a map of field names to values, and the text with fields stripped.
+ * Returns a map of field names to values, and the text with fields and
+ * any markdown task prefix stripped.
  */
 function parseInlineFields(line: string): { fields: Record<string, string>; strippedText: string } {
 	const fields: Record<string, string> = {};
@@ -34,8 +38,8 @@ function parseInlineFields(line: string): { fields: Record<string, string>; stri
 		stripped = stripped.replace(match[0], "");
 	}
 
-	// Clean up double spaces from removal
-	stripped = stripped.replace(/\s{2,}/g, " ").trim();
+	// Clean up double spaces from removal and the task checkbox prefix
+	stripped = stripped.replace(TASK_PREFIX_RE, "").replace(/\s{2,}/g, " ").trim();
 
 	return { fields, strippedText: stripped };
 }

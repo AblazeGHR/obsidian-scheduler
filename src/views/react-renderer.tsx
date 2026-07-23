@@ -238,6 +238,19 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// On mount, Dataview may not have finished building its index yet
+	// (especially on startup when files haven't changed — no "resolved"
+	// events fire). Wait a short window, then force a cache rebuild and
+	// data re-fetch so all page entries are included.
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			plugin.dataCache.invalidate();
+			setDataVersion((v) => v + 1);
+		}, 500);
+		return () => clearTimeout(timer);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	// Refresh when data changes externally (e.g. after undo/redo restore)
 	useEffect(() => {
 		const cb = () => setDataVersion((v) => v + 1);
