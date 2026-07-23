@@ -292,17 +292,20 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		};
 	}, []);
 
-	// Save when focus leaves the scheduler root (user clicks outside)
+	// Save on mousedown outside the scheduler root. We use mousedown
+	// (capture phase) instead of focusout because focusout fires spuriously
+	// when the native date picker opens, causing a mid-edit save.
 	useEffect(() => {
-		const root = rootRef.current;
-		if (!root || !onStateChangeRef.current) return;
-		function onFocusOut(e: FocusEvent) {
-			if (!root!.contains(e.relatedTarget as Node | null)) {
+		if (!onStateChangeRef.current) return;
+		function onMouseDown(e: MouseEvent) {
+			const root = rootRef.current;
+			if (root && !root.contains(e.target as Node)) {
 				doSave();
 			}
 		}
-		root.addEventListener("focusout", onFocusOut);
-		return () => root.removeEventListener("focusout", onFocusOut);
+		document.addEventListener("mousedown", onMouseDown, true);
+		return () => document.removeEventListener("mousedown", onMouseDown, true);
+	}, []);
 	});
 
 	/** Handle drag-drop date change: write new date to file frontmatter */
@@ -405,7 +408,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	}
 
 	return (
-		<div class="scheduler-root" ref={rootRef} tabIndex={-1}>
+		<div class="scheduler-root" ref={rootRef}>
 			<div class="scheduler-toolbar">
 				<SchedulerViewTabs current={viewType} onChange={setViewType} />
 				<div class="scheduler-search">
