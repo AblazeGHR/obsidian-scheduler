@@ -1,4 +1,5 @@
 .obsidian/
 node_modules/
+prompt.md
 # Keep compiled output — required by Obsidian community plugins
 # main.js and main.js.map are committed intentionally
