@@ -192,10 +192,14 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 	function startCreate(e: MouseEvent, dayIndex: number) {
 		const target = e.target as HTMLElement;
 		// only start when clicking empty slot background
-		if (!target.classList.contains("scheduler-timeline-slots")) return;
-		e.preventDefault();
-		const rect = target.getBoundingClientRect();
-		const rectTop = rect.top;
+	// Allow mousedown on the slots element or any of its children (existing
+	// entries, labels, etc.) so clicking empty space anywhere in the column
+	// creates a new entry.
+	const slotsTarget = target.closest(".scheduler-timeline-slots");
+	if (!slotsTarget) return;
+	e.preventDefault();
+	const rect = slotsTarget.getBoundingClientRect();
+	const rectTop = rect.top;
 		const min = snap(((e.clientY - rectTop) / HOUR_HEIGHT) * 60);
 		setCreate({ dayIndex, date: dayColumns[dayIndex], startMin: min, endMin: min + SNAP_MINUTES, rectTop });
 	}
