@@ -490,6 +490,8 @@ function TableView({
 	const [pageSize, setPageSize] = useState(50);
 	const [widths, setWidths] = useState<Record<string, number>>({});
 	const [activeRow, setActiveRow] = useState(-1);
+	const tableRef = useRef<HTMLTableElement | null>(null);
+	const resizeRef = useRef<{ cancel: () => void } | null>(null);
 
 	// Expand recurring entries within a fixed horizon so the table stays bounded.
 	const expanded = useMemo(() => {
@@ -608,21 +610,73 @@ function TableView({
 	}
 
 	// --- column resize ---
+
+	/** Cheap hidden <span> for measuring text widths (shared across columns). */
+	const measureSpan = useMemo(() => {
+		const span = document.createElement("span");
+		span.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-size:13px;";
+		document.body.appendChild(span);
+		return span;
+	}, []);
+
+	function measureText(text: string): number {
+		measureSpan.textContent = text;
+		return measureSpan.offsetWidth;
+	}
+
 	function startResize(e: MouseEvent, col: string) {
 		e.preventDefault();
 		e.stopPropagation();
+		// Cancel any in-progress resize
+		resizeRef.current?.cancel();
+		resizeRef.current = null;
+
+		let active = true;
 		const startX = e.clientX;
 		const startW = widths[col] ?? 160;
 		function onMove(ev: MouseEvent) {
+			if (!active) return;
 			const newW = Math.max(60, startW + (ev.clientX - startX));
 			setWidths((w) => ({ ...w, [col]: newW }));
 		}
 		function onUp() {
+			active = false;
 			window.removeEventListener("mousemove", onMove);
 			window.removeEventListener("mouseup", onUp);
 		}
 		window.addEventListener("mousemove", onMove);
 		window.addEventListener("mouseup", onUp);
+		resizeRef.current = { cancel: () => { active = false; onUp(); } };
+	}
+
+	/** Double-click the resize handle → set column width to the widest
+	 *  content in that column (header or any visible cell). */
+	function autoFitColumn(col: string) {
+		// Cancel any active drag
+		resizeRef.current?.cancel();
+		resizeRef.current = null;
+
+		const table = tableRef.current;
+		if (!table) return;
+		const colIndex = visibleCols.indexOf(col);
+		if (colIndex === -1) return;
+
+		let max = 60;
+		// Measure header
+		const ths = table.querySelectorAll("thead th");
+		const th = ths[colIndex + 1]; // +1 skips the checkbox column
+		if (th instanceof HTMLElement) {
+			max = Math.max(max, measureText(th.textContent ?? ""));
+		}
+		// Measure every visible body cell in this column
+		const cells = table.querySelectorAll(`tbody td:nth-child(${colIndex + 2})`);
+		cells.forEach((cell) => {
+			if (cell instanceof HTMLElement) {
+				max = Math.max(max, measureText(cell.textContent ?? ""));
+			}
+		});
+
+		setWidths((w) => ({ ...w, [col]: max + 24 })); // +24 padding
 	}
 
 	if (expanded.length === 0) {
@@ -661,7 +715,7 @@ function TableView({
 			)}
 
 			<div class="scheduler-table-scroll" tabIndex={0} onKeyDown={(e: any) => handleTableKey(e)}>
-				<table class="scheduler-table">
+				<table class="scheduler-table" ref={tableRef}>
 					<colgroup>
 						<col style="width: 36px" />
 						{visibleCols.map((col) => (
@@ -685,8 +739,13 @@ function TableView({
 									<span
 										class="scheduler-resize-handle"
 										onMouseDown={(e: any) => startResize(e, col)}
+										onDblClick={(e: any) => {
+											e.stopPropagation();
+											e.preventDefault();
+											autoFitColumn(col);
+										}}
 										onClick={(e: any) => e.stopPropagation()}
-										title="Drag to resize"
+										title="Drag to resize, double-click to auto-fit"
 									/>
 								</th>
 							))}
