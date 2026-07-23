@@ -23,10 +23,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ablazeGHR/obsidian-scheduler"
+    "url": "https://github.com/AblazeGHR/obsidian-scheduler"
   },
   "bugs": {
-    "url": "https://github.com/ablazeGHR/obsidian-scheduler/issues"
+    "url": "https://github.com/AblazeGHR/obsidian-scheduler/issues"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

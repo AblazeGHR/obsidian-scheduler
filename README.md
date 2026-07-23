@@ -1,6 +1,6 @@
 # Obsidian Scheduler
 
-[![GitHub release](https://img.shields.io/github/v/release/ablazeGHR/obsidian-scheduler?style=flat-square)](https://github.com/ablazeGHR/obsidian-scheduler/releases)
+[![GitHub release](https://img.shields.io/github/v/release/AblazeGHR/obsidian-scheduler?style=flat-square)](https://github.com/AblazeGHR/obsidian-scheduler/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![Obsidian](https://img.shields.io/badge/Obsidian-%237C3AED?style=flat-square&logo=obsidian)](https://obsidian.md)
 
@@ -81,13 +81,13 @@ View state (sort, filters, hidden columns, search) is automatically persisted to
 ### Manual
 
 1. Make sure **Dataview** is installed and enabled.
-2. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/ablazeGHR/obsidian-scheduler/releases).
+2. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/AblazeGHR/obsidian-scheduler/releases).
 3. Place them in `<vault>/.obsidian/plugins/obsidian-scheduler/`.
 4. Enable **Scheduler** in Settings → Community plugins.
 
 ### BRAT (Beta Testing)
 
-Add `ablazeGHR/obsidian-scheduler` to the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin.
+Add `AblazeGHR/obsidian-scheduler` to the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin.
 
 ---
 
@@ -127,7 +127,7 @@ For full instructions see [USER_GUIDE.md](./USER_GUIDE.md).
 ## Development
 
 ```bash
-git clone https://github.com/ablazeGHR/obsidian-scheduler
+git clone https://github.com/AblazeGHR/obsidian-scheduler
 cd obsidian-scheduler
 npm install
 npm run dev      # watch mode
