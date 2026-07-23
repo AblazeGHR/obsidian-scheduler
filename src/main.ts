@@ -9,6 +9,7 @@ import { computeReminders, formatDueLabel, shouldNotify, Reminder } from "./util
 import { exportToICal, parseICal, buildNoteFromICalEvent, triggerIcsFilePicker } from "./utils/ical";
 import { entriesToMarkdown } from "./utils/markdown-export";
 import { collectColumns } from "./views/table/table-utils";
+import { parseViewState, serializeViewState, writeCodeblockState, CodeblockViewState } from "./utils/codeblock-state";
 
 export default class SchedulerPlugin extends Plugin {
 	settings!: SchedulerSettings;
@@ -68,25 +69,26 @@ export default class SchedulerPlugin extends Plugin {
 			"scheduler",
 			this.createBlockProcessor({
 				initialView: this.settings.defaultView,
+				blockType: "scheduler",
 			})
 		);
 
 		// Also register individual codeblock aliases
 		this.registerMarkdownCodeBlockProcessor(
 			"scheduler-table",
-			this.createBlockProcessor({ initialView: "table" })
+			this.createBlockProcessor({ initialView: "table", blockType: "scheduler-table" })
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			"scheduler-calendar",
-			this.createBlockProcessor({ initialView: "calendar" })
+			this.createBlockProcessor({ initialView: "calendar", blockType: "scheduler-calendar" })
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			"scheduler-timeline",
-			this.createBlockProcessor({ initialView: "timeline" })
+			this.createBlockProcessor({ initialView: "timeline", blockType: "scheduler-timeline" })
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			"scheduler-kanban",
-			this.createBlockProcessor({ initialView: "kanban" })
+			this.createBlockProcessor({ initialView: "kanban", blockType: "scheduler-kanban" })
 		);
 
 		// Register command to manually check reminders
@@ -301,7 +303,9 @@ export default class SchedulerPlugin extends Plugin {
 	/**
 	 * Create a codeblock processor that renders the scheduler UI as a Preact component.
 	 */
-	private createBlockProcessor(opts: { initialView?: ViewType }) {
+	private createBlockProcessor(opts: { initialView?: ViewType; blockType?: string }) {
+		const blockType = opts.blockType ?? "scheduler";
+
 		return async (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
 			// Check if Dataview is available - show warning if not
 			if (!isDataviewAvailable(this.app)) {
@@ -324,7 +328,26 @@ export default class SchedulerPlugin extends Plugin {
 			const newFileFolder = params["folder"];
 			const initialTemplate = params["template"];
 
-			const root = createCodeblockRenderer(el, this, initialView, newFileFolder, initialTemplate);
+			// Parse view state from codeblock (sort, filters, hidden cols, search)
+			const initialState = parseViewState(params);
+			if (!initialState.viewType) initialState.viewType = initialView;
+
+			// Only the main `scheduler` block writes back state automatically;
+			// the aliases (scheduler-table etc.) force a specific view.
+			const isPersistent = blockType === "scheduler";
+			const onStateChange = isPersistent
+				? (state: CodeblockViewState) => {
+					// Preserve non-state params that the user may have written
+					// manually (folder, template).
+					const keepParams: Record<string, string> = {};
+					if (params["folder"] != null) keepParams["folder"] = params["folder"];
+					if (params["template"] != null) keepParams["template"] = params["template"];
+					const newSource = serializeViewState(state, keepParams);
+					writeCodeblockState(this.app, ctx.sourcePath, blockType, source, newSource);
+				}
+				: undefined;
+
+			const root = createCodeblockRenderer(el, this, initialView, newFileFolder, initialTemplate, initialState, onStateChange);
 			ctx.addChild(root);
 		};
 	}

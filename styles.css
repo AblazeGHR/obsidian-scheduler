@@ -1461,22 +1461,15 @@
 /* ============================================================
    View templates (toolbar)
    ============================================================ */
-.scheduler-templates {
+/* ============================================================
+   Toolbar dropdowns (templates, import/export)
+   ============================================================ */
+.scheduler-toolbar-dropdown {
+    position: relative;
     display: inline-flex;
-    align-items: center;
-    gap: 6px;
 }
 
-.scheduler-template-select {
-    background: var(--background-modifier-form-field);
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 2px 6px;
-    max-width: 140px;
-}
-
-.scheduler-template-save-btn {
+.scheduler-toolbar-dropdown-btn {
     background: var(--interactive-secondary, var(--background-modifier-form-field));
     color: var(--text-normal);
     border: 1px solid var(--background-modifier-border);
@@ -1484,17 +1477,50 @@
     padding: 2px 8px;
     cursor: pointer;
     font-size: 12px;
+    white-space: nowrap;
 }
 
-.scheduler-template-save-btn:hover {
+.scheduler-toolbar-dropdown-btn:hover {
     border-color: var(--interactive-accent);
     color: var(--interactive-accent);
 }
 
-.scheduler-template-save {
-    display: inline-flex;
+.scheduler-toolbar-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 50;
+    margin-top: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.25));
+    padding: 4px;
+    min-width: 160px;
+}
+
+.scheduler-dropdown-item {
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.scheduler-dropdown-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-dropdown-separator {
+    border-top: 1px solid var(--background-modifier-border);
+    margin: 4px 0;
+}
+
+.scheduler-dropdown-save {
+    display: flex;
     align-items: center;
     gap: 4px;
+    padding: 5px 10px;
 }
 
 .scheduler-template-name {
@@ -1520,29 +1546,6 @@
 .scheduler-template-confirm:disabled {
     opacity: 0.5;
     cursor: default;
-}
-
-/* ============================================================
-   iCal export / import (toolbar)
-   ============================================================ */
-.scheduler-ical {
-    display: inline-flex;
-    gap: 4px;
-}
-
-.scheduler-ical-btn {
-    background: var(--interactive-secondary, var(--background-modifier-form-field));
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 2px 8px;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.scheduler-ical-btn:hover {
-    border-color: var(--interactive-accent);
-    color: var(--interactive-accent);
 }
 
 /* ============================================================

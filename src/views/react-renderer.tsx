@@ -1,5 +1,5 @@
 import { h, render, Component } from "preact";
-import { useState, useMemo, useEffect } from "preact/hooks";
+import { useState, useMemo, useEffect, useRef } from "preact/hooks";
 import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
 import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
@@ -14,6 +14,7 @@ import { TableView, FilterBar } from "./table/table-view";
 import { KanbanView } from "./kanban/kanban-view";
 import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
+import { CodeblockViewState } from "../utils/codeblock-state";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -130,16 +131,24 @@ interface SchedulerAppProps {
 	newFileFolder?: string;
 	/** Name of a saved template to apply on mount (from codeblock param) */
 	initialTemplate?: string;
+	/** Pre-parsed view state from codeblock params (only on codeblock path) */
+	initialState?: CodeblockViewState;
+	/** Persist view state back into the codeblock (only on codeblock path) */
+	onStateChange?: (state: CodeblockViewState) => void;
 }
 
-export function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate }: SchedulerAppProps) {
-	const [viewType, setViewType] = useState<ViewType>(initialView ?? plugin.settings.defaultView);
-	const [sort, setSort] = useState<SortConfig[]>([]);
-	const [filters, setFilters] = useState<FilterCondition[]>([]);
-	const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+export function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, initialState, onStateChange }: SchedulerAppProps) {
+	const [viewType, setViewType] = useState<ViewType>(
+		initialState?.viewType ?? initialView ?? plugin.settings.defaultView
+	);
+	const [sort, setSort] = useState<SortConfig[]>(initialState?.sort ?? []);
+	const [filters, setFilters] = useState<FilterCondition[]>(initialState?.filters ?? []);
+	const [hiddenCols, setHiddenCols] = useState<Set<string>>(
+		new Set(initialState?.hiddenCols ?? [])
+	);
 	const [inlineEntries, setInlineEntries] = useState<PageEntry[]>([]);
 	const [dataVersion, setDataVersion] = useState(0);
-	const [search, setSearch] = useState("");
+	const [search, setSearch] = useState(initialState?.search ?? "");
 
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
@@ -259,6 +268,30 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// When any view-state changes in a codeblock, persist it back into the
+	// codeblock source text (debounced 800 ms so rapid changes are batched).
+	// We skip the first invocation to avoid writing the initial state back.
+	const onStateChangeRef = useRef(onStateChange);
+	onStateChangeRef.current = onStateChange;
+	const didSync = useRef(false);
+	useEffect(() => {
+		if (!onStateChangeRef.current) return;
+		if (!didSync.current) {
+			didSync.current = true;
+			return;
+		}
+		const timer = setTimeout(() => {
+			onStateChangeRef.current!({
+				viewType,
+				sort,
+				filters,
+				hiddenCols: [...hiddenCols],
+				search,
+			});
+		}, 800);
+		return () => clearTimeout(timer);
+	}, [viewType, sort, filters, hiddenCols, search]);
+
 	/** Handle drag-drop date change: write new date to file frontmatter */
 	function handleDateChange(path: string, newDateStr: string) {
 		const dateField = plugin.settings.fieldMapping.dateField;
@@ -376,30 +409,25 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						</button>
 					)}
 				</div>
-				<div class="scheduler-templates">
-					<select
-						class="scheduler-template-select"
-						value=""
-						title="Apply a saved view template"
-						onChange={(e: any) => applyTemplate(e.target.value)}
-					>
-						<option value="">Templates…</option>
-						{templates.map((t) => (
-							<option value={t.name}>{t.name}</option>
-						))}
-					</select>
-					<button
-						class="scheduler-template-save-btn"
-						onClick={() => {
-							setSaveOpen((o) => !o);
-							setSaveName("");
-						}}
-						title="Save the current view as a template"
-					>
-						Save
-					</button>
+				<ToolbarDropdown label="Templates">
+					{templates.length > 0
+						? templates.map((t) => (
+							<div class="scheduler-dropdown-item" onClick={() => applyTemplate(t.name)}>
+								{t.name}
+							</div>
+						))
+						: (
+							<div class="scheduler-dropdown-item" style="color: var(--text-muted); cursor: default;">
+								No saved templates
+							</div>
+						)
+					}
+					<div class="scheduler-dropdown-separator" />
+					<div class="scheduler-dropdown-item" onClick={() => { setSaveOpen((o) => !o); setSaveName(""); }}>
+						Save current view…
+					</div>
 					{saveOpen && (
-						<span class="scheduler-template-save">
+						<div class="scheduler-dropdown-save" onClick={(e: any) => e.stopPropagation()}>
 							<input
 								class="scheduler-template-name"
 								type="text"
@@ -407,46 +435,31 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 								placeholder="Template name"
 								onInput={(e: any) => setSaveName(e.target.value)}
 								onKeyDown={(e: any) => {
-									if (e.key === "Enter") saveTemplate();
-									if (e.key === "Escape") {
-										setSaveOpen(false);
-										setSaveName("");
-									}
+									if (e.key === "Enter") { saveTemplate(); setSaveOpen(false); }
+									if (e.key === "Escape") { setSaveOpen(false); setSaveName(""); }
 								}}
 							/>
 							<button
 								class="scheduler-template-confirm"
-								onClick={saveTemplate}
+								onClick={() => { saveTemplate(); setSaveOpen(false); }}
 								disabled={!saveName.trim()}
 							>
 								OK
 							</button>
-						</span>
+						</div>
 					)}
-				</div>
-				<div class="scheduler-ical">
-					<button
-						class="scheduler-ical-btn"
-						onClick={() => plugin.exportEntriesToIcal(filteredEntries)}
-						title="Export the current entries to an .ics file"
-					>
+				</ToolbarDropdown>
+				<ToolbarDropdown label="Export/Import">
+					<div class="scheduler-dropdown-item" onClick={() => plugin.exportEntriesToIcal(filteredEntries)}>
 						Export .ics
-					</button>
-					<button
-						class="scheduler-ical-btn"
-						onClick={() => plugin.exportEntriesToMarkdown(filteredEntries, columns)}
-						title="Export the current entries as a Markdown table"
-					>
+					</div>
+					<div class="scheduler-dropdown-item" onClick={() => plugin.exportEntriesToMarkdown(filteredEntries, columns)}>
 						Export .md
-					</button>
-					<button
-						class="scheduler-ical-btn"
-						onClick={() => triggerIcsFilePicker((text) => plugin.importIcalFromText(text))}
-						title="Import an .ics file as markdown notes"
-					>
+					</div>
+					<div class="scheduler-dropdown-item" onClick={() => triggerIcsFilePicker((text) => plugin.importIcalFromText(text))}>
 						Import .ics
-					</button>
-				</div>
+					</div>
+				</ToolbarDropdown>
 			</div>
 			<div class="scheduler-view-content">
 				{viewType === "table" && (
@@ -487,6 +500,48 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 				</ErrorBoundary>
 			)}
 			</div>
+		</div>
+	);
+}
+
+// ============================================================
+// Toolbar dropdown — reusable absolute-positioned popover menu
+// ============================================================
+
+interface ToolbarDropdownProps {
+	label: string;
+	children: any;
+}
+
+function ToolbarDropdown({ label, children }: ToolbarDropdownProps) {
+	const [open, setOpen] = useState(false);
+	const wrapRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		function onDown(e: MouseEvent) {
+			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+				setOpen(false);
+			}
+		}
+		document.addEventListener("mousedown", onDown);
+		return () => document.removeEventListener("mousedown", onDown);
+	}, [open]);
+
+	return (
+		<div class="scheduler-toolbar-dropdown" ref={wrapRef}>
+			<button
+				class="scheduler-toolbar-dropdown-btn"
+				type="button"
+				onClick={() => setOpen((o) => !o)}
+			>
+				{label} ▼
+			</button>
+			{open && (
+				<div class="scheduler-toolbar-dropdown-menu" onClick={() => setOpen(false)}>
+					{children}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -567,7 +622,9 @@ export function createCodeblockRenderer(
 	plugin: SchedulerPlugin,
 	initialView?: ViewType,
 	newFileFolder?: string,
-	initialTemplate?: string
+	initialTemplate?: string,
+	initialState?: CodeblockViewState,
+	onStateChange?: (state: CodeblockViewState) => void
 ): ReactRenderer {
 	return new ReactRenderer(
 		el,
@@ -576,6 +633,8 @@ export function createCodeblockRenderer(
 			initialView={initialView}
 			newFileFolder={newFileFolder}
 			initialTemplate={initialTemplate}
+			initialState={initialState}
+			onStateChange={onStateChange}
 		/>
 	);
 }
