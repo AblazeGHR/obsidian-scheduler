@@ -1,5 +1,7 @@
 # Obsidian Scheduler
 
+[English](./README.md) | [中文](./README.zh-CN.md)
+
 [![GitHub release](https://img.shields.io/github/v/release/AblazeGHR/obsidian-scheduler?style=flat-square)](https://github.com/AblazeGHR/obsidian-scheduler/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](./LICENSE)
 [![Obsidian](https://img.shields.io/badge/Obsidian-%237C3AED?style=flat-square&logo=obsidian)](https://obsidian.md)
