@@ -268,29 +268,42 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// When any view-state changes in a codeblock, persist it back into the
-	// codeblock source text (debounced 800 ms so rapid changes are batched).
-	// We skip the first invocation to avoid writing the initial state back.
+	// --- codeblock state persistence (save on blur / unmount) ---
+	// Instead of writing on every change (which triggers a markdown re-render
+	// and an ugly flash), we save once when the view loses focus: either the
+	// user clicks outside the scheduler, or the component unmounts (navigate
+	// away / tab switch). This gives a smooth "edit → click away → persist"
+	// flow.
 	const onStateChangeRef = useRef(onStateChange);
 	onStateChangeRef.current = onStateChange;
-	const didSync = useRef(false);
+	const rootRef = useRef<HTMLDivElement | null>(null);
+	const stateRef = useRef<CodeblockViewState>({ sort: [], filters: [], hiddenCols: [], search: "" });
+	// Keep the ref in sync with current state on every render
+	stateRef.current = { viewType, sort, filters, hiddenCols: [...hiddenCols], search };
+
+	function doSave() {
+		if (onStateChangeRef.current) onStateChangeRef.current(stateRef.current);
+	}
+
+	// Save on unmount (navigate to another file, close Obsidian, etc.)
 	useEffect(() => {
-		if (!onStateChangeRef.current) return;
-		if (!didSync.current) {
-			didSync.current = true;
-			return;
+		return () => {
+			if (onStateChangeRef.current) onStateChangeRef.current(stateRef.current);
+		};
+	}, []);
+
+	// Save when focus leaves the scheduler root (user clicks outside)
+	useEffect(() => {
+		const root = rootRef.current;
+		if (!root || !onStateChangeRef.current) return;
+		function onFocusOut(e: FocusEvent) {
+			if (!root!.contains(e.relatedTarget as Node | null)) {
+				doSave();
+			}
 		}
-		const timer = setTimeout(() => {
-			onStateChangeRef.current!({
-				viewType,
-				sort,
-				filters,
-				hiddenCols: [...hiddenCols],
-				search,
-			});
-		}, 800);
-		return () => clearTimeout(timer);
-	}, [viewType, sort, filters, hiddenCols, search]);
+		root.addEventListener("focusout", onFocusOut);
+		return () => root.removeEventListener("focusout", onFocusOut);
+	});
 
 	/** Handle drag-drop date change: write new date to file frontmatter */
 	function handleDateChange(path: string, newDateStr: string) {
@@ -392,7 +405,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	}
 
 	return (
-		<div class="scheduler-root">
+		<div class="scheduler-root" ref={rootRef} tabIndex={-1}>
 			<div class="scheduler-toolbar">
 				<SchedulerViewTabs current={viewType} onChange={setViewType} />
 				<div class="scheduler-search">
