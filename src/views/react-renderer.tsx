@@ -1,6 +1,6 @@
 import { h, render, Component } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
-import { MarkdownRenderChild, WorkspaceLeaf, ItemView } from "obsidian";
+import { MarkdownRenderChild, WorkspaceLeaf, ItemView, Notice } from "obsidian";
 import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
@@ -439,6 +439,12 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 			// Determine folder: codeblock param > settings folders > vault root
 			const folder = newFileFolder ?? (plugin.settings.folders.length > 0 ? plugin.settings.folders[0] : "");
 			const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+
+			// Warn if an entry with the same name already exists
+			const existing = plugin.app.vault.getAbstractFileByPath(filePath);
+			if (existing) {
+				new Notice(`"${title}" already exists — appending suffix.`, 4000);
+			}
 
 			plugin.app.vault.create(filePath, finalFm)
 				.then(() => setDataVersion((v) => v + 1))

@@ -1416,6 +1416,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
   }
   function handleDrop(e3) {
     e3.preventDefault();
+    setDragOver(false);
     const raw = e3.dataTransfer?.getData("text/plain");
     if (!raw || !onDateChange)
       return;
@@ -1427,6 +1428,9 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
     } catch {
       onDateChange(raw, dateStr);
     }
+  }
+  function handleDragEnd() {
+    setDragOver(false);
   }
   return /* @__PURE__ */ u3(
     "div",
@@ -1445,6 +1449,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
               class: `scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}`,
               draggable: true,
               onDragStart: (e3) => handleDragStart(e3, occ.entry),
+              onDragEnd: handleDragEnd,
               onClick: () => {
                 if (onOpenEntry)
                   onOpenEntry(occ.entry.path);
@@ -1653,12 +1658,18 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
           const dur = drag.origEnd.getTime() - drag.origStart.getTime();
           const ne = new Date(ns.getTime() + dur);
           setDrag((d3) => d3 ? { ...d3, previewStart: ns, previewEnd: ne, top: timeToTop(ns) } : d3);
-        } else {
+        } else if (drag.type === "resize-end") {
           let ne = new Date(drag.origEnd.getTime() + deltaMin * 6e4);
           if (ne.getTime() <= drag.origStart.getTime() + SNAP_MINUTES * 6e4) {
             ne = new Date(drag.origStart.getTime() + SNAP_MINUTES * 6e4);
           }
           setDrag((d3) => d3 ? { ...d3, previewEnd: ne, height: durationToHeight(d3.origStart, ne) } : d3);
+        } else {
+          let ns = new Date(drag.origStart.getTime() + deltaMin * 6e4);
+          if (ns.getTime() >= drag.origEnd.getTime() - SNAP_MINUTES * 6e4) {
+            ns = new Date(drag.origEnd.getTime() - SNAP_MINUTES * 6e4);
+          }
+          setDrag((d3) => d3 ? { ...d3, previewStart: ns, top: timeToTop(ns), height: durationToHeight(ns, drag.origEnd) } : d3);
         }
       } else if (create) {
         const min = snap((e3.clientY - create.rectTop) / HOUR_HEIGHT * 60);
@@ -1721,107 +1732,162 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
             /* @__PURE__ */ u3("div", { class: "scheduler-timeline-col-weekday", children: DAY_NAMES[day.getDay()] }),
             /* @__PURE__ */ u3("div", { class: "scheduler-timeline-col-date", children: day.getDate() })
           ] }),
-          /* @__PURE__ */ u3("div", { class: "scheduler-timeline-allday", children: allDay.map((e3) => /* @__PURE__ */ u3(
+          /* @__PURE__ */ u3(
             "div",
             {
-              class: "scheduler-timeline-allday-event",
-              onClick: () => {
-                if (onOpenEntry)
-                  onOpenEntry(e3.path);
+              class: "scheduler-timeline-allday",
+              onDragOver: (e3) => e3.preventDefault(),
+              onDrop: (e3) => {
+                e3.preventDefault();
+                const raw = e3.dataTransfer?.getData("text/plain");
+                if (!raw || !onTimeChange)
+                  return;
+                onTimeChange(raw, "", "");
               },
-              children: [
-                e3.title,
-                e3.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${e3.recurrenceRule}`, children: "\u21BB" })
-              ]
-            }
-          )) }),
-          /* @__PURE__ */ u3("div", { class: "scheduler-timeline-slots", onMouseDown: (e3) => startCreate(e3, di), children: [
-            HOURS.map((hh) => /* @__PURE__ */ u3("div", { class: "scheduler-timeline-slot", style: { height: `${HOUR_HEIGHT}px` } })),
-            today && /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now", style: { top: `${nowTop}px` }, children: [
-              /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-dot" }),
-              /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-line" })
-            ] }),
-            layout.map((block) => {
-              const entry = timed.find((e3) => e3.path === block.id);
-              const width = 100 / block.totalCols;
-              const isDragging = drag?.path === block.id;
-              return /* @__PURE__ */ u3(
+              children: allDay.map((e3) => /* @__PURE__ */ u3(
                 "div",
                 {
-                  class: `scheduler-timeline-block${isDragging ? " dragging" : ""}`,
-                  style: {
-                    top: `${block.top}px`,
-                    height: `${block.height}px`,
-                    left: `${block.col * width}%`,
-                    width: `${width - 2}%`
+                  class: "scheduler-timeline-allday-event",
+                  draggable: true,
+                  onDragStart: (ev) => {
+                    ev.dataTransfer.setData("text/plain", e3.path);
+                    ev.dataTransfer.effectAllowed = "move";
                   },
                   onClick: () => {
                     if (onOpenEntry)
-                      onOpenEntry(entry.path);
+                      onOpenEntry(e3.path);
                   },
-                  onMouseDown: (e3) => e3.stopPropagation(),
+                  title: e3.title,
                   children: [
-                    /* @__PURE__ */ u3(
-                      "div",
-                      {
-                        class: "scheduler-timeline-block-grip scheduler-timeline-block-grip-top",
-                        onMouseDown: (e3) => startBlockDrag(e3, di, entry.path, "move", entry.start, entry.end)
-                      }
-                    ),
-                    /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-content", children: [
-                      /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
-                        formatTime(entry.start),
-                        " \u2014 ",
-                        formatTime(entry.end)
-                      ] }),
-                      /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-title", children: entry.title })
-                    ] }),
-                    /* @__PURE__ */ u3(
-                      "div",
-                      {
-                        class: "scheduler-timeline-block-grip scheduler-timeline-block-grip-bottom",
-                        onMouseDown: (e3) => startBlockDrag(e3, di, entry.path, "resize", entry.start, entry.end)
-                      }
-                    )
+                    e3.title,
+                    e3.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${e3.recurrenceRule}`, children: "\u21BB" })
                   ]
                 }
-              );
-            }),
-            drag && drag.dayIndex === di && /* @__PURE__ */ u3(
-              "div",
-              {
-                class: "scheduler-timeline-block-ghost",
-                style: {
-                  top: `${drag.top}px`,
-                  height: `${drag.height}px`,
-                  left: "2%",
-                  right: "2%"
-                },
-                children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
-                  formatTime(drag.previewStart),
-                  " \u2014 ",
-                  formatTime(drag.previewEnd)
-                ] })
-              }
-            ),
-            create && create.dayIndex === di && /* @__PURE__ */ u3(
-              "div",
-              {
-                class: "scheduler-timeline-create-selection",
-                style: {
-                  top: `${minutesToTop(create.startMin)}px`,
-                  height: `${durationMinutesToHeight(create.endMin - create.startMin)}px`,
-                  left: "2%",
-                  right: "2%"
-                },
-                children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
-                  formatTime(addMinutes(create.date, create.startMin)),
-                  " \u2014 ",
-                  formatTime(addMinutes(create.date, create.endMin))
-                ] })
-              }
-            )
-          ] })
+              ))
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "scheduler-timeline-slots",
+              onMouseDown: (e3) => startCreate(e3, di),
+              onDragOver: (e3) => e3.preventDefault(),
+              onDrop: (e3) => {
+                e3.preventDefault();
+                const raw = e3.dataTransfer?.getData("text/plain");
+                if (!raw || !onTimeChange)
+                  return;
+                const rect = e3.target.closest(".scheduler-timeline-slots")?.getBoundingClientRect();
+                if (!rect)
+                  return;
+                const min = snap((e3.clientY - rect.top) / HOUR_HEIGHT * 60);
+                const start = new Date(dayColumns[di]);
+                start.setHours(0, min, 0, 0);
+                const end = new Date(start.getTime() + 30 * 6e4);
+                onTimeChange(raw, toLocalDateTime(start), toLocalDateTime(end));
+              },
+              children: [
+                HOURS.map((hh) => /* @__PURE__ */ u3("div", { class: "scheduler-timeline-slot", style: { height: `${HOUR_HEIGHT}px` } })),
+                today && /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now", style: { top: `${nowTop}px` }, children: [
+                  /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-dot" }),
+                  /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-line" })
+                ] }),
+                layout.map((block) => {
+                  const entry = timed.find((e3) => e3.path === block.id);
+                  const width = 100 / block.totalCols;
+                  const isDragging = drag?.path === block.id;
+                  return /* @__PURE__ */ u3(
+                    "div",
+                    {
+                      class: `scheduler-timeline-block${isDragging ? " dragging" : ""}`,
+                      style: {
+                        top: `${block.top}px`,
+                        height: `${block.height}px`,
+                        left: `${block.col * width}%`,
+                        width: `${width - 2}%`
+                      },
+                      children: [
+                        /* @__PURE__ */ u3(
+                          "div",
+                          {
+                            class: "scheduler-timeline-block-grip scheduler-timeline-block-grip-top",
+                            onMouseDown: (e3) => startBlockDrag(e3, di, entry.path, "resize-start", entry.start, entry.end)
+                          }
+                        ),
+                        /* @__PURE__ */ u3(
+                          "div",
+                          {
+                            class: "scheduler-timeline-block-content",
+                            onMouseDown: (e3) => startBlockDrag(e3, di, entry.path, "move", entry.start, entry.end),
+                            children: [
+                              /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
+                                formatTime(entry.start),
+                                " \u2014 ",
+                                formatTime(entry.end)
+                              ] }),
+                              /* @__PURE__ */ u3(
+                                "div",
+                                {
+                                  class: "scheduler-timeline-block-title",
+                                  onClick: (ev) => {
+                                    ev.stopPropagation();
+                                    if (onOpenEntry)
+                                      onOpenEntry(entry.path);
+                                  },
+                                  children: entry.title
+                                }
+                              )
+                            ]
+                          }
+                        ),
+                        /* @__PURE__ */ u3(
+                          "div",
+                          {
+                            class: "scheduler-timeline-block-grip scheduler-timeline-block-grip-bottom",
+                            onMouseDown: (e3) => startBlockDrag(e3, di, entry.path, "resize-end", entry.start, entry.end)
+                          }
+                        )
+                      ]
+                    }
+                  );
+                }),
+                drag && drag.dayIndex === di && /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: "scheduler-timeline-block-ghost",
+                    style: {
+                      top: `${drag.top}px`,
+                      height: `${drag.height}px`,
+                      left: "2%",
+                      right: "2%"
+                    },
+                    children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
+                      formatTime(drag.previewStart),
+                      " \u2014 ",
+                      formatTime(drag.previewEnd)
+                    ] })
+                  }
+                ),
+                create && create.dayIndex === di && /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: "scheduler-timeline-create-selection",
+                    style: {
+                      top: `${minutesToTop(create.startMin)}px`,
+                      height: `${durationMinutesToHeight(create.endMin - create.startMin)}px`,
+                      left: "2%",
+                      right: "2%"
+                    },
+                    children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
+                      formatTime(addMinutes(create.date, create.startMin)),
+                      " \u2014 ",
+                      formatTime(addMinutes(create.date, create.endMin))
+                    ] })
+                  }
+                )
+              ]
+            }
+          )
         ] }, di);
       })
     ] }) })
@@ -3529,6 +3595,10 @@ ${titleLine}
 `);
       const folder = newFileFolder ?? (plugin.settings.folders.length > 0 ? plugin.settings.folders[0] : "");
       const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+      const existing = plugin.app.vault.getAbstractFileByPath(filePath);
+      if (existing) {
+        new import_obsidian3.Notice(`"${title}" already exists \u2014 appending suffix.`, 4e3);
+      }
       plugin.app.vault.create(filePath, finalFm).then(() => setDataVersion((v3) => v3 + 1)).catch(() => {
         plugin.app.vault.create(
           folder ? `${folder}/${filename} 1.md` : `${filename} 1.md`,

@@ -129,7 +129,7 @@ function layoutOverlaps(blocks: Array<{ id: string; top: number; height: number;
 interface DragState {
 	path: string;
 	dayIndex: number;
-	type: "move" | "resize";
+	type: "move" | "resize-end" | "resize-start";
 	startY: number;
 	origStart: Date;
 	origEnd: Date;
@@ -171,7 +171,7 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 	}
 
 	// --- block drag (move / resize) ---
-	function startBlockDrag(e: MouseEvent, dayIndex: number, path: string, type: "move" | "resize", start: Date, end: Date) {
+	function startBlockDrag(e: MouseEvent, dayIndex: number, path: string, type: "move" | "resize-end" | "resize-start", start: Date, end: Date) {
 		e.preventDefault();
 		e.stopPropagation();
 		setDrag({
@@ -237,12 +237,19 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 					const dur = drag.origEnd.getTime() - drag.origStart.getTime();
 					const ne = new Date(ns.getTime() + dur);
 					setDrag((d) => (d ? { ...d, previewStart: ns, previewEnd: ne, top: timeToTop(ns) } : d));
-				} else {
+				} else if (drag.type === "resize-end") {
 					let ne = new Date(drag.origEnd.getTime() + deltaMin * 60000);
 					if (ne.getTime() <= drag.origStart.getTime() + SNAP_MINUTES * 60000) {
 						ne = new Date(drag.origStart.getTime() + SNAP_MINUTES * 60000);
 					}
 					setDrag((d) => (d ? { ...d, previewEnd: ne, height: durationToHeight(d.origStart, ne) } : d));
+				} else {
+					// resize-start: adjust start time, keep end fixed
+					let ns = new Date(drag.origStart.getTime() + deltaMin * 60000);
+					if (ns.getTime() >= drag.origEnd.getTime() - SNAP_MINUTES * 60000) {
+						ns = new Date(drag.origEnd.getTime() - SNAP_MINUTES * 60000);
+					}
+					setDrag((d) => (d ? { ...d, previewStart: ns, top: timeToTop(ns), height: durationToHeight(ns, drag.origEnd) } : d));
 				}
 			} else if (create) {
 				const min = snap(((e.clientY - create.rectTop) / HOUR_HEIGHT) * 60);
@@ -328,13 +335,29 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 								</div>
 
 								{/* All-day strip */}
-								<div class="scheduler-timeline-allday">
+								<div
+									class="scheduler-timeline-allday"
+									onDragOver={(e: any) => e.preventDefault()}
+									onDrop={(e: any) => {
+										e.preventDefault();
+										const raw = e.dataTransfer?.getData("text/plain");
+										if (!raw || !onTimeChange) return;
+										// Timed entry dropped on all-day → strip times
+										onTimeChange(raw, "", "");
+									}}
+								>
 									{allDay.map((e) => (
 									<div
 										class="scheduler-timeline-allday-event"
+										draggable={true}
+										onDragStart={(ev: any) => {
+											ev.dataTransfer.setData("text/plain", e.path);
+											ev.dataTransfer.effectAllowed = "move";
+										}}
 										onClick={() => {
 											if (onOpenEntry) onOpenEntry(e.path);
 										}}
+										title={e.title}
 									>
 											{e.title}
 											{e.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${e.recurrenceRule}`}>↻</span>}
@@ -342,8 +365,22 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 									))}
 								</div>
 
-								{/* Time slots */}
-								<div class="scheduler-timeline-slots" onMouseDown={(e: any) => startCreate(e, di)}>
+								{/* Time slots — 1/16 margin on each side via CSS */}
+								<div class="scheduler-timeline-slots" onMouseDown={(e: any) => startCreate(e, di)} onDragOver={(e: any) => e.preventDefault()}
+									onDrop={(e: any) => {
+										e.preventDefault();
+										const raw = e.dataTransfer?.getData("text/plain");
+										if (!raw || !onTimeChange) return;
+										// All-day entry dropped on slots → convert to timed
+										const rect = (e.target as HTMLElement).closest(".scheduler-timeline-slots")?.getBoundingClientRect();
+										if (!rect) return;
+										const min = snap(((e.clientY - rect.top) / HOUR_HEIGHT) * 60);
+										const start = new Date(dayColumns[di]);
+										start.setHours(0, min, 0, 0);
+										const end = new Date(start.getTime() + 30 * 60000);
+										onTimeChange(raw, toLocalDateTime(start), toLocalDateTime(end));
+									}}
+								>
 									{HOURS.map((hh) => (
 										<div class="scheduler-timeline-slot" style={{ height: `${HOUR_HEIGHT}px` }} />
 									))}
@@ -369,24 +406,28 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 													left: `${block.col * width}%`,
 													width: `${width - 2}%`,
 												}}
-											onClick={() => {
-												if (onOpenEntry) onOpenEntry(entry.path);
-											}}
-												onMouseDown={(e: any) => e.stopPropagation()}
 											>
 												<div
 													class="scheduler-timeline-block-grip scheduler-timeline-block-grip-top"
-													onMouseDown={(e) => startBlockDrag(e, di, entry.path, "move", entry.start!, entry.end!)}
+													onMouseDown={(e) => startBlockDrag(e, di, entry.path, "resize-start", entry.start!, entry.end!)}
 												/>
-												<div class="scheduler-timeline-block-content">
+												<div class="scheduler-timeline-block-content"
+													onMouseDown={(e) => startBlockDrag(e, di, entry.path, "move", entry.start!, entry.end!)}
+												>
 													<div class="scheduler-timeline-block-time">
 														{formatTime(entry.start!)} — {formatTime(entry.end!)}
 													</div>
-													<div class="scheduler-timeline-block-title">{entry.title}</div>
+													<div
+														class="scheduler-timeline-block-title"
+														onClick={(ev) => {
+															ev.stopPropagation();
+															if (onOpenEntry) onOpenEntry(entry.path);
+														}}
+													>{entry.title}</div>
 												</div>
 												<div
 													class="scheduler-timeline-block-grip scheduler-timeline-block-grip-bottom"
-													onMouseDown={(e) => startBlockDrag(e, di, entry.path, "resize", entry.start!, entry.end!)}
+													onMouseDown={(e) => startBlockDrag(e, di, entry.path, "resize-end", entry.start!, entry.end!)}
 												/>
 											</div>
 										);

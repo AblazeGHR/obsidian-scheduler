@@ -274,6 +274,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
+		setDragOver(false);
 		const raw = e.dataTransfer?.getData("text/plain");
 		if (!raw || !onDateChange) return;
 		try {
@@ -282,9 +283,12 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 				onDateChange(parsed.path, dateStr, parsed.sourceDate);
 			}
 		} catch {
-			// Plain text fallback for simple entries (single line `path`)
 			onDateChange(raw, dateStr);
 		}
+	}
+
+	function handleDragEnd() {
+		setDragOver(false);
 	}
 
 	return (
@@ -303,6 +307,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 						class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}`}
 						draggable={true}
 						onDragStart={(e) => handleDragStart(e, occ.entry)}
+						onDragEnd={handleDragEnd}
 						onClick={() => {
 							if (onOpenEntry) onOpenEntry(occ.entry.path);
 						}}

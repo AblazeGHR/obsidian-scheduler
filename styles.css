@@ -904,6 +904,8 @@
 .scheduler-timeline-slots {
     flex: 1;
     position: relative;
+    padding: 0 calc(100% / 16);
+    box-sizing: border-box;
 }
 
 .scheduler-timeline-slot {
@@ -976,6 +978,11 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.scheduler-timeline-block-title:hover {
+    text-decoration: underline;
 }
 
 .scheduler-timeline-block-grip {
