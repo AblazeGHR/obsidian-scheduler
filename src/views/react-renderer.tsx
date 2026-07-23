@@ -306,7 +306,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		document.addEventListener("mousedown", onMouseDown, true);
 		return () => document.removeEventListener("mousedown", onMouseDown, true);
 	}, []);
-	});
 
 	/** Handle drag-drop date change: write new date to file frontmatter */
 	function handleDateChange(path: string, newDateStr: string) {
