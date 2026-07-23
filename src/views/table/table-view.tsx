@@ -649,34 +649,36 @@ function TableView({
 		resizeRef.current = { cancel: () => { active = false; onUp(); } };
 	}
 
-	/** Double-click the resize handle → set column width to the widest
-	 *  content in that column (header or any visible cell). */
-	function autoFitColumn(col: string) {
-		// Cancel any active drag
+	/** Double-click any resize handle → auto-fit every visible column to its
+	 *  widest content (header + visible cells). */
+	function autoFitAllColumns() {
 		resizeRef.current?.cancel();
 		resizeRef.current = null;
 
 		const table = tableRef.current;
 		if (!table) return;
-		const colIndex = visibleCols.indexOf(col);
-		if (colIndex === -1) return;
 
-		let max = 60;
-		// Measure header
+		const newWidths: Record<string, number> = {};
 		const ths = table.querySelectorAll("thead th");
-		const th = ths[colIndex + 1]; // +1 skips the checkbox column
-		if (th instanceof HTMLElement) {
-			max = Math.max(max, measureText(th.textContent ?? ""));
-		}
-		// Measure every visible body cell in this column
-		const cells = table.querySelectorAll(`tbody td:nth-child(${colIndex + 2})`);
-		cells.forEach((cell) => {
-			if (cell instanceof HTMLElement) {
-				max = Math.max(max, measureText(cell.textContent ?? ""));
+
+		visibleCols.forEach((col, colIndex) => {
+			let max = 60;
+			// Measure header
+			const th = ths[colIndex + 1]; // +1 skips the checkbox column
+			if (th instanceof HTMLElement) {
+				max = Math.max(max, measureText(th.textContent ?? ""));
 			}
+			// Measure every visible body cell in this column
+			const cells = table.querySelectorAll(`tbody td:nth-child(${colIndex + 2})`);
+			cells.forEach((cell) => {
+				if (cell instanceof HTMLElement) {
+					max = Math.max(max, measureText(cell.textContent ?? ""));
+				}
+			});
+			newWidths[col] = max + 24; // +24 padding
 		});
 
-		setWidths((w) => ({ ...w, [col]: max + 24 })); // +24 padding
+		setWidths((w) => ({ ...w, ...newWidths }));
 	}
 
 	if (expanded.length === 0) {
@@ -742,10 +744,10 @@ function TableView({
 										onDblClick={(e: any) => {
 											e.stopPropagation();
 											e.preventDefault();
-											autoFitColumn(col);
+											autoFitAllColumns();
 										}}
 										onClick={(e: any) => e.stopPropagation()}
-										title="Drag to resize, double-click to auto-fit"
+										title="Drag to resize, double-click to auto-fit all columns"
 									/>
 								</th>
 							))}
