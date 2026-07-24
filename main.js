@@ -1832,7 +1832,8 @@ function layoutOverlaps(blocks) {
   }
   return result;
 }
-function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEntry }) {
+function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
+  const ctx = useContextMenu();
   const [anchor, setAnchor] = d2(() => atMidnight3(/* @__PURE__ */ new Date()));
   const [visibleDays, setVisibleDays] = d2(1);
   const [drag, setDrag] = d2(null);
@@ -2012,6 +2013,9 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
                     if (onOpenEntry)
                       onOpenEntry(e3.path);
                   },
+                  onContextMenu: (ev) => ctx.open(ev, [
+                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e3.path) }
+                  ]),
                   title: e3.title,
                   children: [
                     e3.title,
@@ -2089,6 +2093,12 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
                                     if (onOpenEntry)
                                       onOpenEntry(entry.path);
                                   },
+                                  onContextMenu: (ev) => {
+                                    ev.stopPropagation();
+                                    ctx.open(ev, [
+                                      { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                                    ]);
+                                  },
                                   children: entry.title
                                 }
                               )
@@ -2145,7 +2155,8 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
           )
         ] }, di);
       })
-    ] }) })
+    ] }) }),
+    ctx.element
   ] });
 }
 function addMinutes(day, min) {
@@ -4135,7 +4146,7 @@ ${titleLine}
         }
       ),
       viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry }) }),
-      viewType === "timeline" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(TimelineView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onTimeChange: handleTimeChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime) }) }),
+      viewType === "timeline" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(TimelineView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onTimeChange: handleTimeChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime), onDeleteEntry: handleDeleteEntry }) }),
       viewType === "kanban" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(
         KanbanView,
         {

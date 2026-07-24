@@ -2,6 +2,7 @@ import { h } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
+import { useContextMenu } from "../context-menu";
 
 const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -76,6 +77,7 @@ interface TimelineViewProps {
 	onTimeChange?: (path: string, newStart: string, newEnd: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string, startTime?: string, endTime?: string) => void;
+	onDeleteEntry?: (path: string) => void;
 }
 
 /** Split entries into all-day and timed for a given day */
@@ -147,7 +149,8 @@ interface CreateState {
 	rectTop: number;
 }
 
-export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEntry }: TimelineViewProps) {
+export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
+	const ctx = useContextMenu();
 	const [anchor, setAnchor] = useState(() => atMidnight(new Date()));
 	const [visibleDays, setVisibleDays] = useState(1);
 	const [drag, setDrag] = useState<DragState | null>(null);
@@ -363,6 +366,11 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 										onClick={() => {
 											if (onOpenEntry) onOpenEntry(e.path);
 										}}
+										onContextMenu={(ev) =>
+											ctx.open(ev, [
+												{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e.path) },
+											])
+										}
 										title={e.title}
 									>
 											{e.title}
@@ -429,6 +437,12 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 															ev.stopPropagation();
 															if (onOpenEntry) onOpenEntry(entry.path);
 														}}
+														onContextMenu={(ev) => {
+															ev.stopPropagation();
+															ctx.open(ev, [
+																{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+															]);
+														}}
 													>{entry.title}</div>
 												</div>
 												<div
@@ -478,6 +492,7 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 					})}
 				</div>
 			</div>
+			{ctx.element}
 		</div>
 	);
 }

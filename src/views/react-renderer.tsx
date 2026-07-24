@@ -728,7 +728,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 			)}
 			{viewType === "timeline" && (
 				<ErrorBoundary>
-					<TimelineView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime)} />
+					<TimelineView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime)} onDeleteEntry={handleDeleteEntry} />
 				</ErrorBoundary>
 			)}
 			{viewType === "kanban" && (
