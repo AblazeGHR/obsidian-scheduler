@@ -390,10 +390,61 @@
     flex-shrink: 0;
 }
 
+.scheduler-filter-manager {
+    position: relative;
+    display: inline-block;
+}
+
+.scheduler-filter-btn {
+    background: var(--interactive-secondary, var(--background-modifier-form-field));
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-right: 4px;
+}
+
+.scheduler-filter-btn:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+.scheduler-filter-panel {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    min-width: 320px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.scheduler-filter-empty {
+    font-size: 11px;
+    color: var(--text-faint);
+    padding: 4px 2px;
+}
+
+.scheduler-filter-panel-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+}
+
 .scheduler-filter-row {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-wrap: wrap;
     padding: 2px 4px;
     background: var(--background-secondary);
     border-radius: 4px;

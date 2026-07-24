@@ -2669,42 +2669,65 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
     onHiddenColsChange(next);
   }
   const [showColMenu, setShowColMenu] = d2(false);
+  const [showFilter, setShowFilter] = d2(false);
   return /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar", children: [
     /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-left", children: [
       /* @__PURE__ */ u3(SortManager, { columns, sort, onSortChange }),
-      filters.map((f4, i4) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-row", children: [
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
         /* @__PURE__ */ u3(
-          "select",
+          "button",
           {
-            class: "scheduler-filter-select",
-            value: f4.field,
-            onChange: (e3) => updateFilter(i4, { field: e3.target.value }),
-            children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+            class: "scheduler-filter-btn",
+            onClick: () => setShowFilter(!showFilter),
+            title: "Manage filters",
+            children: [
+              "Filter ",
+              showFilter ? "\u25B2" : "\u25BC",
+              " (",
+              filters.length,
+              ")"
+            ]
           }
         ),
-        /* @__PURE__ */ u3(
-          "select",
-          {
-            class: "scheduler-filter-operator",
-            value: f4.operator,
-            onChange: (e3) => updateFilter(i4, { operator: e3.target.value }),
-            children: operators.map((op) => /* @__PURE__ */ u3("option", { value: op.value, children: op.label }))
-          }
-        ),
-        /* @__PURE__ */ u3(
-          "input",
-          {
-            class: "scheduler-filter-value",
-            type: "text",
-            value: f4.value,
-            placeholder: "value...",
-            onInput: (e3) => updateFilter(i4, { value: e3.target.value })
-          }
-        ),
-        /* @__PURE__ */ u3("button", { class: "scheduler-filter-remove", onClick: () => removeFilter(i4), title: "Remove filter", children: "\xD7" })
-      ] }, i4)),
-      /* @__PURE__ */ u3("button", { class: "scheduler-filter-add", onClick: addFilter, title: "Add filter", children: "+ Filter" }),
-      filters.length > 0 && /* @__PURE__ */ u3("button", { class: "scheduler-filter-clear", onClick: clearFilters, children: "Clear" })
+        showFilter && /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel", children: [
+          filters.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-filter-empty", children: "No filters yet. Click + Filter to add a condition." }),
+          filters.map((f4, i4) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-row", children: [
+            /* @__PURE__ */ u3(
+              "select",
+              {
+                class: "scheduler-filter-select",
+                value: f4.field,
+                onChange: (e3) => updateFilter(i4, { field: e3.target.value }),
+                children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "select",
+              {
+                class: "scheduler-filter-operator",
+                value: f4.operator,
+                onChange: (e3) => updateFilter(i4, { operator: e3.target.value }),
+                children: operators.map((op) => /* @__PURE__ */ u3("option", { value: op.value, children: op.label }))
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "input",
+              {
+                class: "scheduler-filter-value",
+                type: "text",
+                value: f4.value,
+                placeholder: "value...",
+                onInput: (e3) => updateFilter(i4, { value: e3.target.value })
+              }
+            ),
+            /* @__PURE__ */ u3("button", { class: "scheduler-filter-remove", onClick: () => removeFilter(i4), title: "Remove filter", children: "\xD7" })
+          ] }, i4)),
+          /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-actions", children: [
+            /* @__PURE__ */ u3("button", { class: "scheduler-filter-add", onClick: addFilter, title: "Add filter", children: "+ Filter" }),
+            filters.length > 0 && /* @__PURE__ */ u3("button", { class: "scheduler-filter-clear", onClick: clearFilters, children: "Clear" })
+          ] })
+        ] })
+      ] })
     ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-right", children: [
       onCreateEntry && /* @__PURE__ */ u3("button", { class: "scheduler-filter-new", onClick: onCreateEntry, title: "New entry with current filters", children: "+ New" }),

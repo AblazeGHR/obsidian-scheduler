@@ -191,51 +191,72 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 	}
 
 	const [showColMenu, setShowColMenu] = useState(false);
+	const [showFilter, setShowFilter] = useState(false);
 
 		return (
 		<div class="scheduler-filter-bar">
 			<div class="scheduler-filter-bar-left">
 				<SortManager columns={columns} sort={sort} onSortChange={onSortChange} />
-				{filters.map((f, i) => (
-					<div class="scheduler-filter-row" key={i}>
-						<select
-							class="scheduler-filter-select"
-							value={f.field}
-							onChange={(e: any) => updateFilter(i, { field: e.target.value })}
-						>
-							{columns.map((c) => (
-								<option value={c}>{c}</option>
-							))}
-						</select>
-						<select
-							class="scheduler-filter-operator"
-							value={f.operator}
-							onChange={(e: any) => updateFilter(i, { operator: e.target.value })}
-						>
-							{operators.map((op) => (
-								<option value={op.value}>{op.label}</option>
-							))}
-						</select>
-						<input
-							class="scheduler-filter-value"
-							type="text"
-							value={f.value}
-							placeholder="value..."
-							onInput={(e: any) => updateFilter(i, { value: e.target.value })}
-						/>
-						<button class="scheduler-filter-remove" onClick={() => removeFilter(i)} title="Remove filter">
-							&times;
-						</button>
-					</div>
-				))}
-				<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
-					+ Filter
-				</button>
-				{filters.length > 0 && (
-					<button class="scheduler-filter-clear" onClick={clearFilters}>
-						Clear
+				<div class="scheduler-filter-manager">
+					<button
+						class="scheduler-filter-btn"
+						onClick={() => setShowFilter(!showFilter)}
+						title="Manage filters"
+					>
+						Filter {showFilter ? "▲" : "▼"} ({filters.length})
 					</button>
-				)}
+					{showFilter && (
+						<div class="scheduler-filter-panel">
+							{filters.length === 0 && (
+								<div class="scheduler-filter-empty">
+									No filters yet. Click + Filter to add a condition.
+								</div>
+							)}
+							{filters.map((f, i) => (
+								<div class="scheduler-filter-row" key={i}>
+									<select
+										class="scheduler-filter-select"
+										value={f.field}
+										onChange={(e: any) => updateFilter(i, { field: e.target.value })}
+									>
+										{columns.map((c) => (
+											<option value={c}>{c}</option>
+										))}
+									</select>
+									<select
+										class="scheduler-filter-operator"
+										value={f.operator}
+										onChange={(e: any) => updateFilter(i, { operator: e.target.value })}
+									>
+										{operators.map((op) => (
+											<option value={op.value}>{op.label}</option>
+										))}
+									</select>
+									<input
+										class="scheduler-filter-value"
+										type="text"
+										value={f.value}
+										placeholder="value..."
+										onInput={(e: any) => updateFilter(i, { value: e.target.value })}
+									/>
+									<button class="scheduler-filter-remove" onClick={() => removeFilter(i)} title="Remove filter">
+										&times;
+									</button>
+								</div>
+							))}
+							<div class="scheduler-filter-panel-actions">
+								<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
+									+ Filter
+								</button>
+								{filters.length > 0 && (
+									<button class="scheduler-filter-clear" onClick={clearFilters}>
+										Clear
+									</button>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
 			</div>
 
 			<div class="scheduler-filter-bar-right">
