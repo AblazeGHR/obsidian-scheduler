@@ -296,15 +296,17 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		<div class="scheduler-calendar">
 			{/* Header */}
 			<div class="scheduler-calendar-header">
-				<button class="scheduler-calendar-nav" onClick={() => step(-1)} title="Previous">
-					&lsaquo;
-				</button>
-				<div class="scheduler-calendar-title">
-					<span class="scheduler-calendar-month">{title}</span>
+				<div class="scheduler-calendar-nav-group">
+					<button class="scheduler-calendar-nav" onClick={() => step(-1)} title="Previous">
+						&lsaquo;
+					</button>
+					<div class="scheduler-calendar-title">
+						<span class="scheduler-calendar-month">{title}</span>
+					</div>
+					<button class="scheduler-calendar-nav" onClick={() => step(1)} title="Next">
+						&rsaquo;
+					</button>
 				</div>
-				<button class="scheduler-calendar-nav" onClick={() => step(1)} title="Next">
-					&rsaquo;
-				</button>
 				<button class="scheduler-calendar-today" onClick={goToday}>Today</button>
 				<div class="scheduler-calendar-modes">
 					<button

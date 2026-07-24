@@ -44,9 +44,13 @@ function parseInlineFields(line: string): { fields: Record<string, string>; stri
 	return { fields, strippedText: stripped };
 }
 
+/** Match a markdown checkbox task line (optionally indented, any checkbox state). */
+const TASK_LINE_RE = /^\s*[-*+]\s*\[[ xX]\]\s*/;
+
 /**
- * Extract inline-field-tagged tasks from a file.
- * Reads the file content and finds lines that contain [key:: value] patterns.
+ * Extract tasks from a file. Includes every checkbox task line (with or without
+ * inline fields) plus, for backward compatibility, any non-task line that
+ * carries `[key:: value]` inline fields.
  */
 export async function extractTasksWithInlineFields(app: App, file: TFile): Promise<TaskEntry[]> {
 	const content = await app.vault.read(file);
@@ -55,17 +59,13 @@ export async function extractTasksWithInlineFields(app: App, file: TFile): Promi
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
-		// Check if line contains inline fields
-		if (!INLINE_FIELD_RE.test(line)) {
-			INLINE_FIELD_RE.lastIndex = 0;
-			continue;
-		}
-		INLINE_FIELD_RE.lastIndex = 0;
+		const isTask = TASK_LINE_RE.test(line);
 
 		const { fields, strippedText } = parseInlineFields(line);
 
-		// Only create entries if there are actual fields
-		if (Object.keys(fields).length === 0) continue;
+		// Include real checkbox tasks (even when they have no fields) and, for
+		// backwards compatibility, any line that carries inline fields.
+		if (!isTask && Object.keys(fields).length === 0) continue;
 
 		tasks.push({
 			text: strippedText,

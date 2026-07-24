@@ -447,10 +447,14 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	}
 
 	/** Handle time block drag/resize: write new start/end to file frontmatter or inline field.
-	 *  When newStart or newEnd are empty strings, the corresponding field is deleted. */
+	 *  When newStart or newEnd are empty strings, the corresponding field is deleted.
+	 *  For timed entries the date field is synced to the start day so a block dragged
+	 *  across days lands on the correct day. */
 	function handleTimeChange(path: string, newStart: string, newEnd: string) {
 		const startField = plugin.settings.fieldMapping.startField;
 		const endField = plugin.settings.fieldMapping.endField;
+		const dateField = plugin.settings.fieldMapping.dateField;
+		const newDateStr = newStart ? newStart.slice(0, 10) : "";
 
 		// Inline entry editing
 		if (isInlinePath(path)) {
@@ -458,6 +462,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 				let result = lineText;
 				result = setInlineField(result, startField, newStart);
 				result = setInlineField(result, endField, newEnd);
+				if (newDateStr) result = setInlineField(result, dateField, newDateStr);
 				return result;
 			}).then((res) => {
 				if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
@@ -482,6 +487,10 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					result = deleteFrontmatterField(result, endField);
 				} else {
 					result = setFrontmatterField(result, endField, newEnd);
+				}
+				// Keep the date field in sync with the (possibly moved) start day.
+				if (newDateStr) {
+					result = setFrontmatterField(result, dateField, newDateStr);
 				}
 				return result;
 			})

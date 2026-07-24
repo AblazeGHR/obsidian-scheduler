@@ -8,6 +8,9 @@ const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const SNAP_MINUTES = 15;
 
+/** Horizontal inset (as a fraction of a day-column width) left/right of each entry block. */
+const SIDE_GAP = 1 / 16;
+
 const DAY_COUNTS = [1, 3, 5, 7];
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -159,6 +162,11 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 
 	const dayColumns = Array.from({ length: visibleDays }, (_, i) => addDays(anchor, i));
 
+	// Keep an up-to-date reference to the day columns so the document-level
+	// drag handler can map a cursor position to a target day during cross-day drags.
+	const dayColsRef = useRef(dayColumns);
+	dayColsRef.current = dayColumns;
+
 	// Expand recurring entries within the visible day range
 	const expanded = expandRecurring(entries, dayColumns[0], dayColumns[dayColumns.length - 1], mapping);
 	const now = new Date();
@@ -242,10 +250,48 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 				const deltaY = e.clientY - drag.startY;
 				const deltaMin = snap((deltaY / HOUR_HEIGHT) * 60);
 				if (drag.type === "move") {
-					const ns = new Date(drag.origStart.getTime() + deltaMin * 60000);
-					const dur = drag.origEnd.getTime() - drag.origStart.getTime();
-					const ne = new Date(ns.getTime() + dur);
-					setDrag((d) => (d ? { ...d, previewStart: ns, previewEnd: ne, top: timeToTop(ns) } : d));
+					// --- Cross-day move: find which day column the cursor is over ---
+					const slotsEls = Array.from(
+						document.querySelectorAll(".scheduler-timeline-slots")
+					) as HTMLElement[];
+					let dayOffset = drag.dayIndex;
+					if (slotsEls.length > 0) {
+						let found = -1;
+						for (let i = 0; i < slotsEls.length; i++) {
+							const r = slotsEls[i].getBoundingClientRect();
+							if (e.clientX >= r.left && e.clientX <= r.right) {
+								found = i;
+								break;
+							}
+						}
+						if (found === -1) {
+							// Cursor is outside the columns horizontally — clamp to nearest end.
+							const first = slotsEls[0].getBoundingClientRect();
+							const last = slotsEls[slotsEls.length - 1].getBoundingClientRect();
+							found = e.clientX < first.left ? 0 : slotsEls.length - 1;
+						}
+						dayOffset = Math.max(0, Math.min(found, dayColsRef.current.length - 1));
+					}
+					const slotRect = slotsEls[dayOffset]?.getBoundingClientRect();
+					const refTop = slotRect ? slotRect.top : drag.startY;
+					const durMin = (drag.origEnd.getTime() - drag.origStart.getTime()) / 60000;
+					let minute = snap(((e.clientY - refTop) / HOUR_HEIGHT) * 60);
+					minute = Math.max(0, Math.min(minute, Math.max(0, 1440 - durMin)));
+					const day = dayColsRef.current[dayOffset];
+					const ns = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minute, 0, 0);
+					const ne = new Date(ns.getTime() + durMin * 60000);
+					setDrag((d) =>
+						d
+							? {
+									...d,
+									dayIndex: dayOffset,
+									previewStart: ns,
+									previewEnd: ne,
+									top: minutesToTop(minute),
+									height: durationToHeight(ns, ne),
+							  }
+							: d
+					);
 				} else if (drag.type === "resize-end") {
 					let ne = new Date(drag.origEnd.getTime() + deltaMin * 60000);
 					if (ne.getTime() <= drag.origStart.getTime() + SNAP_MINUTES * 60000) {
@@ -379,7 +425,7 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 									))}
 								</div>
 
-								{/* Time slots — 1/16 margin on each side via CSS */}
+								{/* Time slots — entry side gap (1/16 of column width) is applied per-block in JS */}
 								<div class="scheduler-timeline-slots" onMouseDown={(e: any) => startCreate(e, di)} onDragOver={(e: any) => e.preventDefault()}
 									onDrop={(e: any) => {
 										e.preventDefault();
@@ -406,19 +452,23 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 										</div>
 									)}
 
-									{/* Existing blocks (dimmed while dragging this one) */}
-									{layout.map((block) => {
+								{/* Existing blocks. The block being dragged is hidden so the
+									ghost preview (rendered in its target column) is the only indicator. */}
+								{layout
+									.filter((b) => !(drag && drag.path === b.id))
+									.map((block) => {
 										const entry = timed.find((e) => e.path === block.id)!;
-										const width = 100 / block.totalCols;
-										const isDragging = drag?.path === block.id;
+										const colWidth = 100 / block.totalCols;
+										const leftPct = (block.col + SIDE_GAP) * colWidth;
+										const widthPct = colWidth * (1 - 2 * SIDE_GAP);
 										return (
 											<div
-												class={`scheduler-timeline-block${isDragging ? " dragging" : ""}`}
+												class="scheduler-timeline-block"
 												style={{
 													top: `${block.top}px`,
 													height: `${block.height}px`,
-													left: `${block.col * width}%`,
-													width: `${width - 2}%`,
+													left: `${leftPct}%`,
+													width: `${widthPct}%`,
 												}}
 											>
 												<div
@@ -453,34 +503,34 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 										);
 									})}
 
-									{/* Drag ghost preview */}
-									{drag && drag.dayIndex === di && (
-										<div
-											class="scheduler-timeline-block-ghost"
-											style={{
-												top: `${drag.top}px`,
-												height: `${drag.height}px`,
-												left: "2%",
-												right: "2%",
-											}}
-										>
+								{/* Drag ghost preview */}
+								{drag && drag.dayIndex === di && (
+									<div
+										class="scheduler-timeline-block-ghost"
+										style={{
+											top: `${drag.top}px`,
+											height: `${drag.height}px`,
+											left: `${SIDE_GAP * 100}%`,
+											right: `${SIDE_GAP * 100}%`,
+										}}
+									>
 											<div class="scheduler-timeline-block-time">
 												{formatTime(drag.previewStart)} — {formatTime(drag.previewEnd)}
 											</div>
 										</div>
 									)}
 
-									{/* Create selection */}
-									{create && create.dayIndex === di && (
-										<div
-											class="scheduler-timeline-create-selection"
-											style={{
-												top: `${minutesToTop(create.startMin)}px`,
-												height: `${durationMinutesToHeight(create.endMin - create.startMin)}px`,
-												left: "2%",
-												right: "2%",
-											}}
-										>
+								{/* Create selection */}
+								{create && create.dayIndex === di && (
+									<div
+										class="scheduler-timeline-create-selection"
+										style={{
+											top: `${minutesToTop(create.startMin)}px`,
+											height: `${durationMinutesToHeight(create.endMin - create.startMin)}px`,
+											left: `${SIDE_GAP * 100}%`,
+											right: `${SIDE_GAP * 100}%`,
+										}}
+									>
 											<div class="scheduler-timeline-block-time">
 												{formatTime(addMinutes(create.date, create.startMin))} — {formatTime(addMinutes(create.date, create.endMin))}
 											</div>

@@ -756,19 +756,16 @@ function parseInlineFields(line) {
   stripped = stripped.replace(TASK_PREFIX_RE, "").replace(/\s{2,}/g, " ").trim();
   return { fields, strippedText: stripped };
 }
+var TASK_LINE_RE = /^\s*[-*+]\s*\[[ xX]\]\s*/;
 async function extractTasksWithInlineFields(app, file) {
   const content = await app.vault.read(file);
   const lines = content.split("\n");
   const tasks = [];
   for (let i4 = 0; i4 < lines.length; i4++) {
     const line = lines[i4];
-    if (!INLINE_FIELD_RE.test(line)) {
-      INLINE_FIELD_RE.lastIndex = 0;
-      continue;
-    }
-    INLINE_FIELD_RE.lastIndex = 0;
+    const isTask = TASK_LINE_RE.test(line);
     const { fields, strippedText } = parseInlineFields(line);
-    if (Object.keys(fields).length === 0)
+    if (!isTask && Object.keys(fields).length === 0)
       continue;
     tasks.push({
       text: strippedText,
@@ -1534,9 +1531,11 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
   }
   return /* @__PURE__ */ u3("div", { class: "scheduler-calendar", children: [
     /* @__PURE__ */ u3("div", { class: "scheduler-calendar-header", children: [
-      /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(-1), title: "Previous", children: "\u2039" }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-calendar-title", children: /* @__PURE__ */ u3("span", { class: "scheduler-calendar-month", children: title }) }),
-      /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(1), title: "Next", children: "\u203A" }),
+      /* @__PURE__ */ u3("div", { class: "scheduler-calendar-nav-group", children: [
+        /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(-1), title: "Previous", children: "\u2039" }),
+        /* @__PURE__ */ u3("div", { class: "scheduler-calendar-title", children: /* @__PURE__ */ u3("span", { class: "scheduler-calendar-month", children: title }) }),
+        /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(1), title: "Next", children: "\u203A" })
+      ] }),
       /* @__PURE__ */ u3("button", { class: "scheduler-calendar-today", onClick: goToday, children: "Today" }),
       /* @__PURE__ */ u3("div", { class: "scheduler-calendar-modes", children: [
         /* @__PURE__ */ u3(
@@ -1740,6 +1739,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 var HOUR_HEIGHT = 60;
 var HOURS = Array.from({ length: 24 }, (_2, i4) => i4);
 var SNAP_MINUTES = 15;
+var SIDE_GAP = 1 / 16;
 var DAY_COUNTS = [1, 3, 5, 7];
 var DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 var MONTH_NAMES2 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -1840,6 +1840,8 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
   const [create, setCreate] = d2(null);
   const scrollRef = A2(null);
   const dayColumns = Array.from({ length: visibleDays }, (_2, i4) => addDays3(anchor, i4));
+  const dayColsRef = A2(dayColumns);
+  dayColsRef.current = dayColumns;
   const expanded = expandRecurring(entries, dayColumns[0], dayColumns[dayColumns.length - 1], mapping);
   const now = /* @__PURE__ */ new Date();
   const isTodayCol = (i4) => sameDay(dayColumns[i4], now);
@@ -1910,10 +1912,44 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
         const deltaY = e3.clientY - drag.startY;
         const deltaMin = snap(deltaY / HOUR_HEIGHT * 60);
         if (drag.type === "move") {
-          const ns = new Date(drag.origStart.getTime() + deltaMin * 6e4);
-          const dur = drag.origEnd.getTime() - drag.origStart.getTime();
-          const ne = new Date(ns.getTime() + dur);
-          setDrag((d3) => d3 ? { ...d3, previewStart: ns, previewEnd: ne, top: timeToTop(ns) } : d3);
+          const slotsEls = Array.from(
+            document.querySelectorAll(".scheduler-timeline-slots")
+          );
+          let dayOffset = drag.dayIndex;
+          if (slotsEls.length > 0) {
+            let found = -1;
+            for (let i4 = 0; i4 < slotsEls.length; i4++) {
+              const r3 = slotsEls[i4].getBoundingClientRect();
+              if (e3.clientX >= r3.left && e3.clientX <= r3.right) {
+                found = i4;
+                break;
+              }
+            }
+            if (found === -1) {
+              const first = slotsEls[0].getBoundingClientRect();
+              const last = slotsEls[slotsEls.length - 1].getBoundingClientRect();
+              found = e3.clientX < first.left ? 0 : slotsEls.length - 1;
+            }
+            dayOffset = Math.max(0, Math.min(found, dayColsRef.current.length - 1));
+          }
+          const slotRect = slotsEls[dayOffset]?.getBoundingClientRect();
+          const refTop = slotRect ? slotRect.top : drag.startY;
+          const durMin = (drag.origEnd.getTime() - drag.origStart.getTime()) / 6e4;
+          let minute = snap((e3.clientY - refTop) / HOUR_HEIGHT * 60);
+          minute = Math.max(0, Math.min(minute, Math.max(0, 1440 - durMin)));
+          const day = dayColsRef.current[dayOffset];
+          const ns = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minute, 0, 0);
+          const ne = new Date(ns.getTime() + durMin * 6e4);
+          setDrag(
+            (d3) => d3 ? {
+              ...d3,
+              dayIndex: dayOffset,
+              previewStart: ns,
+              previewEnd: ne,
+              top: minutesToTop(minute),
+              height: durationToHeight(ns, ne)
+            } : d3
+          );
         } else if (drag.type === "resize-end") {
           let ne = new Date(drag.origEnd.getTime() + deltaMin * 6e4);
           if (ne.getTime() <= drag.origStart.getTime() + SNAP_MINUTES * 6e4) {
@@ -2051,19 +2087,20 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
                   /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-dot" }),
                   /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now-line" })
                 ] }),
-                layout.map((block) => {
+                layout.filter((b2) => !(drag && drag.path === b2.id)).map((block) => {
                   const entry = timed.find((e3) => e3.path === block.id);
-                  const width = 100 / block.totalCols;
-                  const isDragging = drag?.path === block.id;
+                  const colWidth = 100 / block.totalCols;
+                  const leftPct = (block.col + SIDE_GAP) * colWidth;
+                  const widthPct = colWidth * (1 - 2 * SIDE_GAP);
                   return /* @__PURE__ */ u3(
                     "div",
                     {
-                      class: `scheduler-timeline-block${isDragging ? " dragging" : ""}`,
+                      class: "scheduler-timeline-block",
                       style: {
                         top: `${block.top}px`,
                         height: `${block.height}px`,
-                        left: `${block.col * width}%`,
-                        width: `${width - 2}%`
+                        left: `${leftPct}%`,
+                        width: `${widthPct}%`
                       },
                       children: [
                         /* @__PURE__ */ u3(
@@ -2123,8 +2160,8 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
                     style: {
                       top: `${drag.top}px`,
                       height: `${drag.height}px`,
-                      left: "2%",
-                      right: "2%"
+                      left: `${SIDE_GAP * 100}%`,
+                      right: `${SIDE_GAP * 100}%`
                     },
                     children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
                       formatTime(drag.previewStart),
@@ -2140,8 +2177,8 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
                     style: {
                       top: `${minutesToTop(create.startMin)}px`,
                       height: `${durationMinutesToHeight(create.endMin - create.startMin)}px`,
-                      left: "2%",
-                      right: "2%"
+                      left: `${SIDE_GAP * 100}%`,
+                      right: `${SIDE_GAP * 100}%`
                     },
                     children: /* @__PURE__ */ u3("div", { class: "scheduler-timeline-block-time", children: [
                       formatTime(addMinutes(create.date, create.startMin)),
@@ -3918,11 +3955,15 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   function handleTimeChange(path, newStart, newEnd) {
     const startField = plugin.settings.fieldMapping.startField;
     const endField = plugin.settings.fieldMapping.endField;
+    const dateField = plugin.settings.fieldMapping.dateField;
+    const newDateStr = newStart ? newStart.slice(0, 10) : "";
     if (isInlinePath(path)) {
       applyInlineEdit(plugin.app, path, (lineText) => {
         let result = lineText;
         result = setInlineField(result, startField, newStart);
         result = setInlineField(result, endField, newEnd);
+        if (newDateStr)
+          result = setInlineField(result, dateField, newDateStr);
         return result;
       }).then((res) => {
         if (res)
@@ -3944,6 +3985,9 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
         result = deleteFrontmatterField(result, endField);
       } else {
         result = setFrontmatterField(result, endField, newEnd);
+      }
+      if (newDateStr) {
+        result = setFrontmatterField(result, dateField, newDateStr);
       }
       return result;
     }).then(() => refreshData());
