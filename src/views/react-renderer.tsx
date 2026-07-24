@@ -675,7 +675,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					}
 					<div class="scheduler-dropdown-separator" />
 					<div class="scheduler-dropdown-item" onClick={() => { setSaveOpen((o) => !o); setSaveName(""); }}>
-						Save view…
+						Save view as template
 					</div>
 					{saveOpen && (
 						<div class="scheduler-dropdown-save" onClick={(e: any) => e.stopPropagation()}>

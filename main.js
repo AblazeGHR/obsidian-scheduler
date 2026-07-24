@@ -4513,7 +4513,7 @@ ${titleLine}
         /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item", onClick: () => {
           setSaveOpen((o3) => !o3);
           setSaveName("");
-        }, children: "Save view\u2026" }),
+        }, children: "Save view as template" }),
         saveOpen && /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-save", onClick: (e3) => e3.stopPropagation(), children: [
           /* @__PURE__ */ u3(
             "input",
