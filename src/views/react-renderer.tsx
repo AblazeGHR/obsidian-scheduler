@@ -1,6 +1,6 @@
 import { h, render, Component } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
-import { MarkdownRenderChild, WorkspaceLeaf, ItemView, Notice } from "obsidian";
+import { MarkdownRenderChild, WorkspaceLeaf, ItemView, Notice, TFile } from "obsidian";
 import type SchedulerPlugin from "../main";
 import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
@@ -592,7 +592,37 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					finalFm
 				).then(() => setDataVersion((v) => v + 1));
 			});
-		}).open();
+		}	).open();
+	}
+
+	/** Delete an entry: trash the note for frontmatter entries, or remove the
+	 *  source line for inline entries. Both are reversible (Obsidian trash /
+	 *  the plugin undo stack). */
+	function handleDeleteEntry(path: string) {
+		// Inline entry — delete the source line (`file.md#Ln`) from its note.
+		if (isInlinePath(path)) {
+			const parsed = parseInlinePath(path);
+			if (!parsed) return;
+			const file = plugin.app.vault.getAbstractFileByPath(parsed.filePath);
+			if (!(file instanceof TFile)) return;
+			plugin.app.vault.read(file).then((before) => {
+				const lines = before.split("\n");
+				if (parsed.line < 1 || parsed.line > lines.length) return;
+				lines.splice(parsed.line - 1, 1);
+				const after = lines.join("\n");
+				return plugin.app.vault.modify(file, after).then(() => {
+					plugin.undo.applyRaw(parsed.filePath, before, after);
+					refreshData();
+				});
+			});
+			return;
+		}
+
+		// Frontmatter entry — move the whole note to trash (recoverable).
+		const file = plugin.app.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) {
+			plugin.app.fileManager.trashFile(file).then(() => refreshData());
+		}
 	}
 
 	return (
@@ -688,11 +718,12 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						onCellEdit={handleCellEdit}
 						onOpenEntry={handleOpenEntry}
 						onCreateEntry={() => handleCreateEntry()}
+						onDeleteEntry={handleDeleteEntry}
 					/>
 				)}
 			{viewType === "calendar" && (
 				<ErrorBoundary>
-					<CalendarView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} />
+					<CalendarView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} onDeleteEntry={handleDeleteEntry} />
 				</ErrorBoundary>
 			)}
 			{viewType === "timeline" && (
@@ -708,6 +739,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						onGroupChange={handleFieldWrite}
 						onOpenEntry={handleOpenEntry}
 						onCreateEntry={(groupField, value) => handleCreateEntry(undefined, undefined, undefined, { [groupField]: value })}
+						onDeleteEntry={handleDeleteEntry}
 					/>
 				</ErrorBoundary>
 			)}

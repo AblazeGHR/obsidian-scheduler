@@ -19,8 +19,8 @@ A flexible schedule-management plugin for [Obsidian](https://obsidian.md) that r
 | View | Highlights |
 |------|------------|
 | **Table** | Sort (multi-column, drag to reorder), filter, column show/hide, inline cell editing, multi-select batch edit, pagination, keyboard navigation |
-| **Calendar** | Month / week toggle, drag entries to reschedule, multi-day event spans, overflow indicator |
-| **Timeline** | Day-axis with 24-hour columns, drag to move / resize blocks, click empty space to create, now-line indicator |
+| **Calendar** | Month / week toggle, drag entries to reschedule, **box-selection to multi-select** and batch-move, multi-day event spans, overflow indicator |
+| **Timeline** | Day-axis with 24-hour columns, **all-day event strip**, drag to move / resize blocks, click empty space to create, now-line indicator |
 | **Kanban** | Group by any field, drag cards between columns, "Unassigned" column, add cards inline |
 
 ### Data Sources
@@ -32,6 +32,7 @@ A flexible schedule-management plugin for [Obsidian](https://obsidian.md) that r
 ### Workflow
 
 - **Recurring events** — RRULE subset (`FREQ` / `INTERVAL` / `BYDAY` / `COUNT` / `UNTIL`).
+- **Inline entry editing** — entries sourced from inline fields can be edited directly in any view; changes write back to the source line (`file#Ln`). Inline entries also render in the Calendar and Timeline.
 - **Reminders** — Obsidian notifications when an entry is due (configurable lead time).
 - **iCal import/export** — export the current view to `.ics`; import `.ics` files as markdown notes.
 - **Markdown export** — export the current view as a formatted Markdown table.

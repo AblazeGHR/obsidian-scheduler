@@ -2,6 +2,7 @@ import { h } from "preact";
 import { useState, useMemo } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 import { formatCellValue } from "../table/table-utils";
+import { useContextMenu } from "../context-menu";
 
 // ============================================================
 // Kanban view: group entries into columns by a chosen field.
@@ -17,6 +18,8 @@ interface KanbanViewProps {
 	onOpenEntry: (path: string) => void;
 	/** Create a new entry, seeded with `field` = `value` (column value) */
 	onCreateEntry: (field: string, value: string) => void;
+	/** Delete an entry entirely */
+	onDeleteEntry?: (path: string) => void;
 }
 
 const UNASSIGNED = "__unassigned__";
@@ -36,7 +39,8 @@ function getEntryValues(entry: PageEntry, field: string, tagFields: string[]): s
 	return [String(raw)];
 }
 
-export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry }: KanbanViewProps) {
+export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry, onDeleteEntry }: KanbanViewProps) {
+	const ctx = useContextMenu();
 	// Candidate fields the user can group by (tag fields, filterable fields, plus any
 	// field present in the data).
 	const candidateFields = useMemo(() => {
@@ -123,6 +127,7 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 
 	return (
 		<div class="scheduler-kanban">
+			{ctx.element}
 			<div class="scheduler-kanban-controls">
 				<label class="scheduler-kanban-group-label">
 					Group by:
@@ -163,17 +168,22 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 						</div>
 						<div class="scheduler-kanban-column-body">
 							{(buckets[col] ?? []).map((entry) => (
-								<div
-									class="scheduler-kanban-card"
-									draggable={true}
-									onDragStart={() => setDragPath(entry.path)}
-									onDragEnd={() => {
-										setDragPath(null);
-										setDragOverCol(null);
-									}}
-									onClick={() => onOpenEntry(entry.path)}
-									title={entry.path}
-								>
+							<div
+								class="scheduler-kanban-card"
+								draggable={true}
+								onDragStart={() => setDragPath(entry.path)}
+								onDragEnd={() => {
+									setDragPath(null);
+									setDragOverCol(null);
+								}}
+								onClick={() => onOpenEntry(entry.path)}
+								onContextMenu={(e) =>
+									ctx.open(e, [
+										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+									])
+								}
+								title={entry.path}
+							>
 									<div class="scheduler-kanban-card-title">{entry.title}</div>
 									{(entry.date || (entry.tags && entry.tags.length > 0)) && (
 										<div class="scheduler-kanban-card-meta">
@@ -226,17 +236,22 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 						</div>
 						<div class="scheduler-kanban-column-body">
 							{(buckets[UNASSIGNED] ?? []).map((entry) => (
-								<div
-									class="scheduler-kanban-card"
-									draggable={true}
-									onDragStart={() => setDragPath(entry.path)}
-									onDragEnd={() => {
-										setDragPath(null);
-										setDragOverCol(null);
-									}}
-									onClick={() => onOpenEntry(entry.path)}
-									title={entry.path}
-								>
+							<div
+								class="scheduler-kanban-card"
+								draggable={true}
+								onDragStart={() => setDragPath(entry.path)}
+								onDragEnd={() => {
+									setDragPath(null);
+									setDragOverCol(null);
+								}}
+								onClick={() => onOpenEntry(entry.path)}
+								onContextMenu={(e) =>
+									ctx.open(e, [
+										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+									])
+								}
+								title={entry.path}
+							>
 									<div class="scheduler-kanban-card-title">{entry.title}</div>
 									{(entry.date || (entry.tags && entry.tags.length > 0)) && (
 										<div class="scheduler-kanban-card-meta">

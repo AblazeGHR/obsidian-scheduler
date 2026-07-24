@@ -1484,11 +1484,13 @@
     z-index: 100;
 }
 
-/* Selected entry highlight */
+/* Selected entry highlight (soft light tint + faded "ghost" look) */
 .scheduler-calendar-event.scheduler-calendar-selected-entry {
-    outline: 2px solid var(--interactive-accent);
-    outline-offset: 0px;
-    box-shadow: 0 0 4px rgba(120, 160, 255, 0.4);
+    background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
+    border-radius: 3px;
+    opacity: 0.55;
+    outline: 1px dashed var(--interactive-accent);
+    outline-offset: 1px;
 }
 
 /* ============================================================
@@ -1746,5 +1748,38 @@
 .scheduler-sort-add-btn:disabled {
     opacity: 0.5;
     cursor: default;
+}
+
+/* Right-click context menu (delete entry, etc.) */
+.scheduler-ctx-menu {
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    padding: 4px;
+    min-width: 160px;
+    z-index: 9999;
+    user-select: none;
+}
+
+.scheduler-ctx-item {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-normal);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.scheduler-ctx-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-ctx-item.danger {
+    color: var(--text-error);
+}
+
+.scheduler-ctx-item.danger:hover {
+    background: var(--background-modifier-error-hover, rgba(220, 50, 47, 0.15));
 }
 

@@ -247,15 +247,15 @@ function H() {
   }
 }
 function L(n2, l3, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h4, p3, v3, y3, _2, g2, m3 = t3 && t3.__k || w, b2 = l3.length;
+  var s3, h5, p3, v3, y3, _2, g2, m3 = t3 && t3.__k || w, b2 = l3.length;
   for (f4 = T(u4, l3, m3, f4, b2), s3 = 0; s3 < b2; s3++)
-    null != (p3 = u4.__k[s3]) && (h4 = -1 != p3.__i && m3[p3.__i] || d, p3.__i = s3, _2 = q(n2, p3, h4, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h4.ref != p3.ref && (h4.ref && J(h4.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), (g2 = !!(4 & p3.__u)) || h4.__k === p3.__k ? (f4 = j(p3, f4, n2, g2), g2 && h4.__e && (h4.__e = null)) : "function" == typeof p3.type && void 0 !== _2 ? f4 = _2 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
+    null != (p3 = u4.__k[s3]) && (h5 = -1 != p3.__i && m3[p3.__i] || d, p3.__i = s3, _2 = q(n2, p3, h5, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h5.ref != p3.ref && (h5.ref && J(h5.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), (g2 = !!(4 & p3.__u)) || h5.__k === p3.__k ? (f4 = j(p3, f4, n2, g2), g2 && h5.__e && (h5.__e = null)) : "function" == typeof p3.type && void 0 !== _2 ? f4 = _2 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
   return u4.__e = y3, f4;
 }
 function T(n2, l3, u4, t3, i4) {
-  var r3, o3, e3, f4, c3, a3 = u4.length, s3 = a3, h4 = 0;
+  var r3, o3, e3, f4, c3, a3 = u4.length, s3 = a3, h5 = 0;
   for (n2.__k = new Array(i4), r3 = 0; r3 < i4; r3++)
-    null != (o3 = l3[r3]) && "boolean" != typeof o3 && "function" != typeof o3 ? ("string" == typeof o3 || "number" == typeof o3 || "bigint" == typeof o3 || o3.constructor == String ? o3 = n2.__k[r3] = x(null, o3, null, null, null) : g(o3) ? o3 = n2.__k[r3] = x(S, { children: o3 }, null, null, null) : void 0 === o3.constructor && o3.__b > 0 ? o3 = n2.__k[r3] = x(o3.type, o3.props, o3.key, o3.ref ? o3.ref : null, o3.__v) : n2.__k[r3] = o3, f4 = r3 + h4, o3.__ = n2, o3.__b = n2.__b + 1, e3 = null, -1 != (c3 = o3.__i = O(o3, u4, f4, s3)) && (s3--, (e3 = u4[c3]) && (e3.__u |= 2)), null == e3 || null == e3.__v ? (-1 == c3 && (i4 > a3 ? h4-- : i4 < a3 && h4++), "function" != typeof o3.type && (o3.__u |= 4)) : c3 != f4 && (c3 == f4 - 1 ? h4-- : c3 == f4 + 1 ? h4++ : (c3 > f4 ? h4-- : h4++, o3.__u |= 4))) : n2.__k[r3] = null;
+    null != (o3 = l3[r3]) && "boolean" != typeof o3 && "function" != typeof o3 ? ("string" == typeof o3 || "number" == typeof o3 || "bigint" == typeof o3 || o3.constructor == String ? o3 = n2.__k[r3] = x(null, o3, null, null, null) : g(o3) ? o3 = n2.__k[r3] = x(S, { children: o3 }, null, null, null) : void 0 === o3.constructor && o3.__b > 0 ? o3 = n2.__k[r3] = x(o3.type, o3.props, o3.key, o3.ref ? o3.ref : null, o3.__v) : n2.__k[r3] = o3, f4 = r3 + h5, o3.__ = n2, o3.__b = n2.__b + 1, e3 = null, -1 != (c3 = o3.__i = O(o3, u4, f4, s3)) && (s3--, (e3 = u4[c3]) && (e3.__u |= 2)), null == e3 || null == e3.__v ? (-1 == c3 && (i4 > a3 ? h5-- : i4 < a3 && h5++), "function" != typeof o3.type && (o3.__u |= 4)) : c3 != f4 && (c3 == f4 - 1 ? h5-- : c3 == f4 + 1 ? h5++ : (c3 > f4 ? h5-- : h5++, o3.__u |= 4))) : n2.__k[r3] = null;
   if (s3)
     for (r3 = 0; r3 < a3; r3++)
       null != (e3 = u4[r3]) && 0 == (2 & e3.__u) && (e3.__e == t3 && (t3 = $(e3)), K(e3, e3));
@@ -329,13 +329,13 @@ function V(n2) {
   };
 }
 function q(n2, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h4, p3, v3, y3, d3, _2, k3, x2, M, $2, I2, P2, A3, H2, T3, j3 = u4.type;
+  var s3, h5, p3, v3, y3, d3, _2, k3, x2, M, $2, I2, P2, A3, H2, T3, j3 = u4.type;
   if (void 0 !== u4.constructor)
     return null;
   128 & t3.__u && (c3 = !!(32 & t3.__u), o3 = [f4 = u4.__e = t3.__e]), (s3 = l.__b) && s3(u4);
   n:
     if ("function" == typeof j3) {
-      h4 = e3.length;
+      h5 = e3.length;
       try {
         if (x2 = u4.props, M = j3.prototype && j3.prototype.render, $2 = (s3 = j3.contextType) && i4[s3.__c], I2 = s3 ? $2 ? $2.props.value : s3.__ : i4, t3.__c ? k3 = (p3 = u4.__c = t3.__c).__ = p3.__E : (M ? u4.__c = p3 = new j3(x2, I2) : (u4.__c = p3 = new C(x2, I2), p3.constructor = j3, p3.render = Q), $2 && $2.sub(p3), p3.state || (p3.state = {}), p3.__n = i4, v3 = p3.__d = true, p3.__h = [], p3._sb = []), M && null == p3.__s && (p3.__s = p3.state), M && null != j3.getDerivedStateFromProps && (p3.__s == p3.state && (p3.__s = m({}, p3.__s)), m(p3.__s, j3.getDerivedStateFromProps(x2, p3.__s))), y3 = p3.props, d3 = p3.state, p3.__v = u4, v3)
           M && null == j3.getDerivedStateFromProps && null != p3.componentWillMount && p3.componentWillMount(), M && null != p3.componentDidMount && p3.__h.push(p3.componentDidMount);
@@ -358,7 +358,7 @@ function q(n2, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
           } while (p3.__d && ++A3 < 25);
         p3.state = p3.__s, null != p3.getChildContext && (i4 = m(m({}, i4), p3.getChildContext())), M && !v3 && null != p3.getSnapshotBeforeUpdate && (_2 = p3.getSnapshotBeforeUpdate(y3, d3)), H2 = null != s3 && s3.type === S && null == s3.key ? E(s3.props.children) : s3, f4 = L(n2, g(H2) ? H2 : [H2], u4, t3, i4, r3, o3, e3, f4, c3, a3), p3.base = u4.__e, u4.__u &= -161, p3.__h.length && e3.push(p3), k3 && (p3.__E = p3.__ = null);
       } catch (n3) {
-        if (e3.length = h4, u4.__v = null, c3 || null != o3)
+        if (e3.length = h5, u4.__v = null, c3 || null != o3)
           if (n3.then) {
             for (u4.__u |= c3 ? 160 : 128; f4 && 8 == f4.nodeType && f4.nextSibling; )
               f4 = f4.nextSibling;
@@ -397,7 +397,7 @@ function E(n2) {
   return "object" != typeof n2 || null == n2 || n2.__b > 0 ? n2 : g(n2) ? n2.map(E) : void 0 !== n2.constructor ? null : m({}, n2);
 }
 function G(u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h4, p3, v3, y3, w3, _2, m3 = i4.props || d, k3 = t3.props, x2 = t3.type;
+  var s3, h5, p3, v3, y3, w3, _2, m3 = i4.props || d, k3 = t3.props, x2 = t3.type;
   if ("svg" == x2 ? o3 = "http://www.w3.org/2000/svg" : "math" == x2 ? o3 = "http://www.w3.org/1998/Math/MathML" : o3 || (o3 = "http://www.w3.org/1999/xhtml"), null != e3) {
     for (s3 = 0; s3 < e3.length; s3++)
       if ((y3 = e3[s3]) && "setAttribute" in y3 == !!x2 && (x2 ? y3.localName == x2 : 3 == y3.nodeType)) {
@@ -419,9 +419,9 @@ function G(u4, t3, i4, r3, o3, e3, f4, c3, a3) {
     for (s3 in m3)
       y3 = m3[s3], "dangerouslySetInnerHTML" == s3 ? p3 = y3 : "children" == s3 || s3 in k3 || "value" == s3 && "defaultValue" in k3 || "checked" == s3 && "defaultChecked" in k3 || N(u4, s3, null, y3, o3);
     for (s3 in k3)
-      y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h4 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _2 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
-    if (h4)
-      c3 || p3 && (h4.__html == p3.__html || h4.__html == u4.innerHTML) || (u4.innerHTML = h4.__html), t3.__k = [];
+      y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h5 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _2 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
+    if (h5)
+      c3 || p3 && (h5.__html == p3.__html || h5.__html == u4.innerHTML) || (u4.innerHTML = h5.__html), t3.__k = [];
     else if (p3 && (u4.innerHTML = ""), L("template" == t3.type ? u4.content : u4, g(v3) ? v3 : [v3], t3, i4, r3, "foreignObject" == x2 ? "http://www.w3.org/1999/xhtml" : o3, e3, f4, e3 ? e3[0] : i4.__k && $(i4, 0), c3, a3), null != e3)
       for (s3 = e3.length; s3--; )
         b(e3[s3]);
@@ -552,6 +552,11 @@ function A2(n2) {
 function T2(n2, r3) {
   var u4 = s2(t2++, 7);
   return C2(u4.__H, r3) && (u4.__ = n2(), u4.__H = r3, u4.__h = n2), u4.__;
+}
+function q2(n2, t3) {
+  return o2 = 8, T2(function() {
+    return n2;
+  }, t3);
 }
 function j2() {
   for (var n2; n2 = f2.shift(); ) {
@@ -1209,6 +1214,90 @@ function u3(e3, t3, n2, o3, i4, u4) {
   return l.vnode && l.vnode(l3), l3;
 }
 
+// src/views/context-menu.tsx
+function useContextMenu() {
+  const [state, setState] = d2(null);
+  const hostRef = A2(null);
+  h2(() => {
+    const host = document.createElement("div");
+    host.className = "scheduler-ctx-host";
+    document.body.appendChild(host);
+    hostRef.current = host;
+    return () => {
+      R(null, host);
+      host.remove();
+      hostRef.current = null;
+    };
+  }, []);
+  const close = q2(() => setState(null), []);
+  const open = q2(
+    (e3, items) => {
+      e3.preventDefault();
+      e3.stopPropagation();
+      const width = 180;
+      const itemH = 30;
+      const x2 = Math.min(e3.clientX, window.innerWidth - width - 8);
+      const y3 = Math.min(e3.clientY, window.innerHeight - (items.length * itemH + 8));
+      setState({ x: x2, y: y3, items });
+    },
+    []
+  );
+  h2(() => {
+    const host = hostRef.current;
+    if (!host)
+      return;
+    if (!state) {
+      R(null, host);
+      return;
+    }
+    R(
+      /* @__PURE__ */ u3(
+        "div",
+        {
+          class: "scheduler-ctx-menu",
+          style: { position: "fixed", left: `${state.x}px`, top: `${state.y}px` },
+          children: state.items.map((it, i4) => /* @__PURE__ */ u3(
+            "div",
+            {
+              class: `scheduler-ctx-item${it.danger ? " danger" : ""}`,
+              onClick: (ev) => {
+                ev.stopPropagation();
+                it.onClick();
+                close();
+              },
+              onContextMenu: (ev) => ev.preventDefault(),
+              children: it.label
+            },
+            i4
+          ))
+        }
+      ),
+      host
+    );
+  }, [state, close]);
+  h2(() => {
+    if (!state)
+      return;
+    function onDown(e3) {
+      if (!e3.target.closest(".scheduler-ctx-menu"))
+        close();
+    }
+    function onKey(e3) {
+      if (e3.key === "Escape")
+        close();
+    }
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("mousedown", onDown, true);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+    };
+  }, [state, close]);
+  return { open, element: null };
+}
+
 // src/views/calendar/calendar-view.tsx
 var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 var MONTH_NAMES = [
@@ -1273,9 +1362,10 @@ function buildOccurrences(entries) {
 function rectsIntersect(a3, b2) {
   return !(a3.right < b2.left || a3.left > b2.right || a3.bottom < b2.top || a3.top > b2.bottom);
 }
-function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry }) {
+function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
   const [cursor, setCursor] = d2(() => atMidnight2(/* @__PURE__ */ new Date()));
   const [mode, setMode] = d2("month");
+  const ctx = useContextMenu();
   const [selectedPaths, setSelectedPaths] = d2(/* @__PURE__ */ new Set());
   const [selectionVisual, setSelectionVisual] = d2({
     selecting: false,
@@ -1348,6 +1438,8 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     };
   }, []);
   function handleGridMouseDown(e3) {
+    if (e3.button !== 0)
+      return;
     const target = e3.target;
     if (target.closest(".scheduler-calendar-event") || target.closest("button"))
       return;
@@ -1494,7 +1586,25 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
             onOpenEntry,
             onCreateEntry,
             selectedPaths,
-            onClearSelection: clearSelection
+            onClearSelection: clearSelection,
+            onEntryContextMenu: (e3, path) => {
+              if (selectedPaths.has(path) && selectedPaths.size > 1) {
+                ctx.open(e3, [
+                  {
+                    label: `Delete ${selectedPaths.size} entries`,
+                    danger: true,
+                    onClick: () => {
+                      selectedPaths.forEach((p3) => onDeleteEntry?.(p3));
+                      clearSelection();
+                    }
+                  }
+                ]);
+              } else {
+                ctx.open(e3, [
+                  { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(path) }
+                ]);
+              }
+            }
           },
           cell.dateStr
         );
@@ -1511,14 +1621,15 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
           }
         }
       )
-    ] })
+    ] }),
+    ctx.element
   ] });
 }
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 var MAX_VISIBLE_EVENTS = 3;
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection }) {
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu }) {
   const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
   const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
   const [dragOver, setDragOver] = d2(false);
@@ -1590,6 +1701,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
                   if (onOpenEntry)
                     onOpenEntry(occ.entry.path);
                 },
+                onContextMenu: (e3) => onEntryContextMenu?.(e3, occ.entry.path),
                 title: occ.entry.title,
                 "data-entry-path": occ.entry.path,
                 children: [
@@ -2718,7 +2830,8 @@ function TableView({
   onHiddenColsChange,
   onCellEdit,
   onOpenEntry,
-  onCreateEntry
+  onCreateEntry,
+  onDeleteEntry
 }) {
   const visibleCols = columns.filter((c3) => !hiddenCols.has(c3));
   const [selected, setSelected] = d2(/* @__PURE__ */ new Set());
@@ -2728,6 +2841,7 @@ function TableView({
   const [activeRow, setActiveRow] = d2(-1);
   const tableRef = A2(null);
   const resizeRef = A2(null);
+  const ctx = useContextMenu();
   const expanded = T2(() => {
     const now = /* @__PURE__ */ new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60);
@@ -2968,10 +3082,20 @@ function TableView({
               }
             ) }),
             visibleCols.map(
-              (col) => col === "title" ? /* @__PURE__ */ u3("td", { class: "scheduler-cell-title", onClick: () => openFile(entry.path), children: [
-                formatCellValue(entry, col),
-                entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-recurring-mark", title: `Repeats: ${entry.recurrenceRule}`, children: "\u21BB" })
-              ] }) : getCellKind(col, mapping, fieldKinds) === "date" ? /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-display", children: /* @__PURE__ */ u3(DateCell, { entry, column: col, mapping, onEdit: onCellEdit }) }) : /* @__PURE__ */ u3(
+              (col) => col === "title" ? /* @__PURE__ */ u3(
+                "td",
+                {
+                  class: "scheduler-cell-title",
+                  onClick: () => openFile(entry.path),
+                  onContextMenu: (e3) => ctx.open(e3, [
+                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                  ]),
+                  children: [
+                    formatCellValue(entry, col),
+                    entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-recurring-mark", title: `Repeats: ${entry.recurrenceRule}`, children: "\u21BB" })
+                  ]
+                }
+              ) : getCellKind(col, mapping, fieldKinds) === "date" ? /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-display", children: /* @__PURE__ */ u3(DateCell, { entry, column: col, mapping, onEdit: onCellEdit }) }) : /* @__PURE__ */ u3(
                 EditableCell,
                 {
                   entry,
@@ -3020,7 +3144,8 @@ function TableView({
           children: PAGE_SIZES.map((s3) => /* @__PURE__ */ u3("option", { value: s3, children: s3 === 0 ? "All" : `${s3} / page` }))
         }
       )
-    ] })
+    ] }),
+    ctx.element
   ] });
 }
 
@@ -3040,7 +3165,8 @@ function getEntryValues(entry, field, tagFields) {
     return [raw.toISOString().slice(0, 10)];
   return [String(raw)];
 }
-function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry }) {
+function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
+  const ctx = useContextMenu();
   const candidateFields = T2(() => {
     const set = /* @__PURE__ */ new Set();
     mapping.tagFields.forEach((f4) => set.add(f4));
@@ -3115,6 +3241,7 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
   }
   const isTagField = mapping.tagFields.includes(groupField);
   return /* @__PURE__ */ u3("div", { class: "scheduler-kanban", children: [
+    ctx.element,
     /* @__PURE__ */ u3("div", { class: "scheduler-kanban-controls", children: [
       /* @__PURE__ */ u3("label", { class: "scheduler-kanban-group-label", children: [
         "Group by:",
@@ -3160,6 +3287,9 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
                   setDragOverCol(null);
                 },
                 onClick: () => onOpenEntry(entry.path),
+                onContextMenu: (e3) => ctx.open(e3, [
+                  { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                ]),
                 title: entry.path,
                 children: [
                   /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
@@ -3213,6 +3343,9 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
                   setDragOverCol(null);
                 },
                 onClick: () => onOpenEntry(entry.path),
+                onContextMenu: (e3) => ctx.open(e3, [
+                  { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                ]),
                 title: entry.path,
                 children: [
                   /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
@@ -3611,14 +3744,14 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   );
   const columns = T2(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
   const filteredEntries = T2(() => {
-    const q2 = search.trim().toLowerCase();
-    if (!q2)
+    const q3 = search.trim().toLowerCase();
+    if (!q3)
       return allEntries;
     return allEntries.filter((e3) => {
-      if (e3.title.toLowerCase().includes(q2))
+      if (e3.title.toLowerCase().includes(q3))
         return true;
       const haystack = Object.entries(e3.fields ?? {}).map(([k3, v3]) => `${k3} ${typeof v3 === "object" ? JSON.stringify(v3) : String(v3)}`).join(" ");
-      return haystack.toLowerCase().includes(q2);
+      return haystack.toLowerCase().includes(q3);
     });
   }, [allEntries, search]);
   function refreshData() {
@@ -3877,6 +4010,32 @@ ${titleLine}
       });
     }).open();
   }
+  function handleDeleteEntry(path) {
+    if (isInlinePath(path)) {
+      const parsed = parseInlinePath(path);
+      if (!parsed)
+        return;
+      const file2 = plugin.app.vault.getAbstractFileByPath(parsed.filePath);
+      if (!(file2 instanceof import_obsidian4.TFile))
+        return;
+      plugin.app.vault.read(file2).then((before) => {
+        const lines = before.split("\n");
+        if (parsed.line < 1 || parsed.line > lines.length)
+          return;
+        lines.splice(parsed.line - 1, 1);
+        const after = lines.join("\n");
+        return plugin.app.vault.modify(file2, after).then(() => {
+          plugin.undo.applyRaw(parsed.filePath, before, after);
+          refreshData();
+        });
+      });
+      return;
+    }
+    const file = plugin.app.vault.getAbstractFileByPath(path);
+    if (file instanceof import_obsidian4.TFile) {
+      plugin.app.fileManager.trashFile(file).then(() => refreshData());
+    }
+  }
   return /* @__PURE__ */ u3("div", { class: "scheduler-root", ref: rootRef, children: [
     /* @__PURE__ */ u3("div", { class: "scheduler-toolbar", children: [
       /* @__PURE__ */ u3(SchedulerViewTabs, { current: viewType, onChange: setViewType }),
@@ -3971,10 +4130,11 @@ ${titleLine}
           onHiddenColsChange: setHiddenCols,
           onCellEdit: handleCellEdit,
           onOpenEntry: handleOpenEntry,
-          onCreateEntry: () => handleCreateEntry()
+          onCreateEntry: () => handleCreateEntry(),
+          onDeleteEntry: handleDeleteEntry
         }
       ),
-      viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr) }) }),
+      viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry }) }),
       viewType === "timeline" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(TimelineView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onTimeChange: handleTimeChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime) }) }),
       viewType === "kanban" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(
         KanbanView,
@@ -3983,7 +4143,8 @@ ${titleLine}
           mapping: plugin.settings.fieldMapping,
           onGroupChange: handleFieldWrite,
           onOpenEntry: handleOpenEntry,
-          onCreateEntry: (groupField, value) => handleCreateEntry(void 0, void 0, void 0, { [groupField]: value })
+          onCreateEntry: (groupField, value) => handleCreateEntry(void 0, void 0, void 0, { [groupField]: value }),
+          onDeleteEntry: handleDeleteEntry
         }
       ) })
     ] })

@@ -2,6 +2,7 @@ import { h } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
+import { useContextMenu } from "../context-menu";
 
 interface CalendarViewProps {
 	entries: PageEntry[];
@@ -9,6 +10,7 @@ interface CalendarViewProps {
 	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
+	onDeleteEntry?: (path: string) => void;
 }
 
 /** Weekday header labels */
@@ -94,9 +96,10 @@ function rectsIntersect(
 	return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
-export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry }: CalendarViewProps) {
+export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }: CalendarViewProps) {
 	const [cursor, setCursor] = useState(() => atMidnight(new Date()));
 	const [mode, setMode] = useState<"month" | "week">("month");
+	const ctx = useContextMenu();
 
 	// --- Box selection state ---
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -182,6 +185,7 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 
 	// Grid mousedown — immediate Windows-style box selection
 	function handleGridMouseDown(e: MouseEvent) {
+		if (e.button !== 0) return; // left button only; right-click opens the context menu
 		const target = e.target as HTMLElement;
 		// Don't start selection on event elements or buttons
 		if (target.closest(".scheduler-calendar-event") || target.closest("button")) return;
@@ -357,6 +361,24 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 								onCreateEntry={onCreateEntry}
 								selectedPaths={selectedPaths}
 								onClearSelection={clearSelection}
+							onEntryContextMenu={(e, path) => {
+								if (selectedPaths.has(path) && selectedPaths.size > 1) {
+									ctx.open(e, [
+										{
+											label: `Delete ${selectedPaths.size} entries`,
+											danger: true,
+											onClick: () => {
+												selectedPaths.forEach((p) => onDeleteEntry?.(p));
+												clearSelection();
+											},
+										},
+									]);
+								} else {
+									ctx.open(e, [
+										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(path) },
+									]);
+								}
+							}}
 							/>
 						);
 					})}
@@ -375,6 +397,7 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 					/>
 				)}
 			</div>
+			{ctx.element}
 		</div>
 	);
 }
@@ -399,9 +422,10 @@ interface CalendarCellProps {
 	onCreateEntry?: (dateStr?: string) => void;
 	selectedPaths?: Set<string>;
 	onClearSelection?: () => void;
+	onEntryContextMenu?: (e: MouseEvent, path: string) => void;
 }
 
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection }: CalendarCellProps) {
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu }: CalendarCellProps) {
 	const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
 	const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
 	const [dragOver, setDragOver] = useState(false);
@@ -468,16 +492,17 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 					return (
 						<div
 							key={occ.entry.occurrenceId ?? occ.entry.path}
-							class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`}
-							draggable={true}
-							onDragStart={(e) => handleDragStart(e, occ.entry)}
-							onDragEnd={handleDragEnd}
-							onClick={() => {
-								if (onOpenEntry) onOpenEntry(occ.entry.path);
-							}}
-							title={occ.entry.title}
-							data-entry-path={occ.entry.path}
-						>
+						class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`}
+						draggable={true}
+						onDragStart={(e) => handleDragStart(e, occ.entry)}
+						onDragEnd={handleDragEnd}
+						onClick={() => {
+							if (onOpenEntry) onOpenEntry(occ.entry.path);
+						}}
+						onContextMenu={(e) => onEntryContextMenu?.(e, occ.entry.path)}
+						title={occ.entry.title}
+						data-entry-path={occ.entry.path}
+					>
 							{occ.isStart && occ.entry.title}
 							{!occ.isStart && "⋯"}
 							{occ.entry.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${occ.entry.recurrenceRule}`}>↻</span>}

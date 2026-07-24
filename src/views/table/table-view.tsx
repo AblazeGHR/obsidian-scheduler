@@ -1,5 +1,6 @@
 import { h, Fragment } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
+import { useContextMenu } from "../context-menu";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterCondition } from "../../types";
 import {
@@ -465,6 +466,7 @@ interface TableViewProps {
 	onCellEdit?: (path: string, field: string, value: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: () => void;
+	onDeleteEntry?: (path: string) => void;
 }
 
 const PAGE_SIZES = [25, 50, 100, 0]; // 0 = all
@@ -482,6 +484,7 @@ function TableView({
 	onCellEdit,
 	onOpenEntry,
 	onCreateEntry,
+	onDeleteEntry,
 }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
@@ -492,6 +495,7 @@ function TableView({
 	const [activeRow, setActiveRow] = useState(-1);
 	const tableRef = useRef<HTMLTableElement | null>(null);
 	const resizeRef = useRef<{ cancel: () => void } | null>(null);
+	const ctx = useContextMenu();
 
 	// Expand recurring entries within a fixed horizon so the table stays bounded.
 	const expanded = useMemo(() => {
@@ -769,7 +773,15 @@ function TableView({
 							</td>
 						{visibleCols.map((col) =>
 							col === "title" ? (
-								<td class="scheduler-cell-title" onClick={() => openFile(entry.path)}>
+								<td
+									class="scheduler-cell-title"
+									onClick={() => openFile(entry.path)}
+									onContextMenu={(e: any) =>
+										ctx.open(e, [
+											{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+										])
+									}
+								>
 									{formatCellValue(entry, col)}
 									{entry.recurrenceRule && (
 										<span class="scheduler-recurring-mark" title={`Repeats: ${entry.recurrenceRule}`}>
@@ -839,6 +851,7 @@ function TableView({
 					))}
 				</select>
 			</div>
+			{ctx.element}
 		</div>
 	);
 }
