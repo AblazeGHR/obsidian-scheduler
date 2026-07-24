@@ -18,6 +18,8 @@ export interface CodeblockViewState {
 	/** If set, show only these columns (whitelist). Empty array = not specified, fall back to hiddenCols. */
 	visibleCols?: string[];
 	search: string;
+	/** Table page size (0 = all). */
+	pageSize?: number;
 }
 
 /** Valid view types */
@@ -34,6 +36,7 @@ const VALID_VIEWS: ReadonlySet<string> = new Set(["table", "calendar", "timeline
  *   hidden: col1,col2
  *   visible: col1,col2   (opt. whitelist — takes priority over hidden)
  *   search: query
+ *   page-size: 50
  */
 export function parseViewState(params: Record<string, string>): CodeblockViewState {
 	const state: CodeblockViewState = { sort: [], filters: [], hiddenCols: [], search: "" };
@@ -131,6 +134,13 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 	// search
 	state.search = params["search"] ?? "";
 
+	// page-size: table rows per page (0 = all)
+	const psRaw = params["page-size"];
+	if (psRaw) {
+		const n = parseInt(psRaw, 10);
+		if (!isNaN(n) && n >= 0) state.pageSize = n;
+	}
+
 	return state;
 }
 
@@ -181,6 +191,11 @@ export function serializeViewState(state: CodeblockViewState, keepParams: Record
 	// search
 	if (state.search) {
 		lines.push(`search: ${state.search}`);
+	}
+
+	// page-size
+	if (state.pageSize != null) {
+		lines.push(`page-size: ${state.pageSize}`);
 	}
 
 	// Preserve folder / template if present (these are set by the

@@ -200,6 +200,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	const [inlineEntries, setInlineEntries] = useState<PageEntry[]>([]);
 	const [dataVersion, setDataVersion] = useState(0);
 	const [search, setSearch] = useState(initialState?.search ?? "");
+	const [pageSize, setPageSize] = useState(initialState?.pageSize ?? 50);
 
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
@@ -347,7 +348,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const stateRef = useRef<CodeblockViewState>({ sort: [], filters: [], hiddenCols: [], search: "" });
 	// Keep the ref in sync with current state on every render
-	stateRef.current = { viewType, sort, filters, hiddenCols: [...hiddenCols], search };
+	stateRef.current = { viewType, sort, filters, hiddenCols: [...hiddenCols], search, pageSize };
 
 	function doSave() {
 		if (onStateChangeRef.current) onStateChangeRef.current(stateRef.current);
@@ -734,6 +735,8 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						onOpenEntry={handleOpenEntry}
 						onCreateEntry={() => handleCreateEntry()}
 						onDeleteEntry={handleDeleteEntry}
+						initialPageSize={initialState?.pageSize}
+						onPageSizeChange={setPageSize}
 					/>
 				)}
 			{viewType === "calendar" && (

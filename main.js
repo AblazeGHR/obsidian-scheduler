@@ -3320,12 +3320,14 @@ function TableView({
   onCellEdit,
   onOpenEntry,
   onCreateEntry,
-  onDeleteEntry
+  onDeleteEntry,
+  initialPageSize,
+  onPageSizeChange
 }) {
   const visibleCols = columns.filter((c3) => !hiddenCols.has(c3));
   const [selected, setSelected] = d2(/* @__PURE__ */ new Set());
   const [page, setPage] = d2(0);
-  const [pageSize, setPageSize] = d2(50);
+  const [pageSize, setPageSize] = d2(initialPageSize ?? 50);
   const [customPage, setCustomPage] = d2(false);
   const [customVal, setCustomVal] = d2("");
   const [widths, setWidths] = d2({});
@@ -3349,6 +3351,12 @@ function TableView({
   h2(() => {
     setActiveRow(-1);
   }, [page]);
+  const pageInit = A2(initialPageSize);
+  h2(() => {
+    if (pageSize !== (pageInit.current ?? 50)) {
+      onPageSizeChange?.(pageSize);
+    }
+  }, [pageSize]);
   function handleTableKey(e3) {
     if (paged.length === 0)
       return;
@@ -4240,6 +4248,7 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [inlineEntries, setInlineEntries] = d2([]);
   const [dataVersion, setDataVersion] = d2(0);
   const [search, setSearch] = d2(initialState?.search ?? "");
+  const [pageSize, setPageSize] = d2(initialState?.pageSize ?? 50);
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
   const [saveName, setSaveName] = d2("");
   const api = getDataviewApi(plugin.app);
@@ -4346,7 +4355,7 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   onStateChangeRef.current = onStateChange;
   const rootRef = A2(null);
   const stateRef = A2({ sort: [], filters: [], hiddenCols: [], search: "" });
-  stateRef.current = { viewType, sort, filters, hiddenCols: [...hiddenCols], search };
+  stateRef.current = { viewType, sort, filters, hiddenCols: [...hiddenCols], search, pageSize };
   function doSave() {
     if (onStateChangeRef.current)
       onStateChangeRef.current(stateRef.current);
@@ -4662,7 +4671,9 @@ ${titleLine}
           onCellEdit: handleCellEdit,
           onOpenEntry: handleOpenEntry,
           onCreateEntry: () => handleCreateEntry(),
-          onDeleteEntry: handleDeleteEntry
+          onDeleteEntry: handleDeleteEntry,
+          initialPageSize: initialState?.pageSize,
+          onPageSizeChange: setPageSize
         }
       ),
       viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry, filters, onFiltersChange: setFilters, columns }) }),
@@ -5074,6 +5085,12 @@ function parseViewState(params) {
     state.visibleCols = visibleRaw.split(",").map((s3) => s3.trim()).filter(Boolean);
   }
   state.search = params["search"] ?? "";
+  const psRaw = params["page-size"];
+  if (psRaw) {
+    const n2 = parseInt(psRaw, 10);
+    if (!isNaN(n2) && n2 >= 0)
+      state.pageSize = n2;
+  }
   return state;
 }
 function serializeViewState(state, keepParams) {
@@ -5104,6 +5121,9 @@ function serializeViewState(state, keepParams) {
   }
   if (state.search) {
     lines.push(`search: ${state.search}`);
+  }
+  if (state.pageSize != null) {
+    lines.push(`page-size: ${state.pageSize}`);
   }
   for (const key of ["folder", "template"]) {
     if (keepParams[key] != null && (key !== "folder" || keepParams[key] !== "")) {

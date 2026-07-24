@@ -432,6 +432,10 @@ interface TableViewProps {
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: () => void;
 	onDeleteEntry?: (path: string) => void;
+	/** Initial page size (from codeblock state). */
+	initialPageSize?: number;
+	/** Called when the user changes the page sizing. */
+	onPageSizeChange?: (size: number) => void;
 }
 
 const PAGE_SIZES = [10, 25, 50, 100, 0, -1]; // 0 = all, -1 = custom
@@ -450,12 +454,14 @@ function TableView({
 	onOpenEntry,
 	onCreateEntry,
 	onDeleteEntry,
+	initialPageSize,
+	onPageSizeChange,
 }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [page, setPage] = useState(0);
-	const [pageSize, setPageSize] = useState(50);
+	const [pageSize, setPageSize] = useState(initialPageSize ?? 50);
 	const [customPage, setCustomPage] = useState(false);
 	const [customVal, setCustomVal] = useState("");
 	const [widths, setWidths] = useState<Record<string, number>>({});
@@ -489,6 +495,14 @@ function TableView({
 	useEffect(() => {
 		setActiveRow(-1);
 	}, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Report page size changes back to parent so they can be persisted
+	const pageInit = useRef(initialPageSize);
+	useEffect(() => {
+		if (pageSize !== (pageInit.current ?? 50)) {
+			onPageSizeChange?.(pageSize);
+		}
+	}, [pageSize]);
 
 	// Keyboard navigation within the table
 	function handleTableKey(e: KeyboardEvent) {
