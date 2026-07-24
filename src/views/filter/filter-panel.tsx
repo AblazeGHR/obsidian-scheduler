@@ -200,9 +200,9 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 					<button
 						class={`scheduler-filter-not-btn${clause.not ? " active" : ""}`}
 						onClick={() => toggleNot(i)}
-						title={clause.not ? "Negate clause (click to remove NOT)" : "Negate this clause"}
+						title={clause.not ? "Negated (click to remove NOT)" : "Negate this clause"}
 					>
-						{clause.not ? "not" : "no"}
+						not
 					</button>
 
 					{/* ---- Clause body ---- */}
@@ -211,6 +211,9 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 							<div class="scheduler-filter-subconditions">
 								{clause.conditions.map((cond, j) => (
 									<div class="scheduler-filter-subcond" key={j}>
+										{j > 0 && (
+											<span class="scheduler-filter-or-label">or</span>
+										)}
 										<select
 											class="scheduler-filter-select"
 											value={cond.field}
@@ -253,6 +256,13 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 										</button>
 									</div>
 								))}
+								<button
+									class="scheduler-filter-or-btn"
+									onClick={() => addCondition(i)}
+									title="Add an OR sub-condition"
+								>
+									or
+								</button>
 							</div>
 						) : (
 							<div class="scheduler-filter-raw">
@@ -263,15 +273,6 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 
 					{/* ---- Clause action buttons ---- */}
 					<div class="scheduler-filter-clause-actions">
-						{clause.type === "visual" && (
-							<button
-								class="scheduler-filter-or-btn"
-								onClick={() => addCondition(i)}
-								title="Add an OR sub-condition"
-							>
-								or
-							</button>
-						)}
 						<button
 							class="scheduler-filter-toggle-btn"
 							onClick={() => toggleType(i)}

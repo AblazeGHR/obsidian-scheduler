@@ -472,7 +472,7 @@
     border-color: var(--text-muted);
     color: var(--text-normal);
 }
-.scheduler-filter-not-btn[data-active="true"] {
+.scheduler-filter-not-btn.active {
     background: var(--text-error);
     border-color: var(--text-error);
     color: var(--text-on-accent);
@@ -499,6 +499,15 @@
     flex: 1 1 auto;
     min-width: 60px;
     width: auto;
+}
+
+/* Non-dimmed "or" label between sub-conditions */
+.scheduler-filter-or-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-accent);
+    padding: 0 2px;
+    user-select: none;
 }
 
 /* --- raw expression display --- */

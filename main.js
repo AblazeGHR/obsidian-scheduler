@@ -2739,53 +2739,54 @@ function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
         {
           class: `scheduler-filter-not-btn${clause.not ? " active" : ""}`,
           onClick: () => toggleNot(i4),
-          title: clause.not ? "Negate clause (click to remove NOT)" : "Negate this clause",
-          children: clause.not ? "not" : "no"
+          title: clause.not ? "Negated (click to remove NOT)" : "Negate this clause",
+          children: "not"
         }
       ),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-body", children: clause.type === "visual" ? /* @__PURE__ */ u3("div", { class: "scheduler-filter-subconditions", children: clause.conditions.map((cond, j3) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-subcond", children: [
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-body", children: clause.type === "visual" ? /* @__PURE__ */ u3("div", { class: "scheduler-filter-subconditions", children: [
+        clause.conditions.map((cond, j3) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-subcond", children: [
+          j3 > 0 && /* @__PURE__ */ u3("span", { class: "scheduler-filter-or-label", children: "or" }),
+          /* @__PURE__ */ u3(
+            "select",
+            {
+              class: "scheduler-filter-select",
+              value: cond.field,
+              onChange: (e3) => updateCondition(i4, j3, { field: e3.target.value }),
+              children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "select",
+            {
+              class: "scheduler-filter-operator",
+              value: cond.operator,
+              onChange: (e3) => updateCondition(i4, j3, {
+                operator: e3.target.value
+              }),
+              children: OPERATORS.map((op) => /* @__PURE__ */ u3("option", { value: op, children: op }))
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              class: "scheduler-filter-value",
+              type: "text",
+              value: cond.value,
+              placeholder: "value\u2026",
+              onInput: (e3) => updateCondition(i4, j3, { value: e3.target.value })
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              class: "scheduler-filter-remove",
+              onClick: () => removeCondition(i4, j3),
+              title: "Remove this condition",
+              children: "\xD7"
+            }
+          )
+        ] }, j3)),
         /* @__PURE__ */ u3(
-          "select",
-          {
-            class: "scheduler-filter-select",
-            value: cond.field,
-            onChange: (e3) => updateCondition(i4, j3, { field: e3.target.value }),
-            children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
-          }
-        ),
-        /* @__PURE__ */ u3(
-          "select",
-          {
-            class: "scheduler-filter-operator",
-            value: cond.operator,
-            onChange: (e3) => updateCondition(i4, j3, {
-              operator: e3.target.value
-            }),
-            children: OPERATORS.map((op) => /* @__PURE__ */ u3("option", { value: op, children: op }))
-          }
-        ),
-        /* @__PURE__ */ u3(
-          "input",
-          {
-            class: "scheduler-filter-value",
-            type: "text",
-            value: cond.value,
-            placeholder: "value\u2026",
-            onInput: (e3) => updateCondition(i4, j3, { value: e3.target.value })
-          }
-        ),
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-filter-remove",
-            onClick: () => removeCondition(i4, j3),
-            title: "Remove this condition",
-            children: "\xD7"
-          }
-        )
-      ] }, j3)) }) : /* @__PURE__ */ u3("div", { class: "scheduler-filter-raw", children: /* @__PURE__ */ u3("code", { children: clause.expression }) }) }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-actions", children: [
-        clause.type === "visual" && /* @__PURE__ */ u3(
           "button",
           {
             class: "scheduler-filter-or-btn",
@@ -2793,7 +2794,9 @@ function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
             title: "Add an OR sub-condition",
             children: "or"
           }
-        ),
+        )
+      ] }) : /* @__PURE__ */ u3("div", { class: "scheduler-filter-raw", children: /* @__PURE__ */ u3("code", { children: clause.expression }) }) }),
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-actions", children: [
         /* @__PURE__ */ u3(
           "button",
           {
