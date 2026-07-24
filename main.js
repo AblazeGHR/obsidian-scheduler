@@ -146,7 +146,12 @@ var SchedulerSettingTab = class extends import_obsidian.PluginSettingTab {
     }
     for (const tpl of templates) {
       const sortDesc = tpl.sort.length > 0 ? tpl.sort.map((s3) => `${s3.field} ${s3.direction}`).join(", ") : "none";
-      const filterDesc = tpl.filters.length > 0 ? tpl.filters.map((f4) => `${f4.field} ${f4.operator} ${f4.value}`).join(", ") : "none";
+      const filterDesc = tpl.filters.length > 0 ? tpl.filters.map((c3) => {
+        if (c3.type === "raw")
+          return (c3.not ? "!" : "") + `{${c3.expression}}`;
+        const conds = c3.conditions.map((co) => `${co.field} ${co.operator} ${co.value}`).join(" or ");
+        return (c3.not ? "!" : "") + conds;
+      }).join(" & ") : "none";
       new import_obsidian.Setting(containerEl).setName(tpl.name).setDesc(`View: ${tpl.viewType} \xB7 Sort: ${sortDesc} \xB7 Filters: ${filterDesc}`).addButton(
         (btn) => btn.setButtonText("Delete").onClick(async () => {
           this.plugin.settings.templates = this.plugin.settings.templates.filter((t3) => t3.name !== tpl.name);
@@ -652,6 +657,88 @@ function isDataviewAvailable(app) {
   return app.plugins?.enabledPlugins?.has?.("dataview") ?? false;
 }
 
+// src/utils/filter-evaluator.ts
+function evaluateAtomic(entry, cond) {
+  const val = getFieldValue(entry, cond.field);
+  const fv = cond.value;
+  switch (cond.operator) {
+    case "equals":
+      return atomicEquals(val, fv);
+    case "not_equals":
+      return !atomicEquals(val, fv);
+    case "contains":
+      return atomicContains(val, fv);
+    case "greater_than":
+      return atomicCompare(val, fv) > 0;
+    case "less_than":
+      return atomicCompare(val, fv) < 0;
+    case "before":
+      return atomicCompare(val, fv) < 0;
+    case "after":
+      return atomicCompare(val, fv) > 0;
+    case "starts_with":
+      return String(val ?? "").toLowerCase().startsWith(fv.toLowerCase());
+    case "ends_with":
+      return String(val ?? "").toLowerCase().endsWith(fv.toLowerCase());
+    case "regex":
+      try {
+        const re = new RegExp(fv, fv.includes("(?i)") ? "" : "i");
+        return re.test(String(val ?? ""));
+      } catch {
+        return false;
+      }
+    default:
+      return true;
+  }
+}
+function evaluateClause(entry, clause) {
+  let result;
+  if (clause.type === "raw") {
+    try {
+      result = !!new Function("entry", "return !!(" + clause.expression + ")")(entry);
+    } catch {
+      result = false;
+    }
+  } else {
+    result = clause.conditions.length === 0 ? true : clause.conditions.some((c3) => evaluateAtomic(entry, c3));
+  }
+  return clause.not ? !result : result;
+}
+function atomicEquals(a3, b2) {
+  if (a3 instanceof Date) {
+    const d3 = new Date(b2);
+    return !isNaN(d3.getTime()) && dateCompare(a3, d3) === 0;
+  }
+  return String(a3 ?? "").toLowerCase() === b2.toLowerCase();
+}
+function atomicContains(a3, b2) {
+  if (a3 instanceof Date) {
+    return a3.toLocaleDateString().toLowerCase().includes(b2.toLowerCase());
+  }
+  if (Array.isArray(a3)) {
+    return a3.some((v3) => String(v3).toLowerCase().includes(b2.toLowerCase()));
+  }
+  return String(a3 ?? "").toLowerCase().includes(b2.toLowerCase());
+}
+function atomicCompare(a3, b2) {
+  if (a3 instanceof Date) {
+    const d3 = new Date(b2);
+    if (isNaN(d3.getTime()))
+      return 0;
+    return dateCompare(a3, d3);
+  }
+  return String(a3 ?? "").localeCompare(b2);
+}
+function dateCompare(a3, b2) {
+  const y3 = a3.getFullYear() - b2.getFullYear();
+  if (y3 !== 0)
+    return y3;
+  const m3 = a3.getMonth() - b2.getMonth();
+  if (m3 !== 0)
+    return m3;
+  return a3.getDate() - b2.getDate();
+}
+
 // src/schema/field-mapping.ts
 function mapPageEntry(rawPage, path, mapping) {
   const fields = {};
@@ -871,12 +958,7 @@ var QueryEngine = class {
   static applyFilters(entries, filters) {
     if (filters.length === 0)
       return entries;
-    return entries.filter((entry) => {
-      return filters.every((f4) => {
-        const val = getFieldValue(entry, f4.field);
-        return evaluateFilter(val, f4);
-      });
-    });
+    return entries.filter((entry) => filters.every((c3) => evaluateClause(entry, c3)));
   }
 };
 function getFieldValue(entry, field) {
@@ -912,10 +994,10 @@ function compareValues(a3, b2) {
   if (b2 === null || b2 === void 0)
     return 1;
   if (a3 instanceof Date && b2 instanceof Date)
-    return dateCompare(a3, b2);
+    return dateCompare2(a3, b2);
   return String(a3).localeCompare(String(b2));
 }
-function dateCompare(a3, b2) {
+function dateCompare2(a3, b2) {
   const y3 = a3.getFullYear() - b2.getFullYear();
   if (y3 !== 0)
     return y3;
@@ -923,48 +1005,6 @@ function dateCompare(a3, b2) {
   if (m3 !== 0)
     return m3;
   return a3.getDate() - b2.getDate();
-}
-function evaluateFilter(val, filter) {
-  const fv = filter.value;
-  if (val instanceof Date) {
-    const filterDate = new Date(fv);
-    const d3 = val;
-    switch (filter.operator) {
-      case "equals":
-        return isNaN(filterDate.getTime()) ? false : dateCompare(d3, filterDate) === 0;
-      case "not_equals":
-        return isNaN(filterDate.getTime()) ? true : dateCompare(d3, filterDate) !== 0;
-      case "greater_than":
-      case "after":
-        return isNaN(filterDate.getTime()) ? false : dateCompare(d3, filterDate) > 0;
-      case "less_than":
-      case "before":
-        return isNaN(filterDate.getTime()) ? false : dateCompare(d3, filterDate) < 0;
-      case "contains":
-        return d3.toLocaleDateString().toLowerCase().includes(fv.toLowerCase());
-      default:
-        return true;
-    }
-  }
-  const valStr = String(val ?? "");
-  switch (filter.operator) {
-    case "equals":
-      return valStr.toLowerCase() === fv.toLowerCase();
-    case "not_equals":
-      return valStr.toLowerCase() !== fv.toLowerCase();
-    case "contains":
-      return valStr.toLowerCase().includes(fv.toLowerCase());
-    case "greater_than":
-      return valStr > fv;
-    case "less_than":
-      return valStr < fv;
-    case "before":
-      return valStr < fv;
-    case "after":
-      return valStr > fv;
-    default:
-      return true;
-  }
 }
 
 // src/utils/recurrence.ts
@@ -2211,7 +2251,15 @@ var PRIORITY_SCALE = ["\u4F4E", "\u4E2D", "\u9AD8", "\u7D27\u6025"];
 function filtersToFrontmatter(filters, defaultDate) {
   const result = {};
   const today = defaultDate;
-  for (const f4 of filters) {
+  const allConds = [];
+  for (const clause of filters) {
+    if (clause.type === "visual") {
+      for (const c3 of clause.conditions) {
+        allConds.push(c3);
+      }
+    }
+  }
+  for (const f4 of allConds) {
     switch (f4.operator) {
       case "equals":
         result[f4.field] = f4.value;
@@ -2634,7 +2682,11 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }) {
 function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry }) {
   const operators = [
     { value: "equals", label: "=" },
+    { value: "not_equals", label: "!=" },
     { value: "contains", label: "contains" },
+    { value: "starts_with", label: "starts with" },
+    { value: "ends_with", label: "ends with" },
+    { value: "regex", label: "regex" },
     { value: "greater_than", label: ">" },
     { value: "less_than", label: "<" },
     { value: "before", label: "< date" },
@@ -2645,12 +2697,16 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
     const kind = kinds?.[field] ?? "text";
     onFiltersChange([
       ...filters,
-      { field, operator: defaultOperatorForKind(kind), value: "" }
+      { type: "visual", not: false, conditions: [{ field, operator: defaultOperatorForKind(kind), value: "" }] }
     ]);
   }
   function updateFilter(index, patch) {
     const next = [...filters];
-    next[index] = { ...next[index], ...patch };
+    const clause = next[index];
+    if (clause && clause.type === "visual" && clause.conditions.length > 0) {
+      const newCond = { ...clause.conditions[0], ...patch };
+      next[index] = { ...clause, conditions: [newCond] };
+    }
     onFiltersChange(next);
   }
   function removeFilter(index) {
@@ -2691,37 +2747,42 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
         ),
         showFilter && /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel", children: [
           filters.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-filter-empty", children: "No filters yet. Click + Filter to add a condition." }),
-          filters.map((f4, i4) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-row", children: [
-            /* @__PURE__ */ u3(
-              "select",
-              {
-                class: "scheduler-filter-select",
-                value: f4.field,
-                onChange: (e3) => updateFilter(i4, { field: e3.target.value }),
-                children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "select",
-              {
-                class: "scheduler-filter-operator",
-                value: f4.operator,
-                onChange: (e3) => updateFilter(i4, { operator: e3.target.value }),
-                children: operators.map((op) => /* @__PURE__ */ u3("option", { value: op.value, children: op.label }))
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "input",
-              {
-                class: "scheduler-filter-value",
-                type: "text",
-                value: f4.value,
-                placeholder: "value...",
-                onInput: (e3) => updateFilter(i4, { value: e3.target.value })
-              }
-            ),
-            /* @__PURE__ */ u3("button", { class: "scheduler-filter-remove", onClick: () => removeFilter(i4), title: "Remove filter", children: "\xD7" })
-          ] }, i4)),
+          filters.map((clause, i4) => {
+            const cond = clause.type === "visual" && clause.conditions.length > 0 ? clause.conditions[0] : null;
+            if (!cond)
+              return null;
+            return /* @__PURE__ */ u3("div", { class: "scheduler-filter-row", children: [
+              /* @__PURE__ */ u3(
+                "select",
+                {
+                  class: "scheduler-filter-select",
+                  value: cond.field,
+                  onChange: (e3) => updateFilter(i4, { field: e3.target.value }),
+                  children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "select",
+                {
+                  class: "scheduler-filter-operator",
+                  value: cond.operator,
+                  onChange: (e3) => updateFilter(i4, { operator: e3.target.value }),
+                  children: operators.map((op) => /* @__PURE__ */ u3("option", { value: op.value, children: op.label }))
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "input",
+                {
+                  class: "scheduler-filter-value",
+                  type: "text",
+                  value: cond.value,
+                  placeholder: "value...",
+                  onInput: (e3) => updateFilter(i4, { value: e3.target.value })
+                }
+              ),
+              /* @__PURE__ */ u3("button", { class: "scheduler-filter-remove", onClick: () => removeFilter(i4), title: "Remove filter", children: "\xD7" })
+            ] }, i4);
+          }),
           /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-actions", children: [
             /* @__PURE__ */ u3("button", { class: "scheduler-filter-add", onClick: addFilter, title: "Add filter", children: "+ Filter" }),
             filters.length > 0 && /* @__PURE__ */ u3("button", { class: "scheduler-filter-clear", onClick: clearFilters, children: "Clear" })
@@ -4063,7 +4124,7 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
     const baseDate = dateStr ?? todayLocal;
     const fmFields = filtersToFrontmatter(filters, baseDate);
     const dateField = plugin.settings.fieldMapping.dateField;
-    if (dateStr || filters.length > 0 && filters.some((f4) => f4.field === dateField)) {
+    if (dateStr || filters.length > 0 && filters.some((c3) => c3.type === "visual" && c3.conditions.some((co) => co.field === dateField))) {
       fmFields[dateField] = baseDate;
     }
     const startField = plugin.settings.fieldMapping.startField;
@@ -4580,17 +4641,50 @@ function parseViewState(params) {
   }
   const filtersRaw = params["filters"];
   if (filtersRaw) {
-    const parts = filtersRaw.split("|").filter(Boolean);
-    for (const p3 of parts) {
-      const firstColon = p3.indexOf(":");
-      const secondColon = firstColon >= 0 ? p3.indexOf(":", firstColon + 1) : -1;
-      if (firstColon >= 0 && secondColon > firstColon) {
-        const field = p3.slice(0, firstColon).trim();
-        const operator = p3.slice(firstColon + 1, secondColon).trim();
-        const value = p3.slice(secondColon + 1);
-        if (field && operator) {
-          state.filters.push({ field, operator, value });
-        }
+    const clauseSegments = [];
+    let depth = 0;
+    let start = 0;
+    for (let i4 = 0; i4 < filtersRaw.length; i4++) {
+      const ch = filtersRaw[i4];
+      if (ch === "{")
+        depth++;
+      else if (ch === "}")
+        depth--;
+      else if (ch === "|" && depth === 0) {
+        clauseSegments.push(filtersRaw.slice(start, i4));
+        start = i4 + 1;
+      }
+    }
+    clauseSegments.push(filtersRaw.slice(start));
+    for (const seg of clauseSegments) {
+      const s3 = seg.trim();
+      if (!s3)
+        continue;
+      let not = false;
+      let body = s3;
+      if (body.startsWith("!")) {
+        not = true;
+        body = body.slice(1);
+      }
+      if (body.startsWith("{") && body.endsWith("}")) {
+        state.filters.push({
+          type: "raw",
+          not,
+          expression: body.slice(1, -1)
+        });
+        continue;
+      }
+      const subCondStrs = body.split("::").map((p3) => p3.trim()).filter(Boolean);
+      const conditions = subCondStrs.map((part) => {
+        const firstColon = part.indexOf(":");
+        const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
+        const field = firstColon >= 0 ? part.slice(0, firstColon).trim() : "";
+        const operator = secondColon >= 0 ? part.slice(firstColon + 1, secondColon).trim() : "";
+        const value = secondColon >= 0 ? part.slice(secondColon + 1) : "";
+        return { field, operator, value };
+      }).filter((c3) => c3.field && c3.operator);
+      if (conditions.length > 0) {
+        state.filters.push({ type: "visual", not, conditions });
       }
     }
   }
@@ -4611,7 +4705,15 @@ function serializeViewState(state, keepParams) {
     lines.push(`sort: ${sortStr}`);
   }
   if (state.filters.length > 0) {
-    const filterStr = state.filters.map((f4) => `${f4.field}:${f4.operator}:${f4.value}`).join("|");
+    const filterStr = state.filters.map((clause) => {
+      if (clause.type === "raw") {
+        const pfx2 = clause.not ? "!" : "";
+        return `${pfx2}{${clause.expression}}`;
+      }
+      const pfx = clause.not ? "!" : "";
+      const inner = clause.conditions.map((c3) => `${c3.field}:${c3.operator}:${c3.value}`).join("::");
+      return `${pfx}${inner}`;
+    }).join("|");
     lines.push(`filters: ${filterStr}`);
   }
   if (state.hiddenCols.length > 0) {

@@ -182,7 +182,13 @@ export class SchedulerSettingTab extends PluginSettingTab {
 		}
 		for (const tpl of templates) {
 			const sortDesc = tpl.sort.length > 0 ? tpl.sort.map((s) => `${s.field} ${s.direction}`).join(", ") : "none";
-			const filterDesc = tpl.filters.length > 0 ? tpl.filters.map((f) => `${f.field} ${f.operator} ${f.value}`).join(", ") : "none";
+			const filterDesc = tpl.filters.length > 0
+				? tpl.filters.map((c) => {
+					if (c.type === "raw") return (c.not ? "!" : "") + `{${c.expression}}`;
+					const conds = c.conditions.map((co) => `${co.field} ${co.operator} ${co.value}`).join(" or ");
+					return (c.not ? "!" : "") + conds;
+				}).join(" & ")
+				: "none";
 			new Setting(containerEl)
 				.setName(tpl.name)
 				.setDesc(`View: ${tpl.viewType} · Sort: ${sortDesc} · Filters: ${filterDesc}`)

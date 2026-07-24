@@ -57,6 +57,7 @@ export function operatorsForKind(kind: FieldKind): { value: string; label: strin
 	if (kind === "date") {
 		return [
 			{ value: "equals", label: "=" },
+			{ value: "not_equals", label: "!=" },
 			{ value: "before", label: "< date" },
 			{ value: "after", label: "> date" },
 		];
@@ -64,13 +65,18 @@ export function operatorsForKind(kind: FieldKind): { value: string; label: strin
 	if (kind === "number") {
 		return [
 			{ value: "equals", label: "=" },
+			{ value: "not_equals", label: "!=" },
 			{ value: "greater_than", label: ">" },
 			{ value: "less_than", label: "<" },
 		];
 	}
 	return [
 		{ value: "equals", label: "=" },
+		{ value: "not_equals", label: "!=" },
 		{ value: "contains", label: "contains" },
+		{ value: "starts_with", label: "starts with" },
+		{ value: "ends_with", label: "ends with" },
+		{ value: "regex", label: "regex" },
 		{ value: "greater_than", label: ">" },
 		{ value: "less_than", label: "<" },
 		{ value: "before", label: "< date" },

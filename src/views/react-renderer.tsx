@@ -6,7 +6,7 @@ import { getDataviewApi } from "../utils/dataview-api";
 import { QueryEngine } from "../query/query-engine";
 import { CalendarView } from "./calendar/calendar-view";
 import { TimelineView } from "./timeline/timeline-view";
-import { ViewType, SortConfig, FilterCondition, PageEntry, FieldMapping, ViewTemplate } from "../types";
+import { ViewType, SortConfig, FilterClause, PageEntry, FieldMapping, ViewTemplate } from "../types";
 import { filtersToFrontmatter, buildFrontmatterString, sanitizeFilename } from "../utils/new-file-builder";
 import { NewEntryModal } from "../utils/new-entry-modal";
 import { collectColumns, formatTagValue } from "./table/table-utils";
@@ -193,7 +193,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		initialState?.viewType ?? initialView ?? plugin.settings.defaultView
 	);
 	const [sort, setSort] = useState<SortConfig[]>(initialState?.sort ?? []);
-	const [filters, setFilters] = useState<FilterCondition[]>(initialState?.filters ?? []);
+	const [filters, setFilters] = useState<FilterClause[]>(initialState?.filters ?? []);
 	const [hiddenCols, setHiddenCols] = useState<Set<string>>(
 		new Set(initialState?.hiddenCols ?? [])
 	);
@@ -550,7 +550,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 
 		// Set dateField: always when a specific date is provided, or when filters include it
 		const dateField = plugin.settings.fieldMapping.dateField;
-		if (dateStr || (filters.length > 0 && filters.some((f) => f.field === dateField))) {
+		if (dateStr || (filters.length > 0 && filters.some((c) => c.type === "visual" && c.conditions.some((co) => co.field === dateField)))) {
 			fmFields[dateField] = baseDate;
 		}
 

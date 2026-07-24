@@ -78,12 +78,42 @@ export interface SortConfig {
     direction: "asc" | "desc";
 }
 
-/** Filter condition */
-export interface FilterCondition {
+/** Operators available for filter conditions */
+export type FilterOperator =
+	| "equals"
+	| "not_equals"
+	| "contains"
+	| "greater_than"
+	| "less_than"
+	| "before"
+	| "after"
+	| "starts_with"
+	| "ends_with"
+	| "regex";
+
+/** A single simple field-operator-value condition */
+export interface AtomicCondition {
 	field: string;
-	operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "before" | "after";
+	operator: FilterOperator;
 	value: string;
 }
+
+/** A visual filter clause with one or more conditions ORed together */
+export interface VisualClause {
+	type: "visual";
+	not: boolean;
+	conditions: AtomicCondition[];
+}
+
+/** A raw expression clause (future escape hatch, not produced by GUI initially) */
+export interface RawClause {
+	type: "raw";
+	not: boolean;
+	expression: string;
+}
+
+/** Top-level filter clause (ANDed across clauses) */
+export type FilterClause = VisualClause | RawClause;
 
 /** A saved view configuration preset */
 export interface ViewTemplate {
@@ -94,14 +124,14 @@ export interface ViewTemplate {
 	/** Sort configuration */
 	sort: SortConfig[];
 	/** Active filters */
-	filters: FilterCondition[];
+	filters: FilterClause[];
 }
 
 /** View state passed to rendering components */
 export interface ViewState {
     viewType: ViewType;
     sort: SortConfig[];
-    filters: FilterCondition[];
+    filters: FilterClause[];
     page: number;
     pageSize: number;
 }

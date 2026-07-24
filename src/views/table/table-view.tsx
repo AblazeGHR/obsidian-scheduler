@@ -2,7 +2,7 @@ import { h, Fragment } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
 import { useContextMenu } from "../context-menu";
 import { QueryEngine } from "../../query/query-engine";
-import { PageEntry, FieldMapping, SortConfig, FilterCondition } from "../../types";
+import { PageEntry, FieldMapping, SortConfig, FilterClause, AtomicCondition, FilterOperator } from "../../types";
 import {
 	formatCellValue,
 	getCellKind,
@@ -135,8 +135,8 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellPro
 
 interface FilterBarProps {
 	columns: string[];
-	filters: FilterCondition[];
-	onFiltersChange: (filters: FilterCondition[]) => void;
+	filters: FilterClause[];
+	onFiltersChange: (filters: FilterClause[]) => void;
 	hiddenCols: Set<string>;
 	onHiddenColsChange: (cols: Set<string>) => void;
 	entriesCount: number;
@@ -150,7 +150,11 @@ interface FilterBarProps {
 function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry }: FilterBarProps) {
 	const operators = [
 		{ value: "equals", label: "=" },
+		{ value: "not_equals", label: "!=" },
 		{ value: "contains", label: "contains" },
+		{ value: "starts_with", label: "starts with" },
+		{ value: "ends_with", label: "ends with" },
+		{ value: "regex", label: "regex" },
 		{ value: "greater_than", label: ">" },
 		{ value: "less_than", label: "<" },
 		{ value: "before", label: "< date" },
@@ -162,13 +166,17 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 		const kind = kinds?.[field] ?? "text";
 		onFiltersChange([
 			...filters,
-			{ field, operator: defaultOperatorForKind(kind) as FilterCondition["operator"], value: "" },
+			{ type: "visual" as const, not: false, conditions: [{ field, operator: defaultOperatorForKind(kind) as FilterOperator, value: "" }] },
 		]);
 	}
 
-	function updateFilter(index: number, patch: Partial<FilterCondition>) {
+	function updateFilter(index: number, patch: Partial<AtomicCondition>) {
 		const next = [...filters];
-		next[index] = { ...next[index], ...patch };
+		const clause = next[index];
+		if (clause && clause.type === "visual" && clause.conditions.length > 0) {
+			const newCond = { ...clause.conditions[0], ...patch };
+			next[index] = { ...clause, conditions: [newCond] };
+		}
 		onFiltersChange(next);
 	}
 
@@ -212,11 +220,14 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 									No filters yet. Click + Filter to add a condition.
 								</div>
 							)}
-							{filters.map((f, i) => (
+							{filters.map((clause, i) => {
+							const cond = clause.type === "visual" && clause.conditions.length > 0 ? clause.conditions[0] : null;
+							if (!cond) return null;
+							return (
 								<div class="scheduler-filter-row" key={i}>
 									<select
 										class="scheduler-filter-select"
-										value={f.field}
+										value={cond.field}
 										onChange={(e: any) => updateFilter(i, { field: e.target.value })}
 									>
 										{columns.map((c) => (
@@ -225,8 +236,8 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 									</select>
 									<select
 										class="scheduler-filter-operator"
-										value={f.operator}
-										onChange={(e: any) => updateFilter(i, { operator: e.target.value })}
+										value={cond.operator}
+										onChange={(e: any) => updateFilter(i, { operator: e.target.value as FilterOperator })}
 									>
 										{operators.map((op) => (
 											<option value={op.value}>{op.label}</option>
@@ -235,7 +246,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 									<input
 										class="scheduler-filter-value"
 										type="text"
-										value={f.value}
+										value={cond.value}
 										placeholder="value..."
 										onInput={(e: any) => updateFilter(i, { value: e.target.value })}
 									/>
@@ -243,7 +254,8 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 										&times;
 									</button>
 								</div>
-							))}
+							);
+						})}
 							<div class="scheduler-filter-panel-actions">
 								<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
 									+ Filter
@@ -489,8 +501,8 @@ interface TableViewProps {
 	mapping: FieldMapping;
 	sort: SortConfig[];
 	onSortChange: (sort: SortConfig[]) => void;
-	filters: FilterCondition[];
-	onFiltersChange: (filters: FilterCondition[]) => void;
+	filters: FilterClause[];
+	onFiltersChange: (filters: FilterClause[]) => void;
 	hiddenCols: Set<string>;
 	onHiddenColsChange: (cols: Set<string>) => void;
 	onCellEdit?: (path: string, field: string, value: string) => void;

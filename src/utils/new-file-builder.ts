@@ -1,4 +1,4 @@
-import { FilterCondition } from "../types";
+import { FilterClause, AtomicCondition } from "../types";
 
 /**
  * Priority scale for resolving "greater_than" / "less_than" operators.
@@ -18,13 +18,23 @@ const PRIORITY_SCALE = ["低", "中", "高", "紧急"];
  * - before/after (date) → use today's date
  */
 export function filtersToFrontmatter(
-	filters: FilterCondition[],
+	filters: FilterClause[],
 	defaultDate: string
 ): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	const today = defaultDate;
 
-	for (const f of filters) {
+	// Flatten all visual clauses' conditions; raw clauses are skipped.
+	const allConds: AtomicCondition[] = [];
+	for (const clause of filters) {
+		if (clause.type === "visual") {
+			for (const c of clause.conditions) {
+				allConds.push(c);
+			}
+		}
+	}
+
+	for (const f of allConds) {
 		switch (f.operator) {
 			case "equals":
 				result[f.field] = f.value;

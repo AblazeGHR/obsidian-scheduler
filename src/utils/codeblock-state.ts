@@ -1,5 +1,5 @@
 import { App, TFile } from "obsidian";
-import { ViewType, SortConfig, FilterCondition } from "../types";
+import { ViewType, SortConfig, FilterClause } from "../types";
 
 // ============================================================
 // Codeblock View State — serialisation / deserialisation
@@ -13,7 +13,7 @@ import { ViewType, SortConfig, FilterCondition } from "../types";
 export interface CodeblockViewState {
 	viewType?: ViewType;
 	sort: SortConfig[];
-	filters: FilterCondition[];
+	filters: FilterClause[];
 	hiddenCols: string[];
 	search: string;
 }
@@ -55,20 +55,60 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 		}
 	}
 
-	// filters: field:op:val|field:op:val|...
+	// filters: clause|clause|...
+	//   visual clause: [!]field:op:val[::field:op:val]
+	//   raw clause:    [!]{expr}
 	const filtersRaw = params["filters"];
 	if (filtersRaw) {
-		const parts = filtersRaw.split("|").filter(Boolean);
-		for (const p of parts) {
-			const firstColon = p.indexOf(":");
-			const secondColon = firstColon >= 0 ? p.indexOf(":", firstColon + 1) : -1;
-			if (firstColon >= 0 && secondColon > firstColon) {
-				const field = p.slice(0, firstColon).trim();
-				const operator = p.slice(firstColon + 1, secondColon).trim();
-				const value = p.slice(secondColon + 1);
-				if (field && operator) {
-					state.filters.push({ field, operator: operator as FilterCondition["operator"], value });
-				}
+		// Split by | outside braces (raw clauses may contain | in their expression)
+		const clauseSegments: string[] = [];
+		let depth = 0;
+		let start = 0;
+		for (let i = 0; i < filtersRaw.length; i++) {
+			const ch = filtersRaw[i];
+			if (ch === "{") depth++;
+			else if (ch === "}") depth--;
+			else if (ch === "|" && depth === 0) {
+				clauseSegments.push(filtersRaw.slice(start, i));
+				start = i + 1;
+			}
+		}
+		clauseSegments.push(filtersRaw.slice(start)); // last segment
+
+		for (const seg of clauseSegments) {
+			const s = seg.trim();
+			if (!s) continue;
+
+			let not = false;
+			let body = s;
+			if (body.startsWith("!")) {
+				not = true;
+				body = body.slice(1);
+			}
+
+			// Raw clause — wrapped in { and }
+			if (body.startsWith("{") && body.endsWith("}")) {
+				state.filters.push({
+					type: "raw",
+					not,
+					expression: body.slice(1, -1),
+				});
+				continue;
+			}
+
+			// Visual clause — split sub-conditions by ::
+			const subCondStrs = body.split("::").map((p) => p.trim()).filter(Boolean);
+			const conditions = subCondStrs.map((part) => {
+				const firstColon = part.indexOf(":");
+				const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
+				const field = firstColon >= 0 ? part.slice(0, firstColon).trim() : "";
+				const operator = secondColon >= 0 ? part.slice(firstColon + 1, secondColon).trim() : "";
+				const value = secondColon >= 0 ? part.slice(secondColon + 1) : "";
+				return { field, operator: operator as any, value };
+			}).filter((c) => c.field && c.operator);
+
+			if (conditions.length > 0) {
+				state.filters.push({ type: "visual", not, conditions });
 			}
 		}
 	}
@@ -107,7 +147,17 @@ export function serializeViewState(state: CodeblockViewState, keepParams: Record
 	// filters
 	if (state.filters.length > 0) {
 		const filterStr = state.filters
-			.map((f) => `${f.field}:${f.operator}:${f.value}`)
+			.map((clause) => {
+				if (clause.type === "raw") {
+					const pfx = clause.not ? "!" : "";
+					return `${pfx}{${clause.expression}}`;
+				}
+				const pfx = clause.not ? "!" : "";
+				const inner = clause.conditions
+					.map((c) => `${c.field}:${c.operator}:${c.value}`)
+					.join("::");
+				return `${pfx}${inner}`;
+			})
 			.join("|");
 		lines.push(`filters: ${filterStr}`);
 	}

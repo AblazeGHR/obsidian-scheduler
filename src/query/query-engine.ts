@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
 import { getDataviewApi } from "../utils/dataview-api";
-import { FieldMapping, PageEntry, SortConfig, FilterCondition } from "../types";
+import { FieldMapping, PageEntry, SortConfig, FilterClause } from "../types";
+import { evaluateClause } from "../utils/filter-evaluator";
 import { mapPageEntry } from "../schema/field-mapping";
 import { extractTasksWithInlineFields, taskToPageEntry } from "../schema/inline-fields";
 
@@ -79,14 +80,9 @@ export class QueryEngine {
 	}
 
 	/** Static: apply filters to entries (pure function, no state needed). */
-	static applyFilters(entries: PageEntry[], filters: FilterCondition[]): PageEntry[] {
+	static applyFilters(entries: PageEntry[], filters: FilterClause[]): PageEntry[] {
 		if (filters.length === 0) return entries;
-		return entries.filter((entry) => {
-			return filters.every((f) => {
-				const val = getFieldValue(entry, f.field);
-				return evaluateFilter(val, f);
-			});
-		});
+		return entries.filter((entry) => filters.every((c) => evaluateClause(entry, c)));
 	}
 }
 
@@ -122,38 +118,4 @@ function dateCompare(a: Date, b: Date): number {
 	const m = a.getMonth() - b.getMonth();
 	if (m !== 0) return m;
 	return a.getDate() - b.getDate();
-}
-
-function evaluateFilter(val: unknown, filter: FilterCondition): boolean {
-	const fv = filter.value;
-
-	// For Date values, compare by local date components
-	if (val instanceof Date) {
-		const filterDate = new Date(fv);
-		const d = val;
-
-		switch (filter.operator) {
-			case "equals": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) === 0;
-			case "not_equals": return isNaN(filterDate.getTime()) ? true : dateCompare(d, filterDate) !== 0;
-			case "greater_than":
-			case "after": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) > 0;
-			case "less_than":
-			case "before": return isNaN(filterDate.getTime()) ? false : dateCompare(d, filterDate) < 0;
-			case "contains": return d.toLocaleDateString().toLowerCase().includes(fv.toLowerCase());
-			default: return true;
-		}
-	}
-
-	// String comparison for non-date values
-	const valStr = String(val ?? "");
-	switch (filter.operator) {
-		case "equals": return valStr.toLowerCase() === fv.toLowerCase();
-		case "not_equals": return valStr.toLowerCase() !== fv.toLowerCase();
-		case "contains": return valStr.toLowerCase().includes(fv.toLowerCase());
-		case "greater_than": return valStr > fv;
-		case "less_than": return valStr < fv;
-		case "before": return valStr < fv;
-		case "after": return valStr > fv;
-		default: return true;
-	}
 }
