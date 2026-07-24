@@ -207,13 +207,19 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 	useEffect(() => {
 		if (!drag && !create) return;
 
-		function onMouseUp() {
+		function onMouseUp(e: MouseEvent) {
 			if (drag) {
-				onTimeChange?.(
-					drag.path,
-					toLocalDateTime(drag.previewStart),
-					toLocalDateTime(drag.previewEnd)
-				);
+				// Check if dropped on all-day strip → strip times
+				const allDayEl = (e.target as HTMLElement)?.closest(".scheduler-timeline-allday");
+				if (allDayEl) {
+					onTimeChange?.(drag.path, "", "");
+				} else {
+					onTimeChange?.(
+						drag.path,
+						toLocalDateTime(drag.previewStart),
+						toLocalDateTime(drag.previewEnd)
+					);
+				}
 			}
 			if (create) {
 				if (create.endMin - create.startMin >= SNAP_MINUTES) {

@@ -703,6 +703,9 @@ function getFolderName(path) {
 function coerceToDate(value) {
   if (value === null || value === void 0)
     return null;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
   if (typeof value === "object" && value !== null) {
     const obj = value;
     if (typeof obj["ts"] === "number")
@@ -1764,13 +1767,18 @@ function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEnt
   h2(() => {
     if (!drag && !create)
       return;
-    function onMouseUp() {
+    function onMouseUp(e3) {
       if (drag) {
-        onTimeChange?.(
-          drag.path,
-          toLocalDateTime(drag.previewStart),
-          toLocalDateTime(drag.previewEnd)
-        );
+        const allDayEl = e3.target?.closest(".scheduler-timeline-allday");
+        if (allDayEl) {
+          onTimeChange?.(drag.path, "", "");
+        } else {
+          onTimeChange?.(
+            drag.path,
+            toLocalDateTime(drag.previewStart),
+            toLocalDateTime(drag.previewEnd)
+          );
+        }
       }
       if (create) {
         if (create.endMin - create.startMin >= SNAP_MINUTES) {

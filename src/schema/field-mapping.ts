@@ -80,6 +80,11 @@ function getFolderName(path: string): string {
 function coerceToDate(value: unknown): Date | null {
 	if (value === null || value === undefined) return null;
 
+	// Native JavaScript Date (inline fields parser produces these)
+	if (value instanceof Date) {
+		return isNaN(value.getTime()) ? null : value;
+	}
+
 	// luxon DateTime (Dataview standard)
 	if (typeof value === "object" && value !== null) {
 		const obj = value as Record<string, unknown>;
