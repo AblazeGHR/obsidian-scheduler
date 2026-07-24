@@ -17,8 +17,8 @@ export interface TaskEntry {
 /** Regex to match inline fields: [key:: value] where value is anything except ] */
 const INLINE_FIELD_RE = /\[([^\]:]+)::\s*([^\]]*)\]/g;
 
-/** Match markdown task checkbox prefix like `- [ ] ` or `* [x] ` */
-const TASK_PREFIX_RE = /^[-*+]\s*\[.\]\s*/;
+/** Match a markdown task checkbox prefix (optionally indented) like `  - [ ] ` or `* [x] ` */
+const TASK_PREFIX_RE = /^\s*[-*+]\s*\[.\]\s*/;
 
 /**
  * Extract inline fields from a single line of text.

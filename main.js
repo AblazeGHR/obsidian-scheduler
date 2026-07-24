@@ -741,7 +741,7 @@ function coerceToDate(value) {
 
 // src/schema/inline-fields.ts
 var INLINE_FIELD_RE = /\[([^\]:]+)::\s*([^\]]*)\]/g;
-var TASK_PREFIX_RE = /^[-*+]\s*\[.\]\s*/;
+var TASK_PREFIX_RE = /^\s*[-*+]\s*\[.\]\s*/;
 function parseInlineFields(line) {
   const fields = {};
   let stripped = line;
