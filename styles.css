@@ -649,6 +649,8 @@
     flex-direction: column;
     cursor: default;
     user-select: none;
+    position: relative;
+    overflow: visible; /* allow overlay to extend past boundaries */
 }
 
 .scheduler-calendar-row {
@@ -1475,7 +1477,7 @@
 
 /* Box-selection overlay */
 .scheduler-calendar-selection-overlay {
-    position: fixed;
+    position: absolute;
     pointer-events: none;
     border: 2px dashed var(--interactive-accent);
     background: rgba(120, 160, 255, 0.1);

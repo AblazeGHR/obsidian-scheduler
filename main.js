@@ -1284,7 +1284,8 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     width: 0,
     height: 0
   });
-  const selRef = A2({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+  const selRef = A2({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0, gridLeft: 0, gridTop: 0 });
+  const gridRef = A2(null);
   function clearSelection() {
     setSelectedPaths(/* @__PURE__ */ new Set());
   }
@@ -1303,12 +1304,14 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     const onMouseMove = (e3) => {
       if (!selRef.current.selecting)
         return;
+      const x2 = e3.pageX - selRef.current.gridLeft;
+      const y3 = e3.pageY - selRef.current.gridTop;
       selRef.current.currentX = e3.pageX;
       selRef.current.currentY = e3.pageY;
       setSelectionVisual({
         selecting: true,
-        left: Math.min(selRef.current.startX, e3.pageX),
-        top: Math.min(selRef.current.startY, e3.pageY),
+        left: Math.min(selRef.current.startX - selRef.current.gridLeft, x2),
+        top: Math.min(selRef.current.startY - selRef.current.gridTop, y3),
         width: Math.abs(e3.pageX - selRef.current.startX),
         height: Math.abs(e3.pageY - selRef.current.startY)
       });
@@ -1348,17 +1351,23 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     const target = e3.target;
     if (target.closest(".scheduler-calendar-event") || target.closest("button"))
       return;
+    const grid = gridRef.current;
+    if (!grid)
+      return;
+    const rect = grid.getBoundingClientRect();
     selRef.current = {
       selecting: true,
       startX: e3.pageX,
       startY: e3.pageY,
       currentX: e3.pageX,
-      currentY: e3.pageY
+      currentY: e3.pageY,
+      gridLeft: rect.left + window.scrollX,
+      gridTop: rect.top + window.scrollY
     };
     setSelectionVisual({
       selecting: true,
-      left: e3.pageX,
-      top: e3.pageY,
+      left: e3.pageX - selRef.current.gridLeft,
+      top: e3.pageY - selRef.current.gridTop,
       width: 0,
       height: 0
     });
@@ -1468,39 +1477,41 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
       onCreateEntry && /* @__PURE__ */ u3("button", { class: "scheduler-calendar-new", onClick: () => onCreateEntry(), title: "New entry with current filters", children: "+ New" })
     ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-calendar-weekdays", children: WEEKDAYS.map((w3) => /* @__PURE__ */ u3("div", { class: "scheduler-calendar-weekday", children: w3 })) }),
-    /* @__PURE__ */ u3("div", { class: `scheduler-calendar-grid${mode === "week" ? " week" : ""}`, onMouseDown: handleGridMouseDown, children: /* @__PURE__ */ u3("div", { class: "scheduler-calendar-row", children: dayCells.map((cell, i4) => {
-      if (!cell.inMonth) {
-        return /* @__PURE__ */ u3("div", { class: "scheduler-calendar-cell empty" }, `empty-${i4}`);
-      }
-      const dayEntries = occurrences.get(cell.dateStr) ?? [];
-      return /* @__PURE__ */ u3(
-        CalendarCell,
-        {
-          date: cell.date,
-          dateStr: cell.dateStr,
-          calEntries: dayEntries,
-          today: isToday(cell.date),
-          onDateChange,
-          onOpenEntry,
-          onCreateEntry,
-          selectedPaths,
-          onClearSelection: clearSelection
-        },
-        cell.dateStr
-      );
-    }) }) }),
-    selectionVisual.selecting && /* @__PURE__ */ u3(
-      "div",
-      {
-        class: "scheduler-calendar-selection-overlay",
-        style: {
-          left: `${selectionVisual.left}px`,
-          top: `${selectionVisual.top}px`,
-          width: `${selectionVisual.width}px`,
-          height: `${selectionVisual.height}px`
+    /* @__PURE__ */ u3("div", { class: `scheduler-calendar-grid${mode === "week" ? " week" : ""}`, onMouseDown: handleGridMouseDown, ref: gridRef, children: [
+      /* @__PURE__ */ u3("div", { class: "scheduler-calendar-row", children: dayCells.map((cell, i4) => {
+        if (!cell.inMonth) {
+          return /* @__PURE__ */ u3("div", { class: "scheduler-calendar-cell empty" }, `empty-${i4}`);
         }
-      }
-    )
+        const dayEntries = occurrences.get(cell.dateStr) ?? [];
+        return /* @__PURE__ */ u3(
+          CalendarCell,
+          {
+            date: cell.date,
+            dateStr: cell.dateStr,
+            calEntries: dayEntries,
+            today: isToday(cell.date),
+            onDateChange,
+            onOpenEntry,
+            onCreateEntry,
+            selectedPaths,
+            onClearSelection: clearSelection
+          },
+          cell.dateStr
+        );
+      }) }),
+      selectionVisual.selecting && /* @__PURE__ */ u3(
+        "div",
+        {
+          class: "scheduler-calendar-selection-overlay",
+          style: {
+            left: `${selectionVisual.left}px`,
+            top: `${selectionVisual.top}px`,
+            width: `${selectionVisual.width}px`,
+            height: `${selectionVisual.height}px`
+          }
+        }
+      )
+    ] })
   ] });
 }
 function daysInMonth(year, month) {

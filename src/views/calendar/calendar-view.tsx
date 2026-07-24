@@ -107,7 +107,8 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		width: 0,
 		height: 0,
 	});
-	const selRef = useRef({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+	const selRef = useRef({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0, gridLeft: 0, gridTop: 0 });
+	const gridRef = useRef<HTMLDivElement>(null);
 
 	function clearSelection() {
 		setSelectedPaths(new Set());
@@ -130,12 +131,14 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 	useEffect(() => {
 		const onMouseMove = (e: MouseEvent) => {
 			if (!selRef.current.selecting) return;
+			const x = e.pageX - selRef.current.gridLeft;
+			const y = e.pageY - selRef.current.gridTop;
 			selRef.current.currentX = e.pageX;
 			selRef.current.currentY = e.pageY;
 			setSelectionVisual({
 				selecting: true,
-				left: Math.min(selRef.current.startX, e.pageX),
-				top: Math.min(selRef.current.startY, e.pageY),
+				left: Math.min(selRef.current.startX - selRef.current.gridLeft, x),
+				top: Math.min(selRef.current.startY - selRef.current.gridTop, y),
 				width: Math.abs(e.pageX - selRef.current.startX),
 				height: Math.abs(e.pageY - selRef.current.startY),
 			});
@@ -183,17 +186,23 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		// Don't start selection on event elements or buttons
 		if (target.closest(".scheduler-calendar-event") || target.closest("button")) return;
 
+		const grid = gridRef.current;
+		if (!grid) return;
+		const rect = grid.getBoundingClientRect();
+
 		selRef.current = {
 			selecting: true,
 			startX: e.pageX,
 			startY: e.pageY,
 			currentX: e.pageX,
 			currentY: e.pageY,
+			gridLeft: rect.left + window.scrollX,
+			gridTop: rect.top + window.scrollY,
 		};
 		setSelectionVisual({
 			selecting: true,
-			left: e.pageX,
-			top: e.pageY,
+			left: e.pageX - selRef.current.gridLeft,
+			top: e.pageY - selRef.current.gridTop,
 			width: 0,
 			height: 0,
 		});
@@ -329,7 +338,7 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 			</div>
 
 			{/* Day grid */}
-			<div class={`scheduler-calendar-grid${mode === "week" ? " week" : ""}`} onMouseDown={handleGridMouseDown}>
+			<div class={`scheduler-calendar-grid${mode === "week" ? " week" : ""}`} onMouseDown={handleGridMouseDown} ref={gridRef}>
 				<div class="scheduler-calendar-row">
 					{dayCells.map((cell, i) => {
 						if (!cell.inMonth) {
@@ -352,20 +361,20 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 						);
 					})}
 				</div>
-			</div>
 
-			{/* Box-selection overlay */}
-			{selectionVisual.selecting && (
-				<div
-					class="scheduler-calendar-selection-overlay"
-					style={{
-						left: `${selectionVisual.left}px`,
-						top: `${selectionVisual.top}px`,
-						width: `${selectionVisual.width}px`,
-						height: `${selectionVisual.height}px`,
-					}}
-				/>
-			)}
+				{/* Box-selection overlay — positioned relative to grid */}
+				{selectionVisual.selecting && (
+					<div
+						class="scheduler-calendar-selection-overlay"
+						style={{
+							left: `${selectionVisual.left}px`,
+							top: `${selectionVisual.top}px`,
+							width: `${selectionVisual.width}px`,
+							height: `${selectionVisual.height}px`,
+						}}
+					/>
+				)}
+			</div>
 		</div>
 	);
 }
