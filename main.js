@@ -2868,7 +2868,7 @@ function SortManager({ columns, sort, onSortChange }) {
     ] })
   ] });
 }
-var PAGE_SIZES = [25, 50, 100, 0];
+var PAGE_SIZES = [10, 25, 50, 100, 0, -1];
 function TableView({
   entries,
   columns,
@@ -2888,6 +2888,8 @@ function TableView({
   const [selected, setSelected] = d2(/* @__PURE__ */ new Set());
   const [page, setPage] = d2(0);
   const [pageSize, setPageSize] = d2(50);
+  const [customPage, setCustomPage] = d2(false);
+  const [customVal, setCustomVal] = d2("");
   const [widths, setWidths] = d2({});
   const [activeRow, setActiveRow] = d2(-1);
   const tableRef = A2(null);
@@ -3187,12 +3189,42 @@ function TableView({
         "select",
         {
           class: "scheduler-page-size",
-          value: pageSize,
+          value: PAGE_SIZES.includes(pageSize) ? pageSize : -1,
           onChange: (e3) => {
-            setPageSize(Number(e3.target.value));
+            const v3 = Number(e3.target.value);
+            if (v3 === -1) {
+              setCustomPage(true);
+              setCustomVal("");
+            } else {
+              setPageSize(v3);
+              setCustomPage(false);
+            }
             setPage(0);
           },
-          children: PAGE_SIZES.map((s3) => /* @__PURE__ */ u3("option", { value: s3, children: s3 === 0 ? "All" : `${s3} / page` }))
+          children: PAGE_SIZES.map((s3) => /* @__PURE__ */ u3("option", { value: s3, children: s3 === 0 ? "All" : s3 === -1 ? "Custom\u2026" : `${s3} / page` }))
+        }
+      ),
+      customPage && /* @__PURE__ */ u3(
+        "input",
+        {
+          class: "scheduler-page-custom",
+          type: "number",
+          min: "1",
+          value: customVal,
+          placeholder: "rows",
+          onInput: (e3) => setCustomVal(e3.target.value),
+          onKeyDown: (e3) => {
+            if (e3.key === "Enter") {
+              const n2 = parseInt(customVal, 10);
+              if (!isNaN(n2) && n2 > 0) {
+                setPageSize(n2);
+                setCustomPage(false);
+                setPage(0);
+              }
+            }
+            if (e3.key === "Escape")
+              setCustomPage(false);
+          }
         }
       )
     ] }),

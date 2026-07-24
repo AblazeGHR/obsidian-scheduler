@@ -338,6 +338,16 @@
     color: var(--text-normal);
 }
 
+.scheduler-page-custom {
+    margin-left: 4px;
+    padding: 3px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    width: 60px;
+}
+
 .scheduler-config-missing {
     display: flex;
     align-items: center;

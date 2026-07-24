@@ -406,7 +406,7 @@ interface TableViewProps {
 	onDeleteEntry?: (path: string) => void;
 }
 
-const PAGE_SIZES = [25, 50, 100, 0]; // 0 = all
+const PAGE_SIZES = [10, 25, 50, 100, 0, -1]; // 0 = all, -1 = custom
 
 function TableView({
 	entries,
@@ -428,6 +428,8 @@ function TableView({
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [page, setPage] = useState(0);
 	const [pageSize, setPageSize] = useState(50);
+	const [customPage, setCustomPage] = useState(false);
+	const [customVal, setCustomVal] = useState("");
 	const [widths, setWidths] = useState<Record<string, number>>({});
 	const [activeRow, setActiveRow] = useState(-1);
 	const tableRef = useRef<HTMLTableElement | null>(null);
@@ -777,16 +779,44 @@ function TableView({
 				</button>
 				<select
 					class="scheduler-page-size"
-					value={pageSize}
+					value={PAGE_SIZES.includes(pageSize) ? pageSize : -1}
 					onChange={(e: any) => {
-						setPageSize(Number(e.target.value));
+						const v = Number(e.target.value);
+						if (v === -1) {
+							setCustomPage(true);
+							setCustomVal("");
+						} else {
+							setPageSize(v);
+							setCustomPage(false);
+						}
 						setPage(0);
 					}}
 				>
 					{PAGE_SIZES.map((s) => (
-						<option value={s}>{s === 0 ? "All" : `${s} / page`}</option>
+						<option value={s}>{s === 0 ? "All" : s === -1 ? "Custom…" : `${s} / page`}</option>
 					))}
 				</select>
+				{customPage && (
+					<input
+						class="scheduler-page-custom"
+						type="number"
+						min="1"
+						value={customVal}
+						placeholder="rows"
+						onInput={(e: any) => setCustomVal(e.target.value)}
+						onKeyDown={(e: any) => {
+							if (e.key === "Enter") {
+								const n = parseInt(customVal, 10);
+								if (!isNaN(n) && n > 0) {
+									setPageSize(n);
+									setCustomPage(false);
+									setPage(0);
+								}
+							}
+							if (e.key === "Escape") setCustomPage(false);
+						}}
+					/>
+				)}
 			</div>
 			{ctx.element}
 		</div>
