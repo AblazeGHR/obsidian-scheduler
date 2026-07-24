@@ -888,10 +888,8 @@ function getFieldValue(entry, field) {
     case "date":
     case "due":
       return entry.date;
-    case "file": {
-      const last = entry.path.split("/").pop() ?? entry.path;
-      return last.replace(/\.md$/, "");
-    }
+    case "file":
+      return entry.path;
     case "start":
       return entry.start;
     case "end":
