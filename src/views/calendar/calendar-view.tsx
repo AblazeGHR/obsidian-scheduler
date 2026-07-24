@@ -108,7 +108,6 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		height: 0,
 	});
 	const selRef = useRef({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	function clearSelection() {
 		setSelectedPaths(new Set());
@@ -119,11 +118,6 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				setSelectedPaths(new Set());
-				// Cancel any in-progress selection drawing
-				if (longPressTimer.current) {
-					clearTimeout(longPressTimer.current);
-					longPressTimer.current = null;
-				}
 				selRef.current.selecting = false;
 				setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
 			}
@@ -183,37 +177,28 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		};
 	}, []);
 
-	// Grid mousedown — long-press detection to start box selection
+	// Grid mousedown — immediate Windows-style box selection
 	function handleGridMouseDown(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		// Don't start selection on event elements or buttons
 		if (target.closest(".scheduler-calendar-event") || target.closest("button")) return;
 
-		const startX = e.pageX;
-		const startY = e.pageY;
-
-		longPressTimer.current = setTimeout(() => {
-			selRef.current = { selecting: true, startX, startY, currentX: startX, currentY: startY };
-			setSelectionVisual({
-				selecting: true,
-				left: startX,
-				top: startY,
-				width: 0,
-				height: 0,
-			});
-			// Clear previous selection when starting a new one
-			setSelectedPaths(new Set());
-		}, 300);
-
-		const cancelLongPress = () => {
-			if (longPressTimer.current) {
-				clearTimeout(longPressTimer.current);
-				longPressTimer.current = null;
-			}
+		selRef.current = {
+			selecting: true,
+			startX: e.pageX,
+			startY: e.pageY,
+			currentX: e.pageX,
+			currentY: e.pageY,
 		};
-
-		document.addEventListener("mousemove", cancelLongPress, { once: true });
-		document.addEventListener("mouseup", cancelLongPress, { once: true });
+		setSelectionVisual({
+			selecting: true,
+			left: e.pageX,
+			top: e.pageY,
+			width: 0,
+			height: 0,
+		});
+		// Clear previous selection when starting a new one
+		setSelectedPaths(new Set());
 	}
 
 	// Expand recurring entries within the visible window (so occurrences render on the right days)

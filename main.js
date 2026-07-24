@@ -1285,7 +1285,6 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     height: 0
   });
   const selRef = A2({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-  const longPressTimer = A2(null);
   function clearSelection() {
     setSelectedPaths(/* @__PURE__ */ new Set());
   }
@@ -1293,10 +1292,6 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     const onKeyDown = (e3) => {
       if (e3.key === "Escape") {
         setSelectedPaths(/* @__PURE__ */ new Set());
-        if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
-        }
         selRef.current.selecting = false;
         setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
       }
@@ -1353,27 +1348,21 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
     const target = e3.target;
     if (target.closest(".scheduler-calendar-event") || target.closest("button"))
       return;
-    const startX = e3.pageX;
-    const startY = e3.pageY;
-    longPressTimer.current = setTimeout(() => {
-      selRef.current = { selecting: true, startX, startY, currentX: startX, currentY: startY };
-      setSelectionVisual({
-        selecting: true,
-        left: startX,
-        top: startY,
-        width: 0,
-        height: 0
-      });
-      setSelectedPaths(/* @__PURE__ */ new Set());
-    }, 300);
-    const cancelLongPress = () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
+    selRef.current = {
+      selecting: true,
+      startX: e3.pageX,
+      startY: e3.pageY,
+      currentX: e3.pageX,
+      currentY: e3.pageY
     };
-    document.addEventListener("mousemove", cancelLongPress, { once: true });
-    document.addEventListener("mouseup", cancelLongPress, { once: true });
+    setSelectionVisual({
+      selecting: true,
+      left: e3.pageX,
+      top: e3.pageY,
+      width: 0,
+      height: 0
+    });
+    setSelectedPaths(/* @__PURE__ */ new Set());
   }
   let winStart;
   let winEnd;
