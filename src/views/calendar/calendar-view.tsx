@@ -1,5 +1,7 @@
 import { h } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
+import { FilterPanel } from "../filter/filter-panel";
+import { FilterModal } from "../filter/filter-modal";
 import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
 import { useContextMenu } from "../context-menu";
@@ -9,6 +11,8 @@ interface CalendarViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
 	filters?: FilterClause[];
+	onFiltersChange?: (clauses: FilterClause[]) => void;
+	columns?: string[];
 	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
@@ -98,9 +102,11 @@ function rectsIntersect(
 	return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
-export function CalendarView({ entries, mapping, filters, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }: CalendarViewProps) {
+export function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }: CalendarViewProps) {
 	const [cursor, setCursor] = useState(() => atMidnight(new Date()));
 	const [mode, setMode] = useState<"month" | "week">("month");
+	const [showFilter, setShowFilter] = useState(false);
+	const [showCodeModal, setShowCodeModal] = useState(false);
 	const ctx = useContextMenu();
 
 	// --- Box selection state ---
@@ -308,6 +314,16 @@ export function CalendarView({ entries, mapping, filters, onDateChange, onOpenEn
 					<div class="scheduler-calendar-title">
 						<span class="scheduler-calendar-month">{title}</span>
 					</div>
+					{onFiltersChange && columns && (
+						<div class="scheduler-filter-manager">
+							<button class="scheduler-filter-btn" onClick={() => setShowFilter((o) => !o)} title="Filters">
+								Filter {showFilter ? "▲" : "▼"} ({filters?.length ?? 0})
+							</button>
+							{showFilter && (
+								<FilterPanel columns={columns} clauses={filters ?? []} onClausesChange={onFiltersChange} onCodeEdit={() => setShowCodeModal(true)} />
+							)}
+						</div>
+					)}
 					<button class="scheduler-calendar-nav" onClick={() => step(1)} title="Next">
 						&rsaquo;
 					</button>
@@ -404,9 +420,16 @@ export function CalendarView({ entries, mapping, filters, onDateChange, onOpenEn
 					/>
 				)}
 			</div>
-			{ctx.element}
-		</div>
-	);
+		{ctx.element}
+		{showCodeModal && (
+			<FilterModal
+				clauses={filters ?? []}
+				onClose={() => setShowCodeModal(false)}
+				onSave={(newClauses) => { onFiltersChange?.(newClauses); setShowCodeModal(false); }}
+			/>
+		)}
+	</div>
+);
 }
 
 function daysInMonth(year: number, month: number): number {

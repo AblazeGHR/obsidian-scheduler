@@ -1012,6 +1012,373 @@ function dateCompare2(a3, b2) {
   return a3.getDate() - b2.getDate();
 }
 
+// node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
+var f3 = 0;
+var i3 = Array.isArray;
+function u3(e3, t3, n2, o3, i4, u4) {
+  t3 || (t3 = {});
+  var a3, c3, p3 = t3;
+  if ("ref" in p3)
+    for (c3 in p3 = {}, t3)
+      "ref" == c3 ? a3 = t3[c3] : p3[c3] = t3[c3];
+  var l3 = { type: e3, props: p3, key: n2, ref: a3, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f3, __i: -1, __u: 0, __source: i4, __self: u4 };
+  if ("function" == typeof e3 && (a3 = e3.defaultProps))
+    for (c3 in a3)
+      void 0 === p3[c3] && (p3[c3] = a3[c3]);
+  return l.vnode && l.vnode(l3), l3;
+}
+
+// src/views/filter/filter-panel.tsx
+var OPERATORS = [
+  "equals",
+  "not_equals",
+  "contains",
+  "starts_with",
+  "ends_with",
+  "regex",
+  "greater_than",
+  "less_than",
+  "before",
+  "after"
+];
+function defaultField(columns) {
+  return columns.length > 0 ? columns[0] : "title";
+}
+function visualToExpression(clause) {
+  const pfx = clause.not ? "!" : "";
+  const inner = clause.conditions.map((c3) => `${c3.field}:${c3.operator}:${c3.value}`).join("::");
+  return pfx + inner;
+}
+function expressionToClause(expr) {
+  if (expr.startsWith("{") && expr.endsWith("}")) {
+    return { type: "raw", not: false, expression: expr.slice(1, -1) };
+  }
+  let not = false;
+  let rest = expr;
+  if (rest.startsWith("!")) {
+    not = true;
+    rest = rest.slice(1);
+  }
+  const parts = rest.split("::");
+  const conditions = [];
+  for (const part of parts) {
+    const firstColon = part.indexOf(":");
+    const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
+    if (firstColon >= 0 && secondColon > firstColon) {
+      const field = part.slice(0, firstColon).trim();
+      const operator = part.slice(firstColon + 1, secondColon).trim();
+      const value = part.slice(secondColon + 1);
+      if (field) {
+        conditions.push({ field, operator, value });
+      }
+    }
+  }
+  if (conditions.length === 0) {
+    return { type: "visual", not, conditions: [{ field: "title", operator: "contains", value: expr }] };
+  }
+  return { type: "visual", not, conditions };
+}
+function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
+  function addClause() {
+    const cond = {
+      field: defaultField(columns),
+      operator: "contains",
+      value: ""
+    };
+    const clause = { type: "visual", not: false, conditions: [cond] };
+    onClausesChange([...clauses, clause]);
+  }
+  function removeClause(i4) {
+    onClausesChange(clauses.filter((_2, idx) => idx !== i4));
+  }
+  function clearAll() {
+    onClausesChange([]);
+  }
+  function addCondition(clauseIndex) {
+    const next = [...clauses];
+    const clause = next[clauseIndex];
+    if (clause && clause.type === "visual") {
+      const newCond = {
+        field: defaultField(columns),
+        operator: "contains",
+        value: ""
+      };
+      next[clauseIndex] = {
+        ...clause,
+        conditions: [...clause.conditions, newCond]
+      };
+      onClausesChange(next);
+    }
+  }
+  function removeCondition(clauseIndex, condIndex) {
+    const next = [...clauses];
+    const clause = next[clauseIndex];
+    if (!clause || clause.type !== "visual")
+      return;
+    const newConditions = clause.conditions.filter((_2, idx) => idx !== condIndex);
+    if (newConditions.length === 0) {
+      onClausesChange(next.filter((_2, idx) => idx !== clauseIndex));
+    } else {
+      next[clauseIndex] = { ...clause, conditions: newConditions };
+      onClausesChange(next);
+    }
+  }
+  function updateCondition(clauseIndex, condIndex, patch) {
+    const next = [...clauses];
+    const clause = next[clauseIndex];
+    if (!clause || clause.type !== "visual")
+      return;
+    const newConditions = clause.conditions.map(
+      (c3, idx) => idx === condIndex ? { ...c3, ...patch } : c3
+    );
+    next[clauseIndex] = { ...clause, conditions: newConditions };
+    onClausesChange(next);
+  }
+  function toggleNot(clauseIndex) {
+    const next = [...clauses];
+    const clause = next[clauseIndex];
+    if (!clause)
+      return;
+    next[clauseIndex] = { ...clause, not: !clause.not };
+    onClausesChange(next);
+  }
+  function toggleType(clauseIndex) {
+    const next = [...clauses];
+    const clause = next[clauseIndex];
+    if (!clause)
+      return;
+    if (clause.type === "visual") {
+      const expr = visualToExpression(clause);
+      next[clauseIndex] = { type: "raw", not: clause.not, expression: expr };
+    } else {
+      const parsed = expressionToClause(clause.expression);
+      parsed.not = clause.not;
+      next[clauseIndex] = parsed;
+    }
+    onClausesChange(next);
+  }
+  return /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel", children: [
+    /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-header", children: [
+      /* @__PURE__ */ u3("span", { class: "scheduler-filter-panel-title", children: "Filters" }),
+      onCodeEdit && /* @__PURE__ */ u3(
+        "button",
+        {
+          class: "scheduler-filter-code-btn",
+          onClick: onCodeEdit,
+          title: "Edit filters as code",
+          children: ".*"
+        }
+      )
+    ] }),
+    clauses.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-filter-empty", children: [
+      "No filters yet. Click + Filter to add a clause (AND), then use the dimmed",
+      /* @__PURE__ */ u3("span", { class: "scheduler-filter-keyword", children: "or" }),
+      " button to add sub-conditions (OR)."
+    ] }),
+    clauses.map((clause, i4) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause", children: [
+      /* @__PURE__ */ u3(
+        "button",
+        {
+          class: `scheduler-filter-not-btn${clause.not ? " active" : ""}`,
+          onClick: () => toggleNot(i4),
+          title: clause.not ? "Negated (click to remove NOT)" : "Negate this clause",
+          children: "not"
+        }
+      ),
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-body", children: clause.type === "visual" ? /* @__PURE__ */ u3("div", { class: "scheduler-filter-subconditions", children: [
+        clause.conditions.map((cond, j3) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-subcond", children: [
+          j3 > 0 && /* @__PURE__ */ u3("span", { class: "scheduler-filter-or-label", children: "or" }),
+          /* @__PURE__ */ u3(
+            "select",
+            {
+              class: "scheduler-filter-select",
+              value: cond.field,
+              onChange: (e3) => updateCondition(i4, j3, { field: e3.target.value }),
+              children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "select",
+            {
+              class: "scheduler-filter-operator",
+              value: cond.operator,
+              onChange: (e3) => updateCondition(i4, j3, {
+                operator: e3.target.value
+              }),
+              children: OPERATORS.map((op) => /* @__PURE__ */ u3("option", { value: op, children: op }))
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              class: "scheduler-filter-value",
+              type: "text",
+              value: cond.value,
+              placeholder: "value\u2026",
+              onInput: (e3) => updateCondition(i4, j3, { value: e3.target.value })
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              class: "scheduler-filter-remove",
+              onClick: () => removeCondition(i4, j3),
+              title: "Remove this condition",
+              children: "\xD7"
+            }
+          )
+        ] }, j3)),
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            class: "scheduler-filter-or-btn",
+            onClick: () => addCondition(i4),
+            title: "Add an OR sub-condition",
+            children: "or"
+          }
+        )
+      ] }) : /* @__PURE__ */ u3("div", { class: "scheduler-filter-raw", children: /* @__PURE__ */ u3("code", { children: clause.expression }) }) }),
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-actions", children: [
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            class: "scheduler-filter-toggle-btn",
+            onClick: () => toggleType(i4),
+            title: clause.type === "visual" ? "Switch to raw expression" : "Switch to visual",
+            children: ".*"
+          }
+        ),
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            class: "scheduler-filter-remove",
+            onClick: () => removeClause(i4),
+            title: "Remove this filter clause",
+            children: "\xD7"
+          }
+        )
+      ] })
+    ] }, i4)),
+    /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-actions", children: [
+      /* @__PURE__ */ u3("button", { class: "scheduler-filter-add", onClick: addClause, title: "Add a new AND clause", children: "+ Filter" }),
+      clauses.length > 0 && /* @__PURE__ */ u3("button", { class: "scheduler-filter-clear", onClick: clearAll, children: "Clear" })
+    ] })
+  ] });
+}
+
+// src/views/filter/filter-modal.tsx
+function serializeClauses(clauses) {
+  return clauses.map((c3) => {
+    const pfx = c3.not ? "!" : "";
+    if (c3.type === "raw") {
+      return `${pfx}{${c3.expression}}`;
+    }
+    const inner = c3.conditions.map((cond) => `${cond.field}:${cond.operator}:${cond.value}`).join("::");
+    return `${pfx}${inner}`;
+  }).join("\n");
+}
+function parseClauses(text) {
+  const lines = text.split("\n");
+  const clauses = [];
+  for (let line of lines) {
+    line = line.trim();
+    if (!line)
+      continue;
+    let not = false;
+    let body = line;
+    if (body.startsWith("!")) {
+      not = true;
+      body = body.slice(1);
+    }
+    if (body.startsWith("{") && body.endsWith("}")) {
+      clauses.push({
+        type: "raw",
+        not,
+        expression: body.slice(1, -1)
+      });
+      continue;
+    }
+    const subCondStrs = body.split("::").map((p3) => p3.trim()).filter(Boolean);
+    const conditions = [];
+    for (const part of subCondStrs) {
+      const firstColon = part.indexOf(":");
+      const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
+      const field = firstColon >= 0 ? part.slice(0, firstColon).trim() : "";
+      const operator = secondColon >= 0 ? part.slice(firstColon + 1, secondColon).trim() : "";
+      const value = secondColon >= 0 ? part.slice(secondColon + 1) : "";
+      if (field && operator) {
+        conditions.push({ field, operator, value });
+      }
+    }
+    if (conditions.length > 0) {
+      clauses.push({ type: "visual", not, conditions });
+    }
+  }
+  return clauses;
+}
+function FilterModal({ clauses, onClose, onSave }) {
+  const initial = serializeClauses(clauses);
+  const [text, setText] = d2(initial);
+  const [error, setError] = d2("");
+  const textRef = A2(null);
+  h2(() => {
+    if (textRef.current) {
+      textRef.current.focus();
+      textRef.current.setSelectionRange(initial.length, initial.length);
+    }
+  }, []);
+  function handleSave() {
+    try {
+      const parsed = parseClauses(text);
+      onSave(parsed);
+      onClose();
+    } catch (e3) {
+      setError(e3.message ?? "Failed to parse filter expression.");
+    }
+  }
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "scheduler-filter-modal-overlay",
+      onClick: (e3) => {
+        if (e3.target === e3.currentTarget)
+          onClose();
+      },
+      children: /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-content", children: [
+        /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-title", children: "Edit Filters (.*)" }),
+        /* @__PURE__ */ u3(
+          "textarea",
+          {
+            ref: textRef,
+            class: "scheduler-filter-modal-textarea",
+            value: text,
+            onInput: (e3) => {
+              setText(e3.target.value);
+              setError("");
+            },
+            onKeyDown: (e3) => {
+              if (e3.key === "Escape") {
+                e3.preventDefault();
+                onClose();
+              } else if (e3.key === "Enter" && (e3.ctrlKey || e3.metaKey)) {
+                e3.preventDefault();
+                handleSave();
+              }
+            },
+            rows: Math.max(8, text.split("\n").length + 1),
+            spellcheck: false
+          }
+        ),
+        error && /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-error", children: error }),
+        /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-actions", children: [
+          /* @__PURE__ */ u3("button", { class: "scheduler-filter-modal-btn scheduler-filter-modal-cancel", onClick: onClose, children: "Cancel" }),
+          /* @__PURE__ */ u3("button", { class: "scheduler-filter-modal-btn scheduler-filter-modal-save", onClick: handleSave, children: "Save" })
+        ] })
+      ] })
+    }
+  );
+}
+
 // src/utils/recurrence.ts
 var WEEKDAY_INDEX = {
   SU: 0,
@@ -1244,22 +1611,6 @@ function expandRecurring(entries, from, to, mapping) {
   return out;
 }
 
-// node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
-var f3 = 0;
-var i3 = Array.isArray;
-function u3(e3, t3, n2, o3, i4, u4) {
-  t3 || (t3 = {});
-  var a3, c3, p3 = t3;
-  if ("ref" in p3)
-    for (c3 in p3 = {}, t3)
-      "ref" == c3 ? a3 = t3[c3] : p3[c3] = t3[c3];
-  var l3 = { type: e3, props: p3, key: n2, ref: a3, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f3, __i: -1, __u: 0, __source: i4, __self: u4 };
-  if ("function" == typeof e3 && (a3 = e3.defaultProps))
-    for (c3 in a3)
-      void 0 === p3[c3] && (p3[c3] = a3[c3]);
-  return l.vnode && l.vnode(l3), l3;
-}
-
 // src/views/context-menu.tsx
 function useContextMenu() {
   const [state, setState] = d2(null);
@@ -1408,9 +1759,11 @@ function buildOccurrences(entries) {
 function rectsIntersect(a3, b2) {
   return !(a3.right < b2.left || a3.left > b2.right || a3.bottom < b2.top || a3.top > b2.bottom);
 }
-function CalendarView({ entries, mapping, filters, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
+function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
   const [cursor, setCursor] = d2(() => atMidnight2(/* @__PURE__ */ new Date()));
   const [mode, setMode] = d2("month");
+  const [showFilter, setShowFilter] = d2(false);
+  const [showCodeModal, setShowCodeModal] = d2(false);
   const ctx = useContextMenu();
   const [selectedPaths, setSelectedPaths] = d2(/* @__PURE__ */ new Set());
   const [selectionVisual, setSelectionVisual] = d2({
@@ -1584,6 +1937,16 @@ function CalendarView({ entries, mapping, filters, onDateChange, onOpenEntry, on
       /* @__PURE__ */ u3("div", { class: "scheduler-calendar-nav-group", children: [
         /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(-1), title: "Previous", children: "\u2039" }),
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-title", children: /* @__PURE__ */ u3("span", { class: "scheduler-calendar-month", children: title }) }),
+        onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+          /* @__PURE__ */ u3("button", { class: "scheduler-filter-btn", onClick: () => setShowFilter((o3) => !o3), title: "Filters", children: [
+            "Filter ",
+            showFilter ? "\u25B2" : "\u25BC",
+            " (",
+            filters?.length ?? 0,
+            ")"
+          ] }),
+          showFilter && /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) })
+        ] }),
         /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(1), title: "Next", children: "\u203A" })
       ] }),
       /* @__PURE__ */ u3("button", { class: "scheduler-calendar-today", onClick: goToday, children: "Today" }),
@@ -1671,7 +2034,18 @@ function CalendarView({ entries, mapping, filters, onDateChange, onOpenEntry, on
         }
       )
     ] }),
-    ctx.element
+    ctx.element,
+    showCodeModal && /* @__PURE__ */ u3(
+      FilterModal,
+      {
+        clauses: filters ?? [],
+        onClose: () => setShowCodeModal(false),
+        onSave: (newClauses) => {
+          onFiltersChange?.(newClauses);
+          setShowCodeModal(false);
+        }
+      }
+    )
   ] });
 }
 function daysInMonth(year, month) {
@@ -1882,10 +2256,12 @@ function layoutOverlaps(blocks) {
   }
   return result;
 }
-function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
+function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
   const ctx = useContextMenu();
   const [anchor, setAnchor] = d2(() => atMidnight3(/* @__PURE__ */ new Date()));
   const [visibleDays, setVisibleDays] = d2(1);
+  const [showFilter, setShowFilter] = d2(false);
+  const [showCodeModal, setShowCodeModal] = d2(false);
   const [drag, setDrag] = d2(null);
   const [create, setCreate] = d2(null);
   const scrollRef = A2(null);
@@ -2033,6 +2409,16 @@ function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEntry, on
     /* @__PURE__ */ u3("div", { class: "scheduler-timeline-header", children: [
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-nav", onClick: () => step2(-1), children: "\u2039" }),
       /* @__PURE__ */ u3("div", { class: "scheduler-timeline-date", children: titleRange }),
+      onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+        /* @__PURE__ */ u3("button", { class: "scheduler-filter-btn", onClick: () => setShowFilter((o3) => !o3), title: "Filters", children: [
+          "Filter ",
+          showFilter ? "\u25B2" : "\u25BC",
+          " (",
+          filters?.length ?? 0,
+          ")"
+        ] }),
+        showFilter && /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) })
+      ] }),
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-nav", onClick: () => step2(1), children: "\u203A" }),
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-today", onClick: goToToday, children: "Today" }),
       /* @__PURE__ */ u3("div", { class: "scheduler-timeline-daycount", children: DAY_COUNTS.map((n2) => /* @__PURE__ */ u3(
@@ -2244,7 +2630,18 @@ function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEntry, on
         ] }, di);
       })
     ] }) }),
-    ctx.element
+    ctx.element,
+    showCodeModal && /* @__PURE__ */ u3(
+      FilterModal,
+      {
+        clauses: filters ?? [],
+        onClose: () => setShowCodeModal(false),
+        onSave: (newClauses) => {
+          onFiltersChange?.(newClauses);
+          setShowCodeModal(false);
+        }
+      }
+    )
   ] });
 }
 function addMinutes(day, min) {
@@ -2692,8 +3089,38 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
     onHiddenColsChange(next);
   }
   const [showColMenu, setShowColMenu] = d2(false);
+  const [showFilter, setShowFilter] = d2(false);
+  const [showCodeModal, setShowCodeModal] = d2(false);
   return /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar", children: [
-    /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-left", children: /* @__PURE__ */ u3(SortManager, { columns, sort, onSortChange }) }),
+    /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-left", children: [
+      /* @__PURE__ */ u3(SortManager, { columns, sort, onSortChange }),
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            class: "scheduler-filter-btn",
+            onClick: () => setShowFilter((o3) => !o3),
+            title: "Manage filters",
+            children: [
+              "Filter ",
+              showFilter ? "\u25B2" : "\u25BC",
+              " (",
+              filters.length,
+              ")"
+            ]
+          }
+        ),
+        showFilter && /* @__PURE__ */ u3(
+          FilterPanel,
+          {
+            columns,
+            clauses: filters,
+            onClausesChange: onFiltersChange,
+            onCodeEdit: () => setShowCodeModal(true)
+          }
+        )
+      ] })
+    ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-right", children: [
       onCreateEntry && /* @__PURE__ */ u3("button", { class: "scheduler-filter-new", onClick: onCreateEntry, title: "New entry with current filters", children: "+ New" }),
       /* @__PURE__ */ u3("span", { class: "scheduler-filter-count", children: entriesCount === totalCount ? `${totalCount} entries` : `${entriesCount} / ${totalCount} entries` }),
@@ -2719,7 +3146,18 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
           col
         ] })) })
       ] })
-    ] })
+    ] }),
+    showCodeModal && /* @__PURE__ */ u3(
+      FilterModal,
+      {
+        clauses: filters,
+        onClose: () => setShowCodeModal(false),
+        onSave: (newClauses) => {
+          onFiltersChange(newClauses);
+          setShowCodeModal(false);
+        }
+      }
+    )
   ] });
 }
 function BatchEditBar({ selectedCount, columns, mapping, kinds, onApply, onClear }) {
@@ -3694,357 +4132,6 @@ async function applyInlineEdit(app, path, transform) {
   return result;
 }
 
-// src/views/filter/filter-panel.tsx
-var OPERATORS = [
-  "equals",
-  "not_equals",
-  "contains",
-  "starts_with",
-  "ends_with",
-  "regex",
-  "greater_than",
-  "less_than",
-  "before",
-  "after"
-];
-function defaultField(columns) {
-  return columns.length > 0 ? columns[0] : "title";
-}
-function visualToExpression(clause) {
-  const pfx = clause.not ? "!" : "";
-  const inner = clause.conditions.map((c3) => `${c3.field}:${c3.operator}:${c3.value}`).join("::");
-  return pfx + inner;
-}
-function expressionToClause(expr) {
-  if (expr.startsWith("{") && expr.endsWith("}")) {
-    return { type: "raw", not: false, expression: expr.slice(1, -1) };
-  }
-  let not = false;
-  let rest = expr;
-  if (rest.startsWith("!")) {
-    not = true;
-    rest = rest.slice(1);
-  }
-  const parts = rest.split("::");
-  const conditions = [];
-  for (const part of parts) {
-    const firstColon = part.indexOf(":");
-    const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
-    if (firstColon >= 0 && secondColon > firstColon) {
-      const field = part.slice(0, firstColon).trim();
-      const operator = part.slice(firstColon + 1, secondColon).trim();
-      const value = part.slice(secondColon + 1);
-      if (field) {
-        conditions.push({ field, operator, value });
-      }
-    }
-  }
-  if (conditions.length === 0) {
-    return { type: "visual", not, conditions: [{ field: "title", operator: "contains", value: expr }] };
-  }
-  return { type: "visual", not, conditions };
-}
-function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
-  function addClause() {
-    const cond = {
-      field: defaultField(columns),
-      operator: "contains",
-      value: ""
-    };
-    const clause = { type: "visual", not: false, conditions: [cond] };
-    onClausesChange([...clauses, clause]);
-  }
-  function removeClause(i4) {
-    onClausesChange(clauses.filter((_2, idx) => idx !== i4));
-  }
-  function clearAll() {
-    onClausesChange([]);
-  }
-  function addCondition(clauseIndex) {
-    const next = [...clauses];
-    const clause = next[clauseIndex];
-    if (clause && clause.type === "visual") {
-      const newCond = {
-        field: defaultField(columns),
-        operator: "contains",
-        value: ""
-      };
-      next[clauseIndex] = {
-        ...clause,
-        conditions: [...clause.conditions, newCond]
-      };
-      onClausesChange(next);
-    }
-  }
-  function removeCondition(clauseIndex, condIndex) {
-    const next = [...clauses];
-    const clause = next[clauseIndex];
-    if (!clause || clause.type !== "visual")
-      return;
-    const newConditions = clause.conditions.filter((_2, idx) => idx !== condIndex);
-    if (newConditions.length === 0) {
-      onClausesChange(next.filter((_2, idx) => idx !== clauseIndex));
-    } else {
-      next[clauseIndex] = { ...clause, conditions: newConditions };
-      onClausesChange(next);
-    }
-  }
-  function updateCondition(clauseIndex, condIndex, patch) {
-    const next = [...clauses];
-    const clause = next[clauseIndex];
-    if (!clause || clause.type !== "visual")
-      return;
-    const newConditions = clause.conditions.map(
-      (c3, idx) => idx === condIndex ? { ...c3, ...patch } : c3
-    );
-    next[clauseIndex] = { ...clause, conditions: newConditions };
-    onClausesChange(next);
-  }
-  function toggleNot(clauseIndex) {
-    const next = [...clauses];
-    const clause = next[clauseIndex];
-    if (!clause)
-      return;
-    next[clauseIndex] = { ...clause, not: !clause.not };
-    onClausesChange(next);
-  }
-  function toggleType(clauseIndex) {
-    const next = [...clauses];
-    const clause = next[clauseIndex];
-    if (!clause)
-      return;
-    if (clause.type === "visual") {
-      const expr = visualToExpression(clause);
-      next[clauseIndex] = { type: "raw", not: clause.not, expression: expr };
-    } else {
-      const parsed = expressionToClause(clause.expression);
-      parsed.not = clause.not;
-      next[clauseIndex] = parsed;
-    }
-    onClausesChange(next);
-  }
-  return /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel", children: [
-    /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-header", children: [
-      /* @__PURE__ */ u3("span", { class: "scheduler-filter-panel-title", children: "Filters" }),
-      onCodeEdit && /* @__PURE__ */ u3(
-        "button",
-        {
-          class: "scheduler-filter-code-btn",
-          onClick: onCodeEdit,
-          title: "Edit filters as code",
-          children: ".*"
-        }
-      )
-    ] }),
-    clauses.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-filter-empty", children: [
-      "No filters yet. Click + Filter to add a clause (AND), then use the dimmed",
-      /* @__PURE__ */ u3("span", { class: "scheduler-filter-keyword", children: "or" }),
-      " button to add sub-conditions (OR)."
-    ] }),
-    clauses.map((clause, i4) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause", children: [
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          class: `scheduler-filter-not-btn${clause.not ? " active" : ""}`,
-          onClick: () => toggleNot(i4),
-          title: clause.not ? "Negated (click to remove NOT)" : "Negate this clause",
-          children: "not"
-        }
-      ),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-body", children: clause.type === "visual" ? /* @__PURE__ */ u3("div", { class: "scheduler-filter-subconditions", children: [
-        clause.conditions.map((cond, j3) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-subcond", children: [
-          j3 > 0 && /* @__PURE__ */ u3("span", { class: "scheduler-filter-or-label", children: "or" }),
-          /* @__PURE__ */ u3(
-            "select",
-            {
-              class: "scheduler-filter-select",
-              value: cond.field,
-              onChange: (e3) => updateCondition(i4, j3, { field: e3.target.value }),
-              children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "select",
-            {
-              class: "scheduler-filter-operator",
-              value: cond.operator,
-              onChange: (e3) => updateCondition(i4, j3, {
-                operator: e3.target.value
-              }),
-              children: OPERATORS.map((op) => /* @__PURE__ */ u3("option", { value: op, children: op }))
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "input",
-            {
-              class: "scheduler-filter-value",
-              type: "text",
-              value: cond.value,
-              placeholder: "value\u2026",
-              onInput: (e3) => updateCondition(i4, j3, { value: e3.target.value })
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "button",
-            {
-              class: "scheduler-filter-remove",
-              onClick: () => removeCondition(i4, j3),
-              title: "Remove this condition",
-              children: "\xD7"
-            }
-          )
-        ] }, j3)),
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-filter-or-btn",
-            onClick: () => addCondition(i4),
-            title: "Add an OR sub-condition",
-            children: "or"
-          }
-        )
-      ] }) : /* @__PURE__ */ u3("div", { class: "scheduler-filter-raw", children: /* @__PURE__ */ u3("code", { children: clause.expression }) }) }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-clause-actions", children: [
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-filter-toggle-btn",
-            onClick: () => toggleType(i4),
-            title: clause.type === "visual" ? "Switch to raw expression" : "Switch to visual",
-            children: ".*"
-          }
-        ),
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-filter-remove",
-            onClick: () => removeClause(i4),
-            title: "Remove this filter clause",
-            children: "\xD7"
-          }
-        )
-      ] })
-    ] }, i4)),
-    /* @__PURE__ */ u3("div", { class: "scheduler-filter-panel-actions", children: [
-      /* @__PURE__ */ u3("button", { class: "scheduler-filter-add", onClick: addClause, title: "Add a new AND clause", children: "+ Filter" }),
-      clauses.length > 0 && /* @__PURE__ */ u3("button", { class: "scheduler-filter-clear", onClick: clearAll, children: "Clear" })
-    ] })
-  ] });
-}
-
-// src/views/filter/filter-modal.tsx
-function serializeClauses(clauses) {
-  return clauses.map((c3) => {
-    const pfx = c3.not ? "!" : "";
-    if (c3.type === "raw") {
-      return `${pfx}{${c3.expression}}`;
-    }
-    const inner = c3.conditions.map((cond) => `${cond.field}:${cond.operator}:${cond.value}`).join("::");
-    return `${pfx}${inner}`;
-  }).join("\n");
-}
-function parseClauses(text) {
-  const lines = text.split("\n");
-  const clauses = [];
-  for (let line of lines) {
-    line = line.trim();
-    if (!line)
-      continue;
-    let not = false;
-    let body = line;
-    if (body.startsWith("!")) {
-      not = true;
-      body = body.slice(1);
-    }
-    if (body.startsWith("{") && body.endsWith("}")) {
-      clauses.push({
-        type: "raw",
-        not,
-        expression: body.slice(1, -1)
-      });
-      continue;
-    }
-    const subCondStrs = body.split("::").map((p3) => p3.trim()).filter(Boolean);
-    const conditions = [];
-    for (const part of subCondStrs) {
-      const firstColon = part.indexOf(":");
-      const secondColon = firstColon >= 0 ? part.indexOf(":", firstColon + 1) : -1;
-      const field = firstColon >= 0 ? part.slice(0, firstColon).trim() : "";
-      const operator = secondColon >= 0 ? part.slice(firstColon + 1, secondColon).trim() : "";
-      const value = secondColon >= 0 ? part.slice(secondColon + 1) : "";
-      if (field && operator) {
-        conditions.push({ field, operator, value });
-      }
-    }
-    if (conditions.length > 0) {
-      clauses.push({ type: "visual", not, conditions });
-    }
-  }
-  return clauses;
-}
-function FilterModal({ clauses, onClose, onSave }) {
-  const initial = serializeClauses(clauses);
-  const [text, setText] = d2(initial);
-  const [error, setError] = d2("");
-  const textRef = A2(null);
-  h2(() => {
-    if (textRef.current) {
-      textRef.current.focus();
-      textRef.current.setSelectionRange(initial.length, initial.length);
-    }
-  }, []);
-  function handleSave() {
-    try {
-      const parsed = parseClauses(text);
-      onSave(parsed);
-      onClose();
-    } catch (e3) {
-      setError(e3.message ?? "Failed to parse filter expression.");
-    }
-  }
-  return /* @__PURE__ */ u3(
-    "div",
-    {
-      class: "scheduler-filter-modal-overlay",
-      onClick: (e3) => {
-        if (e3.target === e3.currentTarget)
-          onClose();
-      },
-      children: /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-content", children: [
-        /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-title", children: "Edit Filters (.*)" }),
-        /* @__PURE__ */ u3(
-          "textarea",
-          {
-            ref: textRef,
-            class: "scheduler-filter-modal-textarea",
-            value: text,
-            onInput: (e3) => {
-              setText(e3.target.value);
-              setError("");
-            },
-            onKeyDown: (e3) => {
-              if (e3.key === "Escape") {
-                e3.preventDefault();
-                onClose();
-              } else if (e3.key === "Enter" && (e3.ctrlKey || e3.metaKey)) {
-                e3.preventDefault();
-                handleSave();
-              }
-            },
-            rows: Math.max(8, text.split("\n").length + 1),
-            spellcheck: false
-          }
-        ),
-        error && /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-error", children: error }),
-        /* @__PURE__ */ u3("div", { class: "scheduler-filter-modal-actions", children: [
-          /* @__PURE__ */ u3("button", { class: "scheduler-filter-modal-btn scheduler-filter-modal-cancel", onClick: onClose, children: "Cancel" }),
-          /* @__PURE__ */ u3("button", { class: "scheduler-filter-modal-btn scheduler-filter-modal-save", onClick: handleSave, children: "Save" })
-        ] })
-      ] })
-    }
-  );
-}
-
 // src/views/react-renderer.tsx
 var ErrorBoundary = class extends C {
   constructor() {
@@ -4155,8 +4242,6 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [search, setSearch] = d2(initialState?.search ?? "");
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
   const [saveName, setSaveName] = d2("");
-  const [showFilter, setShowFilter] = d2(false);
-  const [showFilterModal, setShowFilterModal] = d2(false);
   const api = getDataviewApi(plugin.app);
   h2(() => {
     if (plugin.settings.enableInlineTasks && api) {
@@ -4504,32 +4589,6 @@ ${titleLine}
         ),
         search && /* @__PURE__ */ u3("button", { class: "scheduler-search-clear", onClick: () => setSearch(""), title: "Clear search", children: "\xD7" })
       ] }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-filter-btn",
-            onClick: () => setShowFilter((o3) => !o3),
-            title: "Manage filters",
-            children: [
-              "Filter ",
-              showFilter ? "\u25B2" : "\u25BC",
-              " (",
-              filters.length,
-              ")"
-            ]
-          }
-        ),
-        showFilter && /* @__PURE__ */ u3(
-          FilterPanel,
-          {
-            columns,
-            clauses: filters,
-            onClausesChange: setFilters,
-            onCodeEdit: () => setShowFilterModal(true)
-          }
-        )
-      ] }),
       /* @__PURE__ */ u3(ToolbarDropdown, { label: "Templates", children: [
         templates.length > 0 ? templates.map((t3) => /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item scheduler-dropdown-row", children: [
           /* @__PURE__ */ u3("span", { class: "scheduler-dropdown-item-text", onClick: () => applyTemplate(t3.name), children: t3.name }),
@@ -4606,8 +4665,8 @@ ${titleLine}
           onDeleteEntry: handleDeleteEntry
         }
       ),
-      viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry, filters }) }),
-      viewType === "timeline" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(TimelineView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onTimeChange: handleTimeChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime), onDeleteEntry: handleDeleteEntry, filters }) }),
+      viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry, filters, onFiltersChange: setFilters, columns }) }),
+      viewType === "timeline" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(TimelineView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onTimeChange: handleTimeChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime), onDeleteEntry: handleDeleteEntry, filters, onFiltersChange: setFilters, columns }) }),
       viewType === "kanban" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(
         KanbanView,
         {
@@ -4619,18 +4678,7 @@ ${titleLine}
           onDeleteEntry: handleDeleteEntry
         }
       ) })
-    ] }),
-    showFilterModal && /* @__PURE__ */ u3(
-      FilterModal,
-      {
-        clauses: filters,
-        onClose: () => setShowFilterModal(false),
-        onSave: (newClauses) => {
-          setFilters(newClauses);
-          setShowFilterModal(false);
-        }
-      }
-    )
+    ] })
   ] });
 }
 function ToolbarDropdown({ label, children }) {

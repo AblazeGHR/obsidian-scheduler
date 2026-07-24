@@ -16,8 +16,6 @@ import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
 import { CodeblockViewState } from "../utils/codeblock-state";
 import { isInlinePath, parseInlinePath, applyInlineEdit } from "../utils/inline-editor";
-import { FilterPanel } from "./filter/filter-panel";
-import { FilterModal } from "./filter/filter-modal";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -206,8 +204,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
 	const [saveName, setSaveName] = useState("");
-	const [showFilter, setShowFilter] = useState(false);
-	const [showFilterModal, setShowFilterModal] = useState(false);
 
 	const api = getDataviewApi(plugin.app);
 
@@ -666,23 +662,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						</button>
 					)}
 				</div>
-				<div class="scheduler-filter-manager">
-					<button
-						class="scheduler-filter-btn"
-						onClick={() => setShowFilter((o) => !o)}
-						title="Manage filters"
-					>
-						Filter {showFilter ? "▲" : "▼"} ({filters.length})
-					</button>
-					{showFilter && (
-						<FilterPanel
-							columns={columns}
-							clauses={filters}
-							onClausesChange={setFilters}
-							onCodeEdit={() => setShowFilterModal(true)}
-						/>
-					)}
-				</div>
 				<ToolbarDropdown label="Templates">
 					{templates.length > 0
 						? templates.map((t) => (
@@ -759,12 +738,12 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 				)}
 			{viewType === "calendar" && (
 				<ErrorBoundary>
-					<CalendarView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} onDeleteEntry={handleDeleteEntry} filters={filters} />
+					<CalendarView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onDateChange={handleDateChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr) => handleCreateEntry(dateStr)} onDeleteEntry={handleDeleteEntry} filters={filters} onFiltersChange={setFilters} columns={columns} />
 				</ErrorBoundary>
 			)}
 			{viewType === "timeline" && (
 				<ErrorBoundary>
-					<TimelineView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime)} onDeleteEntry={handleDeleteEntry} filters={filters} />
+					<TimelineView entries={filteredEntries} mapping={plugin.settings.fieldMapping} onTimeChange={handleTimeChange} onOpenEntry={handleOpenEntry} onCreateEntry={(dateStr, startTime, endTime) => handleCreateEntry(dateStr, startTime, endTime)} onDeleteEntry={handleDeleteEntry} filters={filters} onFiltersChange={setFilters} columns={columns} />
 				</ErrorBoundary>
 			)}
 			{viewType === "kanban" && (
@@ -780,13 +759,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 				</ErrorBoundary>
 			)}
 			</div>
-			{showFilterModal && (
-				<FilterModal
-					clauses={filters}
-					onClose={() => setShowFilterModal(false)}
-					onSave={(newClauses) => { setFilters(newClauses); setShowFilterModal(false); }}
-				/>
-			)}
 		</div>
 	);
 }

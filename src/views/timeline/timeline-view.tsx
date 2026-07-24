@@ -4,6 +4,8 @@ import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
 import { useContextMenu } from "../context-menu";
 import { evaluateFilterTree } from "../../utils/filter-evaluator";
+import { FilterPanel } from "../filter/filter-panel";
+import { FilterModal } from "../filter/filter-modal";
 
 const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -79,6 +81,8 @@ interface TimelineViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
 	filters?: FilterClause[];
+	onFiltersChange?: (clauses: FilterClause[]) => void;
+	columns?: string[];
 	onTimeChange?: (path: string, newStart: string, newEnd: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string, startTime?: string, endTime?: string) => void;
@@ -154,10 +158,12 @@ interface CreateState {
 	rectTop: number;
 }
 
-export function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
+export function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
 	const ctx = useContextMenu();
 	const [anchor, setAnchor] = useState(() => atMidnight(new Date()));
 	const [visibleDays, setVisibleDays] = useState(1);
+	const [showFilter, setShowFilter] = useState(false);
+	const [showCodeModal, setShowCodeModal] = useState(false);
 	const [drag, setDrag] = useState<DragState | null>(null);
 	const [create, setCreate] = useState<CreateState | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -338,6 +344,16 @@ export function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEn
 			<div class="scheduler-timeline-header">
 				<button class="scheduler-timeline-nav" onClick={() => step(-1)}>&lsaquo;</button>
 				<div class="scheduler-timeline-date">{titleRange}</div>
+				{onFiltersChange && columns && (
+					<div class="scheduler-filter-manager">
+						<button class="scheduler-filter-btn" onClick={() => setShowFilter((o) => !o)} title="Filters">
+							Filter {showFilter ? "▲" : "▼"} ({filters?.length ?? 0})
+						</button>
+						{showFilter && (
+							<FilterPanel columns={columns} clauses={filters ?? []} onClausesChange={onFiltersChange} onCodeEdit={() => setShowCodeModal(true)} />
+						)}
+					</div>
+				)}
 				<button class="scheduler-timeline-nav" onClick={() => step(1)}>&rsaquo;</button>
 				<button class="scheduler-timeline-today" onClick={goToToday}>Today</button>
 				<div class="scheduler-timeline-daycount">
@@ -547,9 +563,16 @@ export function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEn
 					})}
 				</div>
 			</div>
-			{ctx.element}
-		</div>
-	);
+		{ctx.element}
+		{showCodeModal && (
+			<FilterModal
+				clauses={filters ?? []}
+				onClose={() => setShowCodeModal(false)}
+				onSave={(newClauses) => { onFiltersChange?.(newClauses); setShowCodeModal(false); }}
+			/>
+		)}
+	</div>
+);
 }
 
 function addMinutes(day: Date, min: number): Date {

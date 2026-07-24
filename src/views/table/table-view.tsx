@@ -1,6 +1,8 @@
 import { h, Fragment } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
 import { useContextMenu } from "../context-menu";
+import { FilterPanel } from "../filter/filter-panel";
+import { FilterModal } from "../filter/filter-modal";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterClause, AtomicCondition, FilterOperator } from "../../types";
 import {
@@ -159,11 +161,30 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 	}
 
 	const [showColMenu, setShowColMenu] = useState(false);
+	const [showFilter, setShowFilter] = useState(false);
+	const [showCodeModal, setShowCodeModal] = useState(false);
 
 		return (
 		<div class="scheduler-filter-bar">
 			<div class="scheduler-filter-bar-left">
 				<SortManager columns={columns} sort={sort} onSortChange={onSortChange} />
+				<div class="scheduler-filter-manager">
+					<button
+						class="scheduler-filter-btn"
+						onClick={() => setShowFilter((o) => !o)}
+						title="Manage filters"
+					>
+						Filter {showFilter ? "▲" : "▼"} ({filters.length})
+					</button>
+					{showFilter && (
+						<FilterPanel
+							columns={columns}
+							clauses={filters}
+							onClausesChange={onFiltersChange}
+							onCodeEdit={() => setShowCodeModal(true)}
+						/>
+					)}
+				</div>
 			</div>
 
 			<div class="scheduler-filter-bar-right">
@@ -202,6 +223,13 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 					)}
 				</div>
 			</div>
+			{showCodeModal && (
+				<FilterModal
+					clauses={filters}
+					onClose={() => setShowCodeModal(false)}
+					onSave={(newClauses) => { onFiltersChange(newClauses); setShowCodeModal(false); }}
+				/>
+			)}
 		</div>
 	);
 }
