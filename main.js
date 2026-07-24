@@ -4175,6 +4175,17 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
     [entries, inlineEntries]
   );
   const columns = T2(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
+  const visibleConverted = A2(false);
+  h2(() => {
+    if (visibleConverted.current)
+      return;
+    const vis = initialState?.visibleCols;
+    if (vis && vis.length > 0 && columns.length > 0) {
+      const hiddenSet = new Set(columns.filter((c3) => !vis.includes(c3)));
+      setHiddenCols(hiddenSet);
+      visibleConverted.current = true;
+    }
+  }, [columns, initialState]);
   const filteredEntries = T2(() => {
     const q3 = search.trim().toLowerCase();
     if (!q3)
@@ -4970,6 +4981,10 @@ function parseViewState(params) {
   if (hiddenRaw) {
     state.hiddenCols = hiddenRaw.split(",").map((s3) => s3.trim()).filter(Boolean);
   }
+  const visibleRaw = params["visible"];
+  if (visibleRaw) {
+    state.visibleCols = visibleRaw.split(",").map((s3) => s3.trim()).filter(Boolean);
+  }
   state.search = params["search"] ?? "";
   return state;
 }
@@ -4994,7 +5009,9 @@ function serializeViewState(state, keepParams) {
     }).join("|");
     lines.push(`filters: ${filterStr}`);
   }
-  if (state.hiddenCols.length > 0) {
+  if (state.visibleCols && state.visibleCols.length > 0) {
+    lines.push(`visible: ${state.visibleCols.join(", ")}`);
+  } else if (state.hiddenCols.length > 0) {
     lines.push(`hidden: ${state.hiddenCols.join(", ")}`);
   }
   if (state.search) {

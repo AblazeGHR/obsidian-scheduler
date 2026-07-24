@@ -15,6 +15,8 @@ export interface CodeblockViewState {
 	sort: SortConfig[];
 	filters: FilterClause[];
 	hiddenCols: string[];
+	/** If set, show only these columns (whitelist). Empty array = not specified, fall back to hiddenCols. */
+	visibleCols?: string[];
 	search: string;
 }
 
@@ -30,6 +32,7 @@ const VALID_VIEWS: ReadonlySet<string> = new Set(["table", "calendar", "timeline
  *   sort:  field:asc,field:desc
  *   filters: field:op:val|field:op:val
  *   hidden: col1,col2
+ *   visible: col1,col2   (opt. whitelist — takes priority over hidden)
  *   search: query
  */
 export function parseViewState(params: Record<string, string>): CodeblockViewState {
@@ -119,6 +122,12 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 		state.hiddenCols = hiddenRaw.split(",").map((s) => s.trim()).filter(Boolean);
 	}
 
+	// visible: col1,col2,... (whitelist — takes priority over hidden)
+	const visibleRaw = params["visible"];
+	if (visibleRaw) {
+		state.visibleCols = visibleRaw.split(",").map((s) => s.trim()).filter(Boolean);
+	}
+
 	// search
 	state.search = params["search"] ?? "";
 
@@ -162,8 +171,10 @@ export function serializeViewState(state: CodeblockViewState, keepParams: Record
 		lines.push(`filters: ${filterStr}`);
 	}
 
-	// hidden
-	if (state.hiddenCols.length > 0) {
+	// hidden / visible
+	if (state.visibleCols && state.visibleCols.length > 0) {
+		lines.push(`visible: ${state.visibleCols.join(", ")}`);
+	} else if (state.hiddenCols.length > 0) {
 		lines.push(`hidden: ${state.hiddenCols.join(", ")}`);
 	}
 

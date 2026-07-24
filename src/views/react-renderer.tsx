@@ -236,6 +236,18 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	);
 	const columns = useMemo(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
 
+	// Convert `visible:` whitelist to hidden set on first render with available columns
+	const visibleConverted = useRef(false);
+	useEffect(() => {
+		if (visibleConverted.current) return;
+		const vis = initialState?.visibleCols;
+		if (vis && vis.length > 0 && columns.length > 0) {
+			const hiddenSet = new Set(columns.filter((c) => !vis.includes(c)));
+			setHiddenCols(hiddenSet);
+			visibleConverted.current = true;
+		}
+	}, [columns, initialState]);
+
 	// Global search: filter by title + any field value (case-insensitive)
 	const filteredEntries = useMemo(() => {
 		const q = search.trim().toLowerCase();
