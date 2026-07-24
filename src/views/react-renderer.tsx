@@ -203,7 +203,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
-	const [saveOpen, setSaveOpen] = useState(false);
 	const [saveName, setSaveName] = useState("");
 
 	const api = getDataviewApi(plugin.app);
@@ -281,7 +280,6 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		plugin.settings.templates = next;
 		await plugin.saveSettings();
 		setTemplates(next);
-		setSaveOpen(false);
 		setSaveName("");
 	}
 
@@ -674,31 +672,27 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						)
 					}
 					<div class="scheduler-dropdown-separator" />
-					<div class="scheduler-dropdown-item" onClick={() => { setSaveOpen((o) => !o); setSaveName(""); }}>
-						Save view as template
-					</div>
-					{saveOpen && (
-						<div class="scheduler-dropdown-save" onClick={(e: any) => e.stopPropagation()}>
-							<input
-								class="scheduler-template-name"
-								type="text"
-								value={saveName}
-								placeholder="Template name"
-								onInput={(e: any) => setSaveName(e.target.value)}
-								onKeyDown={(e: any) => {
-									if (e.key === "Enter") { saveTemplate(); setSaveOpen(false); }
-									if (e.key === "Escape") { setSaveOpen(false); setSaveName(""); }
+					<span class="scheduler-dropdown-save-label">Save view as template</span>
+					<div class="scheduler-dropdown-save" onClick={(e: any) => e.stopPropagation()}>
+						<input
+							class="scheduler-template-name"
+							type="text"
+							value={saveName}
+							placeholder="Template name"
+							onInput={(e: any) => setSaveName(e.target.value)}
+							onKeyDown={(e: any) => {
+								if (e.key === "Enter") { saveTemplate(); }
+								if (e.key === "Escape") { setSaveName(""); }
 								}}
 							/>
 							<button
 								class="scheduler-template-confirm"
-								onClick={() => { saveTemplate(); setSaveOpen(false); }}
+								onClick={() => { saveTemplate(); }}
 								disabled={!saveName.trim()}
 							>
 								OK
 							</button>
 						</div>
-					)}
 				</ToolbarDropdown>
 				<ToolbarDropdown label="Export/Import">
 					<div class="scheduler-dropdown-item" onClick={() => plugin.exportEntriesToIcal(filteredEntries)}>

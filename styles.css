@@ -1857,6 +1857,14 @@
     margin: 4px 0;
 }
 
+.scheduler-dropdown-save-label {
+    display: block;
+    padding: 4px 10px 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    user-select: none;
+}
+
 .scheduler-dropdown-save {
     display: flex;
     align-items: center;

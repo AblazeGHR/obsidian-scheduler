@@ -4153,7 +4153,6 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [dataVersion, setDataVersion] = d2(0);
   const [search, setSearch] = d2(initialState?.search ?? "");
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
-  const [saveOpen, setSaveOpen] = d2(false);
   const [saveName, setSaveName] = d2("");
   const api = getDataviewApi(plugin.app);
   h2(() => {
@@ -4214,7 +4213,6 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
     plugin.settings.templates = next;
     await plugin.saveSettings();
     setTemplates(next);
-    setSaveOpen(false);
     setSaveName("");
   }
   async function deleteTemplate(name) {
@@ -4510,11 +4508,8 @@ ${titleLine}
           )
         ] })) : /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item", style: "color: var(--text-muted); cursor: default;", children: "No saved templates" }),
         /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-separator" }),
-        /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item", onClick: () => {
-          setSaveOpen((o3) => !o3);
-          setSaveName("");
-        }, children: "Save view as template" }),
-        saveOpen && /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-save", onClick: (e3) => e3.stopPropagation(), children: [
+        /* @__PURE__ */ u3("span", { class: "scheduler-dropdown-save-label", children: "Save view as template" }),
+        /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-save", onClick: (e3) => e3.stopPropagation(), children: [
           /* @__PURE__ */ u3(
             "input",
             {
@@ -4526,10 +4521,8 @@ ${titleLine}
               onKeyDown: (e3) => {
                 if (e3.key === "Enter") {
                   saveTemplate();
-                  setSaveOpen(false);
                 }
                 if (e3.key === "Escape") {
-                  setSaveOpen(false);
                   setSaveName("");
                 }
               }
@@ -4541,7 +4534,6 @@ ${titleLine}
               class: "scheduler-template-confirm",
               onClick: () => {
                 saveTemplate();
-                setSaveOpen(false);
               },
               disabled: !saveName.trim(),
               children: "OK"
