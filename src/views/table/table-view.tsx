@@ -12,8 +12,10 @@ import {
 	formatTagValue,
 } from "./table-utils";
 import { expandRecurring } from "../../utils/recurrence";
-import { inferEntryFieldKinds, FieldKind, defaultOperatorForKind } from "../../schema/field-types";
+import { inferEntryFieldKinds, FieldKind } from "../../schema/field-types";
 import { DateCell } from "./date-cell";
+import { FilterPanel } from "../filter/filter-panel";
+import { FilterModal } from "../filter/filter-modal";
 
 // ============================================================
 // EditableCell — inline editing with date / tag / text support
@@ -148,46 +150,6 @@ interface FilterBarProps {
 }
 
 function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry }: FilterBarProps) {
-	const operators = [
-		{ value: "equals", label: "=" },
-		{ value: "not_equals", label: "!=" },
-		{ value: "contains", label: "contains" },
-		{ value: "starts_with", label: "starts with" },
-		{ value: "ends_with", label: "ends with" },
-		{ value: "regex", label: "regex" },
-		{ value: "greater_than", label: ">" },
-		{ value: "less_than", label: "<" },
-		{ value: "before", label: "< date" },
-		{ value: "after", label: "> date" },
-	];
-
-	function addFilter() {
-		const field = columns[0] ?? "title";
-		const kind = kinds?.[field] ?? "text";
-		onFiltersChange([
-			...filters,
-			{ type: "visual" as const, not: false, conditions: [{ field, operator: defaultOperatorForKind(kind) as FilterOperator, value: "" }] },
-		]);
-	}
-
-	function updateFilter(index: number, patch: Partial<AtomicCondition>) {
-		const next = [...filters];
-		const clause = next[index];
-		if (clause && clause.type === "visual" && clause.conditions.length > 0) {
-			const newCond = { ...clause.conditions[0], ...patch };
-			next[index] = { ...clause, conditions: [newCond] };
-		}
-		onFiltersChange(next);
-	}
-
-	function removeFilter(index: number) {
-		onFiltersChange(filters.filter((_, i) => i !== index));
-	}
-
-	function clearFilters() {
-		onFiltersChange([]);
-	}
-
 	function toggleColumn(col: string) {
 		const next = new Set(hiddenCols);
 		if (next.has(col)) {
@@ -200,6 +162,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 
 	const [showColMenu, setShowColMenu] = useState(false);
 	const [showFilter, setShowFilter] = useState(false);
+	const [showCodeModal, setShowCodeModal] = useState(false);
 
 		return (
 		<div class="scheduler-filter-bar">
@@ -215,58 +178,20 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 					</button>
 					{showFilter && (
 						<div class="scheduler-filter-panel">
-							{filters.length === 0 && (
-								<div class="scheduler-filter-empty">
-									No filters yet. Click + Filter to add a condition.
-								</div>
-							)}
-							{filters.map((clause, i) => {
-							const cond = clause.type === "visual" && clause.conditions.length > 0 ? clause.conditions[0] : null;
-							if (!cond) return null;
-							return (
-								<div class="scheduler-filter-row" key={i}>
-									<select
-										class="scheduler-filter-select"
-										value={cond.field}
-										onChange={(e: any) => updateFilter(i, { field: e.target.value })}
-									>
-										{columns.map((c) => (
-											<option value={c}>{c}</option>
-										))}
-									</select>
-									<select
-										class="scheduler-filter-operator"
-										value={cond.operator}
-										onChange={(e: any) => updateFilter(i, { operator: e.target.value as FilterOperator })}
-									>
-										{operators.map((op) => (
-											<option value={op.value}>{op.label}</option>
-										))}
-									</select>
-									<input
-										class="scheduler-filter-value"
-										type="text"
-										value={cond.value}
-										placeholder="value..."
-										onInput={(e: any) => updateFilter(i, { value: e.target.value })}
-									/>
-									<button class="scheduler-filter-remove" onClick={() => removeFilter(i)} title="Remove filter">
-										&times;
-									</button>
-								</div>
-							);
-						})}
-							<div class="scheduler-filter-panel-actions">
-								<button class="scheduler-filter-add" onClick={addFilter} title="Add filter">
-									+ Filter
-								</button>
-								{filters.length > 0 && (
-									<button class="scheduler-filter-clear" onClick={clearFilters}>
-										Clear
-									</button>
-								)}
-							</div>
+							<FilterPanel
+								columns={columns}
+								clauses={filters}
+								onClausesChange={onFiltersChange}
+								onCodeEdit={() => setShowCodeModal(true)}
+							/>
 						</div>
+					)}
+					{showCodeModal && (
+						<FilterModal
+							clauses={filters}
+							onClose={() => setShowCodeModal(false)}
+							onSave={(newClauses) => onFiltersChange(newClauses)}
+						/>
 					)}
 				</div>
 			</div>
