@@ -97,6 +97,10 @@ export function getFieldValue(entry: PageEntry, field: string): unknown {
 		case "title": return entry.title;
 		case "date":
 		case "due": return entry.date;
+		case "file": {
+			const last = entry.path.split("/").pop() ?? entry.path;
+			return last.replace(/\.md$/, "");
+		}
 		case "start": return entry.start;
 		case "end": return entry.end;
 		case "tags": return entry.tags;

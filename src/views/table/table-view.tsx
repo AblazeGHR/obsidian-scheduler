@@ -49,6 +49,15 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellPro
 	const display = formatCellValue(entry, column);
 
 	const [editing, setEditing] = useState(false);
+
+	// The "file" column is the read-only source note — never editable inline.
+	if (kind === "file") {
+		return (
+			<td class="scheduler-cell scheduler-cell-readonly" title={entry.path}>
+				{display}
+			</td>
+		);
+	}
 	const cellRef = useRef<HTMLTableCellElement | null>(null);
 
 	// On entering edit mode, seed the cell with the displayed text and focus it

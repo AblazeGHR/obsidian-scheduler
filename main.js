@@ -656,6 +656,8 @@ function isDataviewAvailable(app) {
 function mapPageEntry(rawPage, path, mapping) {
   const fields = {};
   for (const key of Object.keys(rawPage)) {
+    if (key === "file")
+      continue;
     fields[key] = rawPage[key];
   }
   const titleRaw = fields[mapping.titleField];
@@ -886,6 +888,10 @@ function getFieldValue(entry, field) {
     case "date":
     case "due":
       return entry.date;
+    case "file": {
+      const last = entry.path.split("/").pop() ?? entry.path;
+      return last.replace(/\.md$/, "");
+    }
     case "start":
       return entry.start;
     case "end":
@@ -2343,7 +2349,7 @@ function collectColumns(entries, mapping) {
         allKeys.add(key);
     }
   }
-  const baseColumns = ["title", "date", ...mapping.tagFields];
+  const baseColumns = ["title", "date", "file", ...mapping.tagFields];
   const extra = Array.from(allKeys).filter(
     (k3) => k3 !== mapping.titleField && k3 !== mapping.dateField && !baseColumns.includes(k3)
   );
@@ -2355,6 +2361,8 @@ function formatCellValue(entry, column) {
       return entry.title;
     case "date":
       return entry.date ? formatDate(entry.date) : "";
+    case "file":
+      return fileBaseName(entry.path);
     default:
       const val = entry.fields?.[column];
       if (val === null || val === void 0)
@@ -2381,6 +2389,10 @@ function formatDate(val) {
   }
   return String(val ?? "");
 }
+function fileBaseName(path) {
+  const last = path.split("/").pop() ?? path;
+  return last.replace(/\.md$/, "");
+}
 function toISODate(date) {
   const y3 = date.getFullYear();
   const m3 = String(date.getMonth() + 1).padStart(2, "0");
@@ -2405,6 +2417,8 @@ function toInputDate(raw) {
   return "";
 }
 function getCellKind(column, mapping, kinds) {
+  if (column === "file")
+    return "file";
   if (column === "date" || column === mapping.dateField)
     return "date";
   if (mapping.tagFields.includes(column))
@@ -2549,6 +2563,9 @@ function EditableCell({ entry, column, mapping, kinds, onEdit }) {
   const raw = column === "date" ? entry.date : entry.fields?.[column];
   const display = formatCellValue(entry, column);
   const [editing, setEditing] = d2(false);
+  if (kind === "file") {
+    return /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-readonly", title: entry.path, children: display });
+  }
   const cellRef = A2(null);
   h2(() => {
     if (editing && cellRef.current) {

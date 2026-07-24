@@ -29,7 +29,7 @@ export function collectColumns(entries: PageEntry[], mapping: FieldMapping): str
 			if (!isInternalField(key)) allKeys.add(key);
 		}
 	}
-	const baseColumns = ["title", "date", ...mapping.tagFields];
+	const baseColumns = ["title", "date", "file", ...mapping.tagFields];
 	const extra = Array.from(allKeys).filter(
 		(k) => k !== mapping.titleField && k !== mapping.dateField && !baseColumns.includes(k)
 	);
@@ -42,6 +42,8 @@ export function formatCellValue(entry: PageEntry, column: string): string {
 			return entry.title;
 		case "date":
 			return entry.date ? formatDate(entry.date) : "";
+		case "file":
+			return fileBaseName(entry.path);
 		default:
 			const val = entry.fields?.[column];
 			if (val === null || val === undefined) return "";
@@ -62,6 +64,13 @@ export function formatDate(val: unknown): string {
 		if (!isNaN(d.getTime())) return d.toLocaleDateString();
 	}
 	return String(val ?? "");
+}
+
+/** Basename (without .md) of an entry's source file path. Inline tasks carry a
+ *  `file.md#Ln` path, so the line suffix is kept to show exactly where it lives. */
+export function fileBaseName(path: string): string {
+	const last = path.split("/").pop() ?? path;
+	return last.replace(/\.md$/, "");
 }
 
 /** Convert a Date to a yyyy-mm-dd string (local time, no timezone offset) */
@@ -89,9 +98,10 @@ export function toInputDate(raw: unknown): string {
 }
 
 /** Determine the kind of editor to use for a given column */
-export type CellKind = "text" | "date" | "tags";
+export type CellKind = "text" | "date" | "tags" | "file";
 
 export function getCellKind(column: string, mapping: FieldMapping, kinds?: Record<string, FieldKind>): CellKind {
+	if (column === "file") return "file";
 	if (column === "date" || column === mapping.dateField) return "date";
 	if (mapping.tagFields.includes(column)) return "tags";
 	if (kinds) {
