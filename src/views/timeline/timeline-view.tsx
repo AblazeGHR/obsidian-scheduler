@@ -1,8 +1,9 @@
 import { h } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-import { PageEntry, FieldMapping } from "../../types";
+import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
 import { useContextMenu } from "../context-menu";
+import { evaluateFilterTree } from "../../utils/filter-evaluator";
 
 const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -77,6 +78,7 @@ function snap(min: number): number {
 interface TimelineViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
+	filters?: FilterClause[];
 	onTimeChange?: (path: string, newStart: string, newEnd: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string, startTime?: string, endTime?: string) => void;
@@ -152,7 +154,7 @@ interface CreateState {
 	rectTop: number;
 }
 
-export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
+export function TimelineView({ entries, mapping, filters, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
 	const ctx = useContextMenu();
 	const [anchor, setAnchor] = useState(() => atMidnight(new Date()));
 	const [visibleDays, setVisibleDays] = useState(1);
@@ -169,6 +171,9 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 
 	// Expand recurring entries within the visible day range
 	const expanded = expandRecurring(entries, dayColumns[0], dayColumns[dayColumns.length - 1], mapping);
+	const filtered = filters && filters.length > 0
+		? evaluateFilterTree(expanded, filters)
+		: expanded;
 	const now = new Date();
 	const isTodayCol = (i: number) => sameDay(dayColumns[i], now);
 	const nowTop = ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT;
@@ -373,7 +378,7 @@ export function TimelineView({ entries, mapping, onTimeChange, onOpenEntry, onCr
 
 					{/* Day columns */}
 					{dayColumns.map((day, di) => {
-						const { allDay, timed } = splitEntriesForDay(expanded, day);
+						const { allDay, timed } = splitEntriesForDay(filtered, day);
 						const blocks = timed.map((e) => {
 							const top = timeToTop(e.start!);
 							const height = durationToHeight(e.start!, e.end!);

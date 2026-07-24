@@ -14,8 +14,6 @@ import {
 import { expandRecurring } from "../../utils/recurrence";
 import { inferEntryFieldKinds, FieldKind } from "../../schema/field-types";
 import { DateCell } from "./date-cell";
-import { FilterPanel } from "../filter/filter-panel";
-import { FilterModal } from "../filter/filter-modal";
 
 // ============================================================
 // EditableCell — inline editing with date / tag / text support
@@ -161,39 +159,11 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 	}
 
 	const [showColMenu, setShowColMenu] = useState(false);
-	const [showFilter, setShowFilter] = useState(false);
-	const [showCodeModal, setShowCodeModal] = useState(false);
 
 		return (
 		<div class="scheduler-filter-bar">
 			<div class="scheduler-filter-bar-left">
 				<SortManager columns={columns} sort={sort} onSortChange={onSortChange} />
-				<div class="scheduler-filter-manager">
-					<button
-						class="scheduler-filter-btn"
-						onClick={() => setShowFilter(!showFilter)}
-						title="Manage filters"
-					>
-						Filter {showFilter ? "▲" : "▼"} ({filters.length})
-					</button>
-					{showFilter && (
-						<div class="scheduler-filter-panel">
-							<FilterPanel
-								columns={columns}
-								clauses={filters}
-								onClausesChange={onFiltersChange}
-								onCodeEdit={() => setShowCodeModal(true)}
-							/>
-						</div>
-					)}
-					{showCodeModal && (
-						<FilterModal
-							clauses={filters}
-							onClose={() => setShowCodeModal(false)}
-							onSave={(newClauses) => onFiltersChange(newClauses)}
-						/>
-					)}
-				</div>
 			</div>
 
 			<div class="scheduler-filter-bar-right">

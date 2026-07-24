@@ -1,12 +1,14 @@
 import { h } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
-import { PageEntry, FieldMapping } from "../../types";
+import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
 import { useContextMenu } from "../context-menu";
+import { evaluateFilterTree } from "../../utils/filter-evaluator";
 
 interface CalendarViewProps {
 	entries: PageEntry[];
 	mapping: FieldMapping;
+	filters?: FilterClause[];
 	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
@@ -96,7 +98,7 @@ function rectsIntersect(
 	return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
 }
 
-export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }: CalendarViewProps) {
+export function CalendarView({ entries, mapping, filters, onDateChange, onOpenEntry, onCreateEntry, onDeleteEntry }: CalendarViewProps) {
 	const [cursor, setCursor] = useState(() => atMidnight(new Date()));
 	const [mode, setMode] = useState<"month" | "week">("month");
 	const ctx = useContextMenu();
@@ -231,7 +233,10 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 		winEnd = addDays(ws, 6);
 	}
 	const expanded = expandRecurring(entries, winStart, winEnd, mapping);
-	const occurrences = buildOccurrences(expanded);
+	const filtered = filters && filters.length > 0
+		? evaluateFilterTree(expanded, filters)
+		: expanded;
+	const occurrences = buildOccurrences(filtered);
 
 	function step(dir: number) {
 		if (mode === "month") {
