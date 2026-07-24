@@ -46,6 +46,16 @@ export class UndoManager {
 		});
 	}
 
+	/**
+	 * Apply a raw edit with explicit file path and resulting content.
+	 * Used for inline edits where the entry path contains #L suffix.
+	 */
+	applyRaw(filePath: string, before: string, after: string): void {
+		this.undoStack.push({ path: filePath, before, after });
+		if (this.undoStack.length > this.limit) this.undoStack.shift();
+		this.redoStack = [];
+	}
+
 	get canUndo(): boolean {
 		return this.undoStack.length > 0;
 	}

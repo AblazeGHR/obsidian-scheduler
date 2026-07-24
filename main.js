@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => SchedulerPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -628,7 +628,7 @@ function D2(n2, t3) {
 }
 
 // src/views/react-renderer.tsx
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/utils/dataview-api.ts
 function getDataviewApi(app) {
@@ -1267,9 +1267,111 @@ function buildOccurrences(entries) {
   }
   return map;
 }
+function rectsIntersect(a3, b2) {
+  return !(a3.right < b2.left || a3.left > b2.right || a3.bottom < b2.top || a3.top > b2.bottom);
+}
 function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry }) {
   const [cursor, setCursor] = d2(() => atMidnight2(/* @__PURE__ */ new Date()));
   const [mode, setMode] = d2("month");
+  const [selectedPaths, setSelectedPaths] = d2(/* @__PURE__ */ new Set());
+  const [selectionVisual, setSelectionVisual] = d2({
+    selecting: false,
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0
+  });
+  const selRef = A2({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+  const longPressTimer = A2(null);
+  function clearSelection() {
+    setSelectedPaths(/* @__PURE__ */ new Set());
+  }
+  h2(() => {
+    const onKeyDown = (e3) => {
+      if (e3.key === "Escape") {
+        setSelectedPaths(/* @__PURE__ */ new Set());
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+        selRef.current.selecting = false;
+        setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+  h2(() => {
+    const onMouseMove = (e3) => {
+      if (!selRef.current.selecting)
+        return;
+      selRef.current.currentX = e3.pageX;
+      selRef.current.currentY = e3.pageY;
+      setSelectionVisual({
+        selecting: true,
+        left: Math.min(selRef.current.startX, e3.pageX),
+        top: Math.min(selRef.current.startY, e3.pageY),
+        width: Math.abs(e3.pageX - selRef.current.startX),
+        height: Math.abs(e3.pageY - selRef.current.startY)
+      });
+    };
+    const onMouseUp = () => {
+      if (!selRef.current.selecting)
+        return;
+      selRef.current.selecting = false;
+      const selRect = {
+        left: Math.min(selRef.current.startX, selRef.current.currentX),
+        top: Math.min(selRef.current.startY, selRef.current.currentY),
+        right: Math.max(selRef.current.startX, selRef.current.currentX),
+        bottom: Math.max(selRef.current.startY, selRef.current.currentY)
+      };
+      if (selRect.right - selRect.left > 4 || selRect.bottom - selRect.top > 4) {
+        const eventEls = document.querySelectorAll(".scheduler-calendar-event");
+        const newSelected = /* @__PURE__ */ new Set();
+        eventEls.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const path = el.getAttribute("data-entry-path");
+          if (path && rectsIntersect(selRect, rect)) {
+            newSelected.add(path);
+          }
+        });
+        setSelectedPaths(newSelected);
+      }
+      setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+  function handleGridMouseDown(e3) {
+    const target = e3.target;
+    if (target.closest(".scheduler-calendar-event") || target.closest("button"))
+      return;
+    const startX = e3.pageX;
+    const startY = e3.pageY;
+    longPressTimer.current = setTimeout(() => {
+      selRef.current = { selecting: true, startX, startY, currentX: startX, currentY: startY };
+      setSelectionVisual({
+        selecting: true,
+        left: startX,
+        top: startY,
+        width: 0,
+        height: 0
+      });
+      setSelectedPaths(/* @__PURE__ */ new Set());
+    }, 300);
+    const cancelLongPress = () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
+    document.addEventListener("mousemove", cancelLongPress, { once: true });
+    document.addEventListener("mouseup", cancelLongPress, { once: true });
+  }
   let winStart;
   let winEnd;
   if (mode === "month") {
@@ -1374,7 +1476,7 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
       onCreateEntry && /* @__PURE__ */ u3("button", { class: "scheduler-calendar-new", onClick: () => onCreateEntry(), title: "New entry with current filters", children: "+ New" })
     ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-calendar-weekdays", children: WEEKDAYS.map((w3) => /* @__PURE__ */ u3("div", { class: "scheduler-calendar-weekday", children: w3 })) }),
-    /* @__PURE__ */ u3("div", { class: `scheduler-calendar-grid${mode === "week" ? " week" : ""}`, children: /* @__PURE__ */ u3("div", { class: "scheduler-calendar-row", children: dayCells.map((cell, i4) => {
+    /* @__PURE__ */ u3("div", { class: `scheduler-calendar-grid${mode === "week" ? " week" : ""}`, onMouseDown: handleGridMouseDown, children: /* @__PURE__ */ u3("div", { class: "scheduler-calendar-row", children: dayCells.map((cell, i4) => {
       if (!cell.inMonth) {
         return /* @__PURE__ */ u3("div", { class: "scheduler-calendar-cell empty" }, `empty-${i4}`);
       }
@@ -1388,25 +1490,46 @@ function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEnt
           today: isToday(cell.date),
           onDateChange,
           onOpenEntry,
-          onCreateEntry
+          onCreateEntry,
+          selectedPaths,
+          onClearSelection: clearSelection
         },
         cell.dateStr
       );
-    }) }) })
+    }) }) }),
+    selectionVisual.selecting && /* @__PURE__ */ u3(
+      "div",
+      {
+        class: "scheduler-calendar-selection-overlay",
+        style: {
+          left: `${selectionVisual.left}px`,
+          top: `${selectionVisual.top}px`,
+          width: `${selectionVisual.width}px`,
+          height: `${selectionVisual.height}px`
+        }
+      }
+    )
   ] });
 }
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 var MAX_VISIBLE_EVENTS = 3;
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry }) {
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection }) {
   const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
   const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
   const [dragOver, setDragOver] = d2(false);
   function handleDragStart(e3, entry) {
     if (!e3.dataTransfer)
       return;
-    e3.dataTransfer.setData("text/plain", JSON.stringify({ path: entry.path, sourceDate: dateStr }));
+    if (selectedPaths && selectedPaths.has(entry.path) && selectedPaths.size > 1) {
+      e3.dataTransfer.setData(
+        "text/plain",
+        JSON.stringify({ paths: [...selectedPaths], sourceDate: dateStr })
+      );
+    } else {
+      e3.dataTransfer.setData("text/plain", JSON.stringify({ path: entry.path, sourceDate: dateStr }));
+    }
     e3.dataTransfer.effectAllowed = "move";
   }
   function handleDragOver(e3) {
@@ -1422,6 +1545,14 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
       return;
     try {
       const parsed = JSON.parse(raw);
+      if (parsed.paths && Array.isArray(parsed.paths)) {
+        for (const p3 of parsed.paths) {
+          onDateChange(p3, dateStr, parsed.sourceDate);
+        }
+        if (onClearSelection)
+          onClearSelection();
+        return;
+      }
       if (parsed.path) {
         onDateChange(parsed.path, dateStr, parsed.sourceDate);
       }
@@ -1443,26 +1574,30 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
       children: [
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-day-num", children: date.getDate() }),
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-events", children: [
-          visible.map((occ, idx) => /* @__PURE__ */ u3(
-            "div",
-            {
-              class: `scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}`,
-              draggable: true,
-              onDragStart: (e3) => handleDragStart(e3, occ.entry),
-              onDragEnd: handleDragEnd,
-              onClick: () => {
-                if (onOpenEntry)
-                  onOpenEntry(occ.entry.path);
+          visible.map((occ, idx) => {
+            const isSelected = selectedPaths && selectedPaths.has(occ.entry.path);
+            return /* @__PURE__ */ u3(
+              "div",
+              {
+                class: `scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`,
+                draggable: true,
+                onDragStart: (e3) => handleDragStart(e3, occ.entry),
+                onDragEnd: handleDragEnd,
+                onClick: () => {
+                  if (onOpenEntry)
+                    onOpenEntry(occ.entry.path);
+                },
+                title: occ.entry.title,
+                "data-entry-path": occ.entry.path,
+                children: [
+                  occ.isStart && occ.entry.title,
+                  !occ.isStart && "\u22EF",
+                  occ.entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${occ.entry.recurrenceRule}`, children: "\u21BB" })
+                ]
               },
-              title: occ.entry.title,
-              children: [
-                occ.isStart && occ.entry.title,
-                !occ.isStart && "\u22EF",
-                occ.entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${occ.entry.recurrenceRule}`, children: "\u21BB" })
-              ]
-            },
-            occ.entry.occurrenceId ?? occ.entry.path
-          )),
+              occ.entry.occurrenceId ?? occ.entry.path
+            );
+          }),
           overflow > 0 && /* @__PURE__ */ u3("div", { class: "scheduler-calendar-overflow", title: `${overflow} more events`, children: [
             "+",
             overflow,
@@ -3298,6 +3433,43 @@ function triggerIcsFilePicker(onText) {
   input.click();
 }
 
+// src/utils/inline-editor.ts
+var import_obsidian3 = require("obsidian");
+var INLINE_PATH_RE = /#L\d+$/;
+function isInlinePath(path) {
+  return INLINE_PATH_RE.test(path);
+}
+function parseInlinePath(path) {
+  const m3 = path.match(/^(.+)#L(\d+)$/);
+  if (!m3)
+    return null;
+  return { filePath: m3[1], line: parseInt(m3[2]) };
+}
+async function applyInlineEdit(app, path, transform) {
+  const parsed = parseInlinePath(path);
+  if (!parsed)
+    return null;
+  const file = app.vault.getAbstractFileByPath(parsed.filePath);
+  if (!(file instanceof import_obsidian3.TFile))
+    return null;
+  let result = null;
+  await app.vault.process(file, (data) => {
+    const lines = data.split("\n");
+    if (parsed.line < 1 || parsed.line > lines.length)
+      return data;
+    const lineIdx = parsed.line - 1;
+    const originalLine = lines[lineIdx];
+    const newLine = transform(originalLine);
+    if (newLine === originalLine)
+      return data;
+    lines[lineIdx] = newLine;
+    const after = lines.join("\n");
+    result = { path: parsed.filePath, before: data, after };
+    return after;
+  });
+  return result;
+}
+
 // src/views/react-renderer.tsx
 var ErrorBoundary = class extends C {
   constructor() {
@@ -3338,28 +3510,42 @@ ${newFm}
 ---`;
   });
 }
-function setFrontmatterFields(data, fields) {
-  if (!FRONTMATTER_RE.test(data)) {
-    const body = Object.entries(fields).map(([k3, v3]) => `${k3}: ${v3}`).join("\n");
-    return `---
-${body}
----
-
-${data}`;
-  }
+function deleteFrontmatterField(data, field) {
+  if (!FRONTMATTER_RE.test(data))
+    return data;
   return data.replace(FRONTMATTER_RE, (_m, fm) => {
-    let newFm = fm;
-    for (const [field, value] of Object.entries(fields)) {
-      const fieldRe = new RegExp(`^(${field}\\s*:\\s*).+`, "m");
-      newFm = fieldRe.test(newFm) ? newFm.replace(fieldRe, (_s, p1) => `${p1}${value}`) : `${newFm}
-${field}: ${value}`;
-    }
+    const fieldRe = new RegExp(`^${field}\\s*:.*$\\n?`, "m");
+    const newFm = fm.replace(fieldRe, "").replace(/\n{2,}/g, "\n").trimEnd();
+    if (newFm.trim() === "")
+      return "";
     return `---
 ${newFm}
 ---`;
   });
 }
-var ReactRenderer = class extends import_obsidian3.MarkdownRenderChild {
+function escapeRegExp(s3) {
+  return s3.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function getInlineFieldValue(lineText, field) {
+  const re = new RegExp(`\\[${escapeRegExp(field)}::\\s*([^\\]]*)\\]`, "i");
+  const m3 = lineText.match(re);
+  return m3 ? m3[1].trim() : null;
+}
+function setInlineField(lineText, field, value) {
+  const escField = escapeRegExp(field);
+  const re = new RegExp(`\\[${escField}::\\s*[^\\]]*\\]`, "i");
+  if (value === "" || value === void 0) {
+    let result = lineText.replace(re, "");
+    result = result.replace(/\s{2,}/g, " ").replace(/\s+$/, "");
+    return result;
+  }
+  const replacement = `[${field}:: ${value}]`;
+  if (re.test(lineText)) {
+    return lineText.replace(re, replacement);
+  }
+  return lineText.trimEnd() + " " + replacement;
+}
+var ReactRenderer = class extends import_obsidian4.MarkdownRenderChild {
   constructor(container, element) {
     super(container);
     this.element = element;
@@ -3515,6 +3701,38 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   function handleDateChange(path, newDateStr, sourceDate) {
     const dateField = plugin.settings.fieldMapping.dateField;
     const endDateField = plugin.settings.fieldMapping.endDateField;
+    if (isInlinePath(path)) {
+      applyInlineEdit(plugin.app, path, (lineText) => {
+        let result = setInlineField(lineText, dateField, newDateStr);
+        if (sourceDate && endDateField) {
+          const currentEndStr = getInlineFieldValue(lineText, endDateField);
+          if (currentEndStr) {
+            const src = new Date(sourceDate);
+            const dst = new Date(newDateStr);
+            const offsetDays = Math.round(
+              (dst.getTime() - src.getTime()) / 864e5
+            );
+            if (offsetDays !== 0) {
+              const oldEnd = new Date(currentEndStr);
+              if (!isNaN(oldEnd.getTime())) {
+                const newEnd = new Date(oldEnd);
+                newEnd.setDate(newEnd.getDate() + offsetDays);
+                const y3 = newEnd.getFullYear();
+                const m3 = String(newEnd.getMonth() + 1).padStart(2, "0");
+                const d3 = String(newEnd.getDate()).padStart(2, "0");
+                result = setInlineField(result, endDateField, `${y3}-${m3}-${d3}`);
+              }
+            }
+          }
+        }
+        return result;
+      }).then((res) => {
+        if (res)
+          plugin.undo.applyRaw(res.path, res.before, res.after);
+        refreshData();
+      });
+      return;
+    }
     plugin.undo.apply(path, (data) => {
       let result = setFrontmatterField(data, dateField, newDateStr);
       if (sourceDate && endDateField) {
@@ -3548,14 +3766,58 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   function handleTimeChange(path, newStart, newEnd) {
     const startField = plugin.settings.fieldMapping.startField;
     const endField = plugin.settings.fieldMapping.endField;
-    plugin.undo.apply(path, (data) => setFrontmatterFields(data, { [startField]: newStart, [endField]: newEnd })).then(() => refreshData());
+    if (isInlinePath(path)) {
+      applyInlineEdit(plugin.app, path, (lineText) => {
+        let result = lineText;
+        result = setInlineField(result, startField, newStart);
+        result = setInlineField(result, endField, newEnd);
+        return result;
+      }).then((res) => {
+        if (res)
+          plugin.undo.applyRaw(res.path, res.before, res.after);
+        refreshData();
+      });
+      return;
+    }
+    const hasEmptyStart = newStart === "";
+    const hasEmptyEnd = newEnd === "";
+    plugin.undo.apply(path, (data) => {
+      let result = data;
+      if (hasEmptyStart) {
+        result = deleteFrontmatterField(result, startField);
+      } else {
+        result = setFrontmatterField(result, startField, newStart);
+      }
+      if (hasEmptyEnd) {
+        result = deleteFrontmatterField(result, endField);
+      } else {
+        result = setFrontmatterField(result, endField, newEnd);
+      }
+      return result;
+    }).then(() => refreshData());
   }
   function handleCellEdit(path, field, newValue) {
+    if (isInlinePath(path)) {
+      applyInlineEdit(plugin.app, path, (lineText) => setInlineField(lineText, field, newValue)).then((res) => {
+        if (res)
+          plugin.undo.applyRaw(res.path, res.before, res.after);
+        refreshData();
+      });
+      return;
+    }
     plugin.undo.apply(path, (data) => setFrontmatterField(data, field, newValue)).then(() => refreshData());
   }
   function handleFieldWrite(path, field, value) {
     const isTag = plugin.settings.fieldMapping.tagFields.includes(field);
     const formatted = isTag ? formatTagValue([value]) : value;
+    if (isInlinePath(path)) {
+      applyInlineEdit(plugin.app, path, (lineText) => setInlineField(lineText, field, formatted)).then((res) => {
+        if (res)
+          plugin.undo.applyRaw(res.path, res.before, res.after);
+        refreshData();
+      });
+      return;
+    }
     plugin.undo.apply(path, (data) => setFrontmatterField(data, field, formatted)).then(() => refreshData());
   }
   function handleOpenEntry(path) {
@@ -3597,7 +3859,7 @@ ${titleLine}
       const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
       const existing = plugin.app.vault.getAbstractFileByPath(filePath);
       if (existing) {
-        new import_obsidian3.Notice(`"${title}" already exists \u2014 appending suffix.`, 4e3);
+        new import_obsidian4.Notice(`"${title}" already exists \u2014 appending suffix.`, 4e3);
       }
       plugin.app.vault.create(filePath, finalFm).then(() => setDataVersion((v3) => v3 + 1)).catch(() => {
         plugin.app.vault.create(
@@ -3766,7 +4028,7 @@ function SchedulerViewTabs({ current, onChange }) {
   )) });
 }
 var VIEW_TYPE_SCHEDULER = "obsidian-scheduler-view";
-var SchedulerView = class extends import_obsidian3.ItemView {
+var SchedulerView = class extends import_obsidian4.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -3811,7 +4073,7 @@ function createCodeblockRenderer(el, plugin, initialView, newFileFolder, initial
 }
 
 // src/query/data-cache.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var DATE_RE2 = /^\d{4}-\d{2}-\d{2}/;
 var SchedulerDataCache = class {
   constructor(app) {
@@ -3861,7 +4123,7 @@ var SchedulerDataCache = class {
   /** Merge Obsidian metadata-cache inline fields (whole-line `key:: value`) as a fallback. */
   mergeInlineFields(entry, path, mapping) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian4.TFile))
+    if (!(file instanceof import_obsidian5.TFile))
       return;
     const cache = this.app.metadataCache.getFileCache(file);
     const inline = cache?.inlineFields;
@@ -3892,7 +4154,7 @@ var SchedulerDataCache = class {
 };
 
 // src/utils/undo-manager.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var UndoManager = class {
   constructor(app, notify) {
     this.undoStack = [];
@@ -3910,7 +4172,7 @@ var UndoManager = class {
    */
   async apply(path, transform) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian5.TFile))
+    if (!(file instanceof import_obsidian6.TFile))
       return;
     await this.app.vault.process(file, (data) => {
       const before = data;
@@ -3921,6 +4183,16 @@ var UndoManager = class {
       this.redoStack = [];
       return after;
     });
+  }
+  /**
+   * Apply a raw edit with explicit file path and resulting content.
+   * Used for inline edits where the entry path contains #L suffix.
+   */
+  applyRaw(filePath, before, after) {
+    this.undoStack.push({ path: filePath, before, after });
+    if (this.undoStack.length > this.limit)
+      this.undoStack.shift();
+    this.redoStack = [];
   }
   get canUndo() {
     return this.undoStack.length > 0;
@@ -3946,7 +4218,7 @@ var UndoManager = class {
   }
   async write(path, content) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (file instanceof import_obsidian5.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.app.vault.process(file, () => content);
     }
   }
@@ -4023,7 +4295,7 @@ function entriesToMarkdown(entries, columns, mapping) {
 }
 
 // src/utils/codeblock-state.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var VALID_VIEWS = /* @__PURE__ */ new Set(["table", "calendar", "timeline", "kanban"]);
 function parseViewState(params) {
   const state = { sort: [], filters: [], hiddenCols: [], search: "" };
@@ -4095,7 +4367,7 @@ function serializeViewState(state, keepParams) {
 }
 async function writeCodeblockState(app, filePath, blockType, originalSource, newSource) {
   const file = app.vault.getAbstractFileByPath(filePath);
-  if (!(file instanceof import_obsidian6.TFile))
+  if (!(file instanceof import_obsidian7.TFile))
     return;
   await app.vault.process(file, (data) => {
     const lines = data.split("\n");
@@ -4131,7 +4403,7 @@ async function writeCodeblockState(app, filePath, blockType, originalSource, new
 }
 
 // src/main.ts
-var SchedulerPlugin = class extends import_obsidian7.Plugin {
+var SchedulerPlugin = class extends import_obsidian8.Plugin {
   constructor() {
     super(...arguments);
     /** Listeners notified when underlying data changes (e.g. after undo/redo) */
@@ -4258,7 +4530,7 @@ var SchedulerPlugin = class extends import_obsidian7.Plugin {
   }
   showReminder(r3, now) {
     const when = formatDueLabel(r3, now);
-    const notice = new import_obsidian7.Notice(`\u{1F514} Reminder: ${r3.entry.title}
+    const notice = new import_obsidian8.Notice(`\u{1F514} Reminder: ${r3.entry.title}
 ${when}`, 12e3);
     notice.noticeEl.addEventListener("click", () => {
       this.app.workspace.openLinkText(r3.entry.path, "", false);
@@ -4268,7 +4540,7 @@ ${when}`, 12e3);
   /** Export the given entries to an .ics file in the vault. */
   exportEntriesToIcal(entries) {
     if (!isDataviewAvailable(this.app)) {
-      new import_obsidian7.Notice("Dataview plugin is required to export.", 8e3);
+      new import_obsidian8.Notice("Dataview plugin is required to export.", 8e3);
       return;
     }
     const ics = exportToICal(entries, this.settings.fieldMapping);
@@ -4276,7 +4548,7 @@ ${when}`, 12e3);
     const stamp = /* @__PURE__ */ new Date();
     const fname = `scheduler-export-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, "0")}${String(stamp.getDate()).padStart(2, "0")}.ics`;
     const path = folder ? `${folder}/${fname}` : fname;
-    this.app.vault.create(path, ics).then(() => new import_obsidian7.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian7.Notice("iCal export failed (file may already exist).", 8e3));
+    this.app.vault.create(path, ics).then(() => new import_obsidian8.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian8.Notice("iCal export failed (file may already exist).", 8e3));
   }
   /** Export all entries (no expansion) to an .ics file in the vault. */
   exportAllToIcal() {
@@ -4288,7 +4560,7 @@ ${when}`, 12e3);
   /** Export the given entries to a Markdown table file in the vault. */
   exportEntriesToMarkdown(entries, columns) {
     if (!isDataviewAvailable(this.app)) {
-      new import_obsidian7.Notice("Dataview plugin is required to export.", 8e3);
+      new import_obsidian8.Notice("Dataview plugin is required to export.", 8e3);
       return;
     }
     const md = entriesToMarkdown(entries, columns, this.settings.fieldMapping);
@@ -4296,7 +4568,7 @@ ${when}`, 12e3);
     const stamp = /* @__PURE__ */ new Date();
     const fname = `scheduler-export-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, "0")}${String(stamp.getDate()).padStart(2, "0")}.md`;
     const path = folder ? `${folder}/${fname}` : fname;
-    this.app.vault.create(path, md).then(() => new import_obsidian7.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian7.Notice("Markdown export failed (file may already exist).", 8e3));
+    this.app.vault.create(path, md).then(() => new import_obsidian8.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian8.Notice("Markdown export failed (file may already exist).", 8e3));
   }
   /** Export all entries (no expansion) to a Markdown table file in the vault. */
   exportAllToMarkdown() {
@@ -4310,7 +4582,7 @@ ${when}`, 12e3);
   async importIcalFromText(text) {
     const events = parseICal(text);
     if (events.length === 0) {
-      new import_obsidian7.Notice("No events found in the .ics file.", 8e3);
+      new import_obsidian8.Notice("No events found in the .ics file.", 8e3);
       return;
     }
     const folder = this.settings.folders.length > 0 ? this.settings.folders[0] : "";
@@ -4330,7 +4602,7 @@ ${when}`, 12e3);
         skipped++;
       }
     }
-    new import_obsidian7.Notice(`iCal import: ${created} created, ${skipped} skipped.`, 8e3);
+    new import_obsidian8.Notice(`iCal import: ${created} created, ${skipped} skipped.`, 8e3);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

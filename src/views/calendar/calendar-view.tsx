@@ -1,5 +1,5 @@
 import { h } from "preact";
-import { useState } from "preact/hooks";
+import { useState, useRef, useEffect } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
 
@@ -78,9 +78,143 @@ function buildOccurrences(entries: PageEntry[]): Map<string, CalEntry[]> {
 	return map;
 }
 
+/** Visual state for the selection overlay rectangle */
+interface SelectionVisual {
+	selecting: boolean;
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+function rectsIntersect(
+	a: { left: number; top: number; right: number; bottom: number },
+	b: DOMRect,
+): boolean {
+	return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+}
+
 export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCreateEntry }: CalendarViewProps) {
 	const [cursor, setCursor] = useState(() => atMidnight(new Date()));
 	const [mode, setMode] = useState<"month" | "week">("month");
+
+	// --- Box selection state ---
+	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+	const [selectionVisual, setSelectionVisual] = useState<SelectionVisual>({
+		selecting: false,
+		left: 0,
+		top: 0,
+		width: 0,
+		height: 0,
+	});
+	const selRef = useRef({ selecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	function clearSelection() {
+		setSelectedPaths(new Set());
+	}
+
+	// Escape key clears selection
+	useEffect(() => {
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				setSelectedPaths(new Set());
+				// Cancel any in-progress selection drawing
+				if (longPressTimer.current) {
+					clearTimeout(longPressTimer.current);
+					longPressTimer.current = null;
+				}
+				selRef.current.selecting = false;
+				setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
+			}
+		};
+		document.addEventListener("keydown", onKeyDown);
+		return () => document.removeEventListener("keydown", onKeyDown);
+	}, []);
+
+	// Document-level mouse move/up during box selection
+	useEffect(() => {
+		const onMouseMove = (e: MouseEvent) => {
+			if (!selRef.current.selecting) return;
+			selRef.current.currentX = e.pageX;
+			selRef.current.currentY = e.pageY;
+			setSelectionVisual({
+				selecting: true,
+				left: Math.min(selRef.current.startX, e.pageX),
+				top: Math.min(selRef.current.startY, e.pageY),
+				width: Math.abs(e.pageX - selRef.current.startX),
+				height: Math.abs(e.pageY - selRef.current.startY),
+			});
+		};
+
+		const onMouseUp = () => {
+			if (!selRef.current.selecting) return;
+			selRef.current.selecting = false;
+
+			const selRect = {
+				left: Math.min(selRef.current.startX, selRef.current.currentX),
+				top: Math.min(selRef.current.startY, selRef.current.currentY),
+				right: Math.max(selRef.current.startX, selRef.current.currentX),
+				bottom: Math.max(selRef.current.startY, selRef.current.currentY),
+			};
+
+			// Only collect if the rectangle is meaningfully large (not just a click)
+			if (selRect.right - selRect.left > 4 || selRect.bottom - selRect.top > 4) {
+				const eventEls = document.querySelectorAll(".scheduler-calendar-event");
+				const newSelected = new Set<string>();
+				eventEls.forEach((el) => {
+					const rect = el.getBoundingClientRect();
+					const path = el.getAttribute("data-entry-path");
+					if (path && rectsIntersect(selRect, rect)) {
+						newSelected.add(path);
+					}
+				});
+				setSelectedPaths(newSelected);
+			}
+
+			setSelectionVisual({ selecting: false, left: 0, top: 0, width: 0, height: 0 });
+		};
+
+		document.addEventListener("mousemove", onMouseMove);
+		document.addEventListener("mouseup", onMouseUp);
+		return () => {
+			document.removeEventListener("mousemove", onMouseMove);
+			document.removeEventListener("mouseup", onMouseUp);
+		};
+	}, []);
+
+	// Grid mousedown — long-press detection to start box selection
+	function handleGridMouseDown(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		// Don't start selection on event elements or buttons
+		if (target.closest(".scheduler-calendar-event") || target.closest("button")) return;
+
+		const startX = e.pageX;
+		const startY = e.pageY;
+
+		longPressTimer.current = setTimeout(() => {
+			selRef.current = { selecting: true, startX, startY, currentX: startX, currentY: startY };
+			setSelectionVisual({
+				selecting: true,
+				left: startX,
+				top: startY,
+				width: 0,
+				height: 0,
+			});
+			// Clear previous selection when starting a new one
+			setSelectedPaths(new Set());
+		}, 300);
+
+		const cancelLongPress = () => {
+			if (longPressTimer.current) {
+				clearTimeout(longPressTimer.current);
+				longPressTimer.current = null;
+			}
+		};
+
+		document.addEventListener("mousemove", cancelLongPress, { once: true });
+		document.addEventListener("mouseup", cancelLongPress, { once: true });
+	}
 
 	// Expand recurring entries within the visible window (so occurrences render on the right days)
 	let winStart: Date;
@@ -210,7 +344,7 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 			</div>
 
 			{/* Day grid */}
-			<div class={`scheduler-calendar-grid${mode === "week" ? " week" : ""}`}>
+			<div class={`scheduler-calendar-grid${mode === "week" ? " week" : ""}`} onMouseDown={handleGridMouseDown}>
 				<div class="scheduler-calendar-row">
 					{dayCells.map((cell, i) => {
 						if (!cell.inMonth) {
@@ -227,11 +361,26 @@ export function CalendarView({ entries, mapping, onDateChange, onOpenEntry, onCr
 								onDateChange={onDateChange}
 								onOpenEntry={onOpenEntry}
 								onCreateEntry={onCreateEntry}
+								selectedPaths={selectedPaths}
+								onClearSelection={clearSelection}
 							/>
 						);
 					})}
 				</div>
 			</div>
+
+			{/* Box-selection overlay */}
+			{selectionVisual.selecting && (
+				<div
+					class="scheduler-calendar-selection-overlay"
+					style={{
+						left: `${selectionVisual.left}px`,
+						top: `${selectionVisual.top}px`,
+						width: `${selectionVisual.width}px`,
+						height: `${selectionVisual.height}px`,
+					}}
+				/>
+			)}
 		</div>
 	);
 }
@@ -254,16 +403,26 @@ interface CalendarCellProps {
 	onDateChange?: (path: string, newDate: string, sourceDate?: string) => void;
 	onOpenEntry?: (path: string) => void;
 	onCreateEntry?: (dateStr?: string) => void;
+	selectedPaths?: Set<string>;
+	onClearSelection?: () => void;
 }
 
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry }: CalendarCellProps) {
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection }: CalendarCellProps) {
 	const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
 	const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
 	const [dragOver, setDragOver] = useState(false);
 
 	function handleDragStart(e: DragEvent, entry: PageEntry) {
 		if (!e.dataTransfer) return;
-		e.dataTransfer.setData("text/plain", JSON.stringify({ path: entry.path, sourceDate: dateStr }));
+		// If this entry is part of a multi-selection, include all selected paths
+		if (selectedPaths && selectedPaths.has(entry.path) && selectedPaths.size > 1) {
+			e.dataTransfer.setData(
+				"text/plain",
+				JSON.stringify({ paths: [...selectedPaths], sourceDate: dateStr }),
+			);
+		} else {
+			e.dataTransfer.setData("text/plain", JSON.stringify({ path: entry.path, sourceDate: dateStr }));
+		}
 		e.dataTransfer.effectAllowed = "move";
 	}
 
@@ -279,6 +438,15 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 		if (!raw || !onDateChange) return;
 		try {
 			const parsed = JSON.parse(raw);
+			// Batch move: multiple selected paths
+			if (parsed.paths && Array.isArray(parsed.paths)) {
+				for (const p of parsed.paths) {
+					onDateChange(p, dateStr, parsed.sourceDate);
+				}
+				if (onClearSelection) onClearSelection();
+				return;
+			}
+			// Single entry move
 			if (parsed.path) {
 				onDateChange(parsed.path, dateStr, parsed.sourceDate);
 			}
@@ -301,23 +469,27 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 		>
 			<div class="scheduler-calendar-day-num">{date.getDate()}</div>
 			<div class="scheduler-calendar-events">
-				{visible.map((occ, idx) => (
-					<div
-						key={occ.entry.occurrenceId ?? occ.entry.path}
-						class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}`}
-						draggable={true}
-						onDragStart={(e) => handleDragStart(e, occ.entry)}
-						onDragEnd={handleDragEnd}
-						onClick={() => {
-							if (onOpenEntry) onOpenEntry(occ.entry.path);
-						}}
-						title={occ.entry.title}
-					>
-						{occ.isStart && occ.entry.title}
-						{!occ.isStart && "⋯"}
-						{occ.entry.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${occ.entry.recurrenceRule}`}>↻</span>}
-					</div>
-				))}
+				{visible.map((occ, idx) => {
+					const isSelected = selectedPaths && selectedPaths.has(occ.entry.path);
+					return (
+						<div
+							key={occ.entry.occurrenceId ?? occ.entry.path}
+							class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`}
+							draggable={true}
+							onDragStart={(e) => handleDragStart(e, occ.entry)}
+							onDragEnd={handleDragEnd}
+							onClick={() => {
+								if (onOpenEntry) onOpenEntry(occ.entry.path);
+							}}
+							title={occ.entry.title}
+							data-entry-path={occ.entry.path}
+						>
+							{occ.isStart && occ.entry.title}
+							{!occ.isStart && "⋯"}
+							{occ.entry.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${occ.entry.recurrenceRule}`}>↻</span>}
+						</div>
+					);
+				})}
 				{overflow > 0 && (
 					<div class="scheduler-calendar-overflow" title={`${overflow} more events`}>
 						+{overflow} more

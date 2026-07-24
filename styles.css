@@ -1471,6 +1471,22 @@
     font-style: italic;
 }
 
+/* Box-selection overlay */
+.scheduler-calendar-selection-overlay {
+    position: fixed;
+    pointer-events: none;
+    border: 2px dashed var(--interactive-accent);
+    background: rgba(120, 160, 255, 0.1);
+    z-index: 100;
+}
+
+/* Selected entry highlight */
+.scheduler-calendar-event.scheduler-calendar-selected-entry {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 0px;
+    box-shadow: 0 0 4px rgba(120, 160, 255, 0.4);
+}
+
 /* ============================================================
    View templates (toolbar)
    ============================================================ */

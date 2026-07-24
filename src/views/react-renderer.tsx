@@ -15,6 +15,7 @@ import { KanbanView } from "./kanban/kanban-view";
 import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
 import { CodeblockViewState } from "../utils/codeblock-state";
+import { isInlinePath, parseInlinePath, applyInlineEdit } from "../utils/inline-editor";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -87,6 +88,56 @@ function setFrontmatterFields(data: string, fields: Record<string, string>): str
 		}
 		return `---\n${newFm}\n---`;
 	});
+}
+
+/** Delete a frontmatter field line entirely (used when clearing time fields). */
+function deleteFrontmatterField(data: string, field: string): string {
+	if (!FRONTMATTER_RE.test(data)) return data;
+	return data.replace(FRONTMATTER_RE, (_m, fm: string) => {
+		const fieldRe = new RegExp(`^${field}\\s*:.*$\\n?`, "m");
+		const newFm = fm.replace(fieldRe, "").replace(/\n{2,}/g, "\n").trimEnd();
+		// If frontmatter becomes empty except whitespace, remove the block entirely
+		if (newFm.trim() === "") return "";
+		return `---\n${newFm}\n---`;
+	});
+}
+
+// --- Inline field editing helpers ---
+
+/** Escape special regex characters in a string. */
+function escapeRegExp(s: string): string {
+	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Extract the value of an inline field from a line of text.
+ *  Returns null if the field is not found. */
+function getInlineFieldValue(lineText: string, field: string): string | null {
+	const re = new RegExp(`\\[${escapeRegExp(field)}::\\s*([^\\]]*)\\]`, "i");
+	const m = lineText.match(re);
+	return m ? m[1].trim() : null;
+}
+
+/** Set, replace, or delete an inline field on a line of text.
+ *  - If `value` is "" or undefined, the `[field:: ...]` pattern is removed.
+ *  - If the field already exists on the line, its value is replaced.
+ *  - Otherwise the inline field is appended at the end of the line. */
+function setInlineField(lineText: string, field: string, value: string): string {
+	const escField = escapeRegExp(field);
+	const re = new RegExp(`\\[${escField}::\\s*[^\\]]*\\]`, "i");
+
+	if (value === "" || value === undefined) {
+		// Delete the inline field pattern and collapse extra spaces
+		let result = lineText.replace(re, "");
+		result = result.replace(/\s{2,}/g, " ").replace(/\s+$/, "");
+		return result;
+	}
+
+	const replacement = `[${field}:: ${value}]`;
+	if (re.test(lineText)) {
+		return lineText.replace(re, replacement);
+	}
+	// Append to end of line
+	return lineText.trimEnd() + " " + replacement;
 }
 
 // ============================================================
@@ -314,13 +365,50 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		return () => document.removeEventListener("mousedown", onMouseDown, true);
 	}, []);
 
-	/** Handle drag-drop date change: write new date to file frontmatter.
+	/** Handle drag-drop date change: write new date to file frontmatter or inline field.
 	 *  When sourceDate is provided, also shifts dateEnd by the same offset
 	 *  so multi-day entries keep their span. */
 	function handleDateChange(path: string, newDateStr: string, sourceDate?: string) {
 		const dateField = plugin.settings.fieldMapping.dateField;
 		const endDateField = plugin.settings.fieldMapping.endDateField;
 
+		// Inline entry editing
+		if (isInlinePath(path)) {
+			applyInlineEdit(plugin.app, path, (lineText) => {
+				let result = setInlineField(lineText, dateField, newDateStr);
+
+				// Shift the end-date by the same number of days
+				if (sourceDate && endDateField) {
+					const currentEndStr = getInlineFieldValue(lineText, endDateField);
+					if (currentEndStr) {
+						const src = new Date(sourceDate);
+						const dst = new Date(newDateStr);
+						const offsetDays = Math.round(
+							(dst.getTime() - src.getTime()) / 86400000
+						);
+						if (offsetDays !== 0) {
+							const oldEnd = new Date(currentEndStr);
+							if (!isNaN(oldEnd.getTime())) {
+								const newEnd = new Date(oldEnd);
+								newEnd.setDate(newEnd.getDate() + offsetDays);
+								const y = newEnd.getFullYear();
+								const m = String(newEnd.getMonth() + 1).padStart(2, "0");
+								const d = String(newEnd.getDate()).padStart(2, "0");
+								result = setInlineField(result, endDateField, `${y}-${m}-${d}`);
+							}
+						}
+					}
+				}
+
+				return result;
+			}).then((res) => {
+				if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
+				refreshData();
+			});
+			return;
+		}
+
+		// Frontmatter entry editing (original logic)
 		plugin.undo
 			.apply(path, (data) => {
 				let result = setFrontmatterField(data, dateField, newDateStr);
@@ -358,17 +446,58 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 			.then(() => refreshData());
 	}
 
-	/** Handle time block drag/resize: write new start/end to file frontmatter */
+	/** Handle time block drag/resize: write new start/end to file frontmatter or inline field.
+	 *  When newStart or newEnd are empty strings, the corresponding field is deleted. */
 	function handleTimeChange(path: string, newStart: string, newEnd: string) {
 		const startField = plugin.settings.fieldMapping.startField;
 		const endField = plugin.settings.fieldMapping.endField;
+
+		// Inline entry editing
+		if (isInlinePath(path)) {
+			applyInlineEdit(plugin.app, path, (lineText) => {
+				let result = lineText;
+				result = setInlineField(result, startField, newStart);
+				result = setInlineField(result, endField, newEnd);
+				return result;
+			}).then((res) => {
+				if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
+				refreshData();
+			});
+			return;
+		}
+
+		// Frontmatter entry editing — delete fields when value is empty
+		const hasEmptyStart = newStart === "";
+		const hasEmptyEnd = newEnd === "";
+
 		plugin.undo
-			.apply(path, (data) => setFrontmatterFields(data, { [startField]: newStart, [endField]: newEnd }))
+			.apply(path, (data) => {
+				let result = data;
+				if (hasEmptyStart) {
+					result = deleteFrontmatterField(result, startField);
+				} else {
+					result = setFrontmatterField(result, startField, newStart);
+				}
+				if (hasEmptyEnd) {
+					result = deleteFrontmatterField(result, endField);
+				} else {
+					result = setFrontmatterField(result, endField, newEnd);
+				}
+				return result;
+			})
 			.then(() => refreshData());
 	}
 
-	/** Handle table cell edit: write new value to frontmatter field */
+	/** Handle table cell edit: write new value to frontmatter or inline field */
 	function handleCellEdit(path: string, field: string, newValue: string) {
+		if (isInlinePath(path)) {
+			applyInlineEdit(plugin.app, path, (lineText) => setInlineField(lineText, field, newValue))
+				.then((res) => {
+					if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
+					refreshData();
+				});
+			return;
+		}
 		plugin.undo.apply(path, (data) => setFrontmatterField(data, field, newValue)).then(() => refreshData());
 	}
 
@@ -377,6 +506,15 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	function handleFieldWrite(path: string, field: string, value: string) {
 		const isTag = plugin.settings.fieldMapping.tagFields.includes(field);
 		const formatted = isTag ? formatTagValue([value]) : value;
+
+		if (isInlinePath(path)) {
+			applyInlineEdit(plugin.app, path, (lineText) => setInlineField(lineText, field, formatted))
+				.then((res) => {
+					if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
+					refreshData();
+				});
+			return;
+		}
 		plugin.undo.apply(path, (data) => setFrontmatterField(data, field, formatted)).then(() => refreshData());
 	}
 
