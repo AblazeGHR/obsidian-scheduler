@@ -194,6 +194,108 @@
     outline: none;
 }
 
+/* --- "…" cell to open all-fields modal --- */
+.scheduler-cell-more {
+    cursor: pointer;
+    text-align: center;
+    color: var(--text-muted);
+    font-weight: 600;
+    width: 32px;
+    min-width: 32px;
+    padding: 4px 0;
+    user-select: none;
+}
+.scheduler-cell-more:hover {
+    color: var(--text-accent);
+    background: var(--background-modifier-hover);
+}
+
+/* --- entry fields modal --- */
+.scheduler-fields-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.scheduler-fields-modal-content {
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    padding: 16px;
+    max-width: 80vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    min-width: 400px;
+}
+.scheduler-fields-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+.scheduler-fields-modal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+.scheduler-fields-modal-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+}
+.scheduler-fields-modal-close:hover {
+    color: var(--text-normal);
+}
+.scheduler-fields-modal-grid {
+    display: grid;
+    gap: 6px;
+}
+.scheduler-fields-modal-cell {
+    padding: 6px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.scheduler-fields-modal-cell:hover {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+}
+.scheduler-fields-modal-cell.editing {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-active-hover);
+}
+.scheduler-fields-modal-key {
+    font-size: 10px;
+    color: var(--text-faint);
+    user-select: none;
+}
+.scheduler-fields-modal-value {
+    font-size: 13px;
+    color: var(--text-normal);
+    word-break: break-word;
+}
+.scheduler-fields-modal-value.editing {
+    outline: none;
+}
+.scheduler-fields-modal-hint {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: center;
+}
+
 /* --- native date cell: plain text, opens OS-native <input type="date"> on click --- */
 .scheduler-date-input {
     width: 100%;
