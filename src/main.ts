@@ -10,6 +10,7 @@ import { exportToICal, parseICal, buildNoteFromICalEvent, triggerIcsFilePicker }
 import { entriesToMarkdown } from "./utils/markdown-export";
 import { collectColumns } from "./views/table/table-utils";
 import { parseViewState, serializeViewState, writeCodeblockState, CodeblockViewState } from "./utils/codeblock-state";
+import { createInlineCollapseProcessor } from "./views/inline/inline-post-processor";
 
 export default class SchedulerPlugin extends Plugin {
 	settings!: SchedulerSettings;
@@ -89,6 +90,11 @@ export default class SchedulerPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			"scheduler-kanban",
 			this.createBlockProcessor({ initialView: "kanban", blockType: "scheduler-kanban" })
+		);
+
+		// Collapse extra inline fields (only 3 visible) in reading-mode notes
+		this.registerMarkdownPostProcessor(
+			createInlineCollapseProcessor(this.app, this.settings.fieldMapping)
 		);
 
 		// Register command to manually check reminders

@@ -2164,3 +2164,50 @@
     background: var(--background-modifier-error-hover, rgba(220, 50, 47, 0.15));
 }
 
+/* --- Inline-field collapse (reading-mode notes) --- */
+
+.inl-fields-vis {
+    display: inline;
+    margin-left: 4px;
+}
+.inl-fld {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    margin: 0 2px;
+    padding: 1px 4px;
+    font-size: 11px;
+    border-radius: 3px;
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    vertical-align: middle;
+}
+.inl-fld-key {
+    color: var(--text-faint);
+    font-weight: 500;
+}
+.inl-fld-val {
+    color: var(--text-accent);
+}
+.inl-fields-more {
+    display: inline;
+    margin-left: 2px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    padding: 0 3px;
+    border-radius: 3px;
+}
+.inl-fields-more:hover {
+    color: var(--text-accent);
+    background: var(--background-modifier-hover);
+}
+
+/* Portal wrapper for the inline-fields modal */
+.scheduler-inline-modal-portal {
+    position: fixed;
+    z-index: 9999;
+}
+
