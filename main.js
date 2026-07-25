@@ -861,12 +861,30 @@ async function extractTasksWithInlineFields(app, file) {
     const { fields, strippedText } = parseInlineFields(line);
     if (!isTask && Object.keys(fields).length === 0)
       continue;
+    const indent = (line.match(/^(\s*)/)?.[1] ?? "").length;
     tasks.push({
       text: strippedText,
       rawLine: line,
       fields,
-      line: i4 + 1
+      line: i4 + 1,
+      indent
     });
+  }
+  for (let i4 = 0; i4 < tasks.length; i4++) {
+    const task = tasks[i4];
+    if (task.indent === 0)
+      continue;
+    let parent = null;
+    for (let j3 = i4 - 1; j3 >= 0; j3--) {
+      if (tasks[j3].indent < task.indent) {
+        parent = tasks[j3];
+        break;
+      }
+    }
+    if (parent) {
+      delete task.fields["parent"];
+      task.fields["parent"] = `${file.path}#L${parent.line}`;
+    }
   }
   return tasks;
 }
@@ -2800,13 +2818,17 @@ function collectColumns(entries, mapping) {
     }
   }
   const baseColumns = ["title", "date", "file", ...mapping.tagFields];
+  const hasParent = entries.some((e3) => e3.fields?.["parent"] != null);
+  if (hasParent && !baseColumns.includes("parent")) {
+    baseColumns.splice(3, 0, "parent");
+  }
   const extra = Array.from(allKeys).filter(
     (k3) => k3 !== mapping.titleField && k3 !== mapping.dateField && !baseColumns.includes(k3)
   );
   const limitedExtra = extra.slice(0, 3);
   return [...baseColumns, ...limitedExtra].filter((c3, i4, arr) => arr.indexOf(c3) === i4);
 }
-function formatCellValue(entry, column) {
+function formatCellValue(entry, column, parentTitles) {
   switch (column) {
     case "title":
       return entry.title;
@@ -2814,6 +2836,13 @@ function formatCellValue(entry, column) {
       return entry.date ? formatDate(entry.date) : "";
     case "file":
       return fileBaseName(entry.path);
+    case "parent": {
+      const parentPath = entry.fields?.["parent"];
+      if (typeof parentPath === "string") {
+        return parentTitles?.get(parentPath) ?? fileBaseName(String(parentPath));
+      }
+      return "";
+    }
     default:
       const val = entry.fields?.[column];
       if (val === null || val === void 0)
@@ -2868,7 +2897,7 @@ function toInputDate(raw) {
   return "";
 }
 function getCellKind(column, mapping, kinds) {
-  if (column === "file")
+  if (column === "file" || column === "parent")
     return "file";
   if (column === "date" || column === mapping.dateField)
     return "date";
@@ -2896,7 +2925,7 @@ function formatTagValue(values) {
 }
 
 // src/views/table/entry-fields-modal.tsx
-function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }) {
+function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose, parentTitles }) {
   const cols = Math.ceil(fields.length / 2);
   const [editingKey, setEditingKey] = d2(null);
   const [edits, setEdits] = d2({});
@@ -2918,7 +2947,7 @@ function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }) {
       return;
     }
     const raw = cellRef.current ? cellRef.current.textContent ?? "" : "";
-    const original = formatCellValue(entry, editingKey);
+    const original = formatCellValue(entry, editingKey, parentTitles);
     if (raw !== original) {
       const targetField = writeFieldFor(editingKey, mapping);
       onEdit(entry.path, targetField, raw);
@@ -2949,7 +2978,7 @@ function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }) {
   function displayValue(key) {
     if (key in edits)
       return edits[key];
-    return formatCellValue(entry, key) || "(empty)";
+    return formatCellValue(entry, key, parentTitles) || "(empty)";
   }
   return /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-overlay", onClick: onClose, children: /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-content", onClick: (e3) => e3.stopPropagation(), children: [
     /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-header", children: [
@@ -2974,7 +3003,7 @@ function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }) {
                   setEdits((prev) => {
                     if (key in prev)
                       return prev;
-                    return { ...prev, [key]: formatCellValue(entry, key) };
+                    return { ...prev, [key]: formatCellValue(entry, key, parentTitles) };
                   });
                 }
               },
@@ -3450,6 +3479,13 @@ function TableView({
     return expandRecurring(entries, from, to, mapping);
   }, [entries, mapping]);
   const fieldKinds = T2(() => inferEntryFieldKinds(expanded, mapping), [expanded, mapping]);
+  const parentTitles = T2(() => {
+    const map = /* @__PURE__ */ new Map();
+    for (const e3 of entries) {
+      map.set(e3.path, e3.title);
+    }
+    return map;
+  }, [entries]);
   const filtered = filters.length > 0 ? QueryEngine.applyFilters(expanded, filters) : expanded;
   const sorted = sort.length > 0 ? QueryEngine.applySort(filtered, sort) : filtered;
   h2(() => {
@@ -3698,7 +3734,7 @@ function TableView({
                     { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
                   ]),
                   children: [
-                    formatCellValue(entry, col),
+                    formatCellValue(entry, col, parentTitles),
                     entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-recurring-mark", title: `Repeats: ${entry.recurrenceRule}`, children: "\u21BB" })
                   ]
                 }
@@ -3790,7 +3826,8 @@ function TableView({
         mapping,
         fields: Object.keys(fieldsModalEntry.fields),
         onEdit: onCellEdit,
-        onClose: () => setFieldsModalEntry(null)
+        onClose: () => setFieldsModalEntry(null),
+        parentTitles
       }
     ),
     ctx.element

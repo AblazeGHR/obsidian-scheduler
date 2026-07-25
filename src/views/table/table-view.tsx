@@ -483,6 +483,15 @@ function TableView({
 	// Infer field kinds (date / number / tags / text) across entries
 	const fieldKinds = useMemo(() => inferEntryFieldKinds(expanded, mapping), [expanded, mapping]);
 
+	// Map entry paths to titles for resolving parent:: display
+	const parentTitles = useMemo(() => {
+		const map = new Map<string, string>();
+		for (const e of entries) {
+			map.set(e.path, e.title);
+		}
+		return map;
+	}, [entries]);
+
 	// Apply filters then sort (pure static functions)
 	const filtered = filters.length > 0 ? QueryEngine.applyFilters(expanded, filters) : expanded;
 	const sorted = sort.length > 0 ? QueryEngine.applySort(filtered, sort) : filtered;
@@ -765,7 +774,7 @@ function TableView({
 										])
 									}
 								>
-									{formatCellValue(entry, col)}
+									{formatCellValue(entry, col, parentTitles)}
 									{entry.recurrenceRule && (
 										<span class="scheduler-recurring-mark" title={`Repeats: ${entry.recurrenceRule}`}>
 											↻
@@ -872,6 +881,7 @@ function TableView({
 					fields={Object.keys(fieldsModalEntry.fields)}
 					onEdit={onCellEdit}
 					onClose={() => setFieldsModalEntry(null)}
+					parentTitles={parentTitles}
 				/>
 			)}
 			{ctx.element}

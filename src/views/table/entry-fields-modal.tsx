@@ -10,6 +10,8 @@ interface EntryFieldsModalProps {
 	fields: string[];
 	onEdit?: (path: string, field: string, value: string) => void;
 	onClose: () => void;
+	/** Optional lookup for resolving parent:: path to a readable title. */
+	parentTitles?: Map<string, string>;
 }
 
 /**
@@ -17,7 +19,7 @@ interface EntryFieldsModalProps {
  * Each cell is click-to-edit (contentEditable).  Commits on Enter / blur;
  * Escape cancels.
  */
-export function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }: EntryFieldsModalProps) {
+export function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose, parentTitles }: EntryFieldsModalProps) {
 	const cols = Math.ceil(fields.length / 2);
 
 	// Track per-field pending edit values
@@ -44,7 +46,7 @@ export function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }: En
 			return;
 		}
 		const raw = cellRef.current ? (cellRef.current.textContent ?? "") : "";
-		const original = formatCellValue(entry, editingKey) as string;
+		const original = formatCellValue(entry, editingKey, parentTitles) as string;
 		if (raw !== original) {
 			const targetField = writeFieldFor(editingKey, mapping);
 			onEdit(entry.path, targetField, raw);
@@ -70,7 +72,7 @@ export function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }: En
 
 	function displayValue(key: string): string {
 		if (key in edits) return edits[key];
-		return (formatCellValue(entry, key) as string) || "(empty)";
+		return (formatCellValue(entry, key, parentTitles) as string) || "(empty)";
 	}
 
 	return (
@@ -95,7 +97,7 @@ export function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose }: En
 										setEditingKey(key);
 										setEdits((prev) => {
 											if (key in prev) return prev;
-											return { ...prev, [key]: formatCellValue(entry, key) as string };
+											return { ...prev, [key]: formatCellValue(entry, key, parentTitles) as string };
 										});
 									}
 								}}

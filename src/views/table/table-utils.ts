@@ -30,6 +30,10 @@ export function collectColumns(entries: PageEntry[], mapping: FieldMapping): str
 		}
 	}
 	const baseColumns = ["title", "date", "file", ...mapping.tagFields];
+	const hasParent = entries.some((e) => e.fields?.["parent"] != null);
+	if (hasParent && !baseColumns.includes("parent")) {
+		baseColumns.splice(3, 0, "parent");
+	}
 	const extra = Array.from(allKeys).filter(
 		(k) => k !== mapping.titleField && k !== mapping.dateField && !baseColumns.includes(k)
 	);
@@ -38,7 +42,7 @@ export function collectColumns(entries: PageEntry[], mapping: FieldMapping): str
 	return [...baseColumns, ...limitedExtra].filter((c, i, arr) => arr.indexOf(c) === i);
 }
 
-export function formatCellValue(entry: PageEntry, column: string): string {
+export function formatCellValue(entry: PageEntry, column: string, parentTitles?: Map<string, string>): string {
 	switch (column) {
 		case "title":
 			return entry.title;
@@ -46,6 +50,13 @@ export function formatCellValue(entry: PageEntry, column: string): string {
 			return entry.date ? formatDate(entry.date) : "";
 		case "file":
 			return fileBaseName(entry.path);
+		case "parent": {
+			const parentPath = entry.fields?.["parent"];
+			if (typeof parentPath === "string") {
+				return parentTitles?.get(parentPath) ?? fileBaseName(String(parentPath));
+			}
+			return "";
+		}
 		default:
 			const val = entry.fields?.[column];
 			if (val === null || val === undefined) return "";
@@ -103,7 +114,7 @@ export function toInputDate(raw: unknown): string {
 export type CellKind = "text" | "date" | "tags" | "file";
 
 export function getCellKind(column: string, mapping: FieldMapping, kinds?: Record<string, FieldKind>): CellKind {
-	if (column === "file") return "file";
+	if (column === "file" || column === "parent") return "file";
 	if (column === "date" || column === mapping.dateField) return "date";
 	if (mapping.tagFields.includes(column)) return "tags";
 	if (kinds) {

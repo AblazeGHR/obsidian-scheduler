@@ -12,6 +12,8 @@ export interface TaskEntry {
 	fields: Record<string, string>;
 	/** Line number in the file */
 	line: number;
+	/** Number of leading spaces (indent level). */
+	indent: number;
 }
 
 /** Regex to match inline fields: [key:: value] where value is anything except ] */
@@ -67,12 +69,36 @@ export async function extractTasksWithInlineFields(app: App, file: TFile): Promi
 		// backwards compatibility, any line that carries inline fields.
 		if (!isTask && Object.keys(fields).length === 0) continue;
 
+		const indent = (line.match(/^(\s*)/)?.[1] ?? "").length;
+
 		tasks.push({
 			text: strippedText,
 			rawLine: line,
 			fields,
 			line: i + 1,
+			indent,
 		});
+	}
+
+	// Resolve parent:: for indented tasks: each indented task inherits the
+	// nearest less-indented task above as its parent.
+	for (let i = 0; i < tasks.length; i++) {
+		const task = tasks[i];
+		if (task.indent === 0) continue;
+
+		let parent: TaskEntry | null = null;
+		for (let j = i - 1; j >= 0; j--) {
+			if (tasks[j].indent < task.indent) {
+				parent = tasks[j];
+				break;
+			}
+		}
+
+		if (parent) {
+			// Override any manually-set parent with the auto-computed value.
+			delete task.fields["parent"];
+			task.fields["parent"] = `${file.path}#L${parent.line}`;
+		}
 	}
 
 	return tasks;
