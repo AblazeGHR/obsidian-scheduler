@@ -2825,8 +2825,7 @@ function collectColumns(entries, mapping) {
   const extra = Array.from(allKeys).filter(
     (k3) => k3 !== mapping.titleField && k3 !== mapping.dateField && !baseColumns.includes(k3)
   );
-  const limitedExtra = extra.slice(0, 3);
-  return [...baseColumns, ...limitedExtra].filter((c3, i4, arr) => arr.indexOf(c3) === i4);
+  return [...baseColumns, ...extra].filter((c3, i4, arr) => arr.indexOf(c3) === i4);
 }
 function formatCellValue(entry, column, parentTitles) {
   switch (column) {
@@ -2922,112 +2921,6 @@ function formatTagValue(values) {
   if (clean.length === 0)
     return "[]";
   return `[${clean.join(", ")}]`;
-}
-
-// src/views/table/entry-fields-modal.tsx
-function EntryFieldsModal({ entry, mapping, fields, onEdit, onClose, parentTitles }) {
-  const cols = Math.ceil(fields.length / 2);
-  const [editingKey, setEditingKey] = d2(null);
-  const [edits, setEdits] = d2({});
-  const cellRef = A2(null);
-  h2(() => {
-    if (editingKey && cellRef.current) {
-      cellRef.current.focus();
-      const range = document.createRange();
-      range.selectNodeContents(cellRef.current);
-      range.collapse(false);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  }, [editingKey]);
-  function commitEdit() {
-    if (!editingKey || !onEdit) {
-      setEditingKey(null);
-      return;
-    }
-    const raw = cellRef.current ? cellRef.current.textContent ?? "" : "";
-    const original = formatCellValue(entry, editingKey, parentTitles);
-    if (raw !== original) {
-      const targetField = writeFieldFor(editingKey, mapping);
-      onEdit(entry.path, targetField, raw);
-      setEdits((prev) => ({ ...prev, [editingKey]: raw }));
-    }
-    if (cellRef.current)
-      cellRef.current.textContent = "";
-    setEditingKey(null);
-  }
-  function handleKey(e3) {
-    if (e3.key === "Enter") {
-      e3.preventDefault();
-      commitEdit();
-    }
-    if (e3.key === "Escape") {
-      e3.preventDefault();
-      setEditingKey(null);
-    }
-  }
-  h2(() => {
-    function onKey(e3) {
-      if (!editingKey && e3.key === "Escape")
-        onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [editingKey, onClose]);
-  function displayValue(key) {
-    if (key in edits)
-      return edits[key];
-    return formatCellValue(entry, key, parentTitles) || "(empty)";
-  }
-  return /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-overlay", onClick: onClose, children: /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-content", onClick: (e3) => e3.stopPropagation(), children: [
-    /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-header", children: [
-      /* @__PURE__ */ u3("span", { class: "scheduler-fields-modal-title", children: entry.title }),
-      /* @__PURE__ */ u3("button", { class: "scheduler-fields-modal-close", onClick: onClose, children: "\xD7" })
-    ] }),
-    /* @__PURE__ */ u3(
-      "div",
-      {
-        class: "scheduler-fields-modal-grid",
-        style: `grid-template-columns: repeat(${cols}, 1fr);`,
-        children: fields.map((key) => {
-          const isEditing = editingKey === key;
-          return /* @__PURE__ */ u3(
-            "div",
-            {
-              class: `scheduler-fields-modal-cell${isEditing ? " editing" : ""}`,
-              onClick: (e3) => {
-                e3.stopPropagation();
-                if (!isEditing) {
-                  setEditingKey(key);
-                  setEdits((prev) => {
-                    if (key in prev)
-                      return prev;
-                    return { ...prev, [key]: formatCellValue(entry, key, parentTitles) };
-                  });
-                }
-              },
-              children: [
-                /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-key", children: key }),
-                isEditing ? /* @__PURE__ */ u3(
-                  "div",
-                  {
-                    ref: cellRef,
-                    class: "scheduler-fields-modal-value editing",
-                    contentEditable: true,
-                    onBlur: commitEdit,
-                    onKeyDown: (e3) => handleKey(e3),
-                    children: displayValue(key)
-                  }
-                ) : /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-value", children: displayValue(key) })
-              ]
-            }
-          );
-        })
-      }
-    ),
-    /* @__PURE__ */ u3("div", { class: "scheduler-fields-modal-hint", children: "Click any field value to edit \u2014 Enter to save, Esc to cancel" })
-  ] }) });
 }
 
 // src/schema/field-types.ts
@@ -3471,7 +3364,6 @@ function TableView({
   const tableRef = A2(null);
   const resizeRef = A2(null);
   const ctx = useContextMenu();
-  const [fieldsModalEntry, setFieldsModalEntry] = d2(null);
   const expanded = T2(() => {
     const now = /* @__PURE__ */ new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60);
@@ -3748,8 +3640,7 @@ function TableView({
                   onEdit: onCellEdit
                 }
               )
-            ),
-            /* @__PURE__ */ u3("td", { class: "scheduler-cell-more", onClick: () => setFieldsModalEntry(entry), title: "Show all fields", children: "\u2026" })
+            )
           ]
         },
         entry.occurrenceId ?? entry.path
@@ -3819,17 +3710,6 @@ function TableView({
         }
       )
     ] }),
-    fieldsModalEntry && /* @__PURE__ */ u3(
-      EntryFieldsModal,
-      {
-        entry: fieldsModalEntry,
-        mapping,
-        fields: Object.keys(fieldsModalEntry.fields),
-        onEdit: onCellEdit,
-        onClose: () => setFieldsModalEntry(null),
-        parentTitles
-      }
-    ),
     ctx.element
   ] });
 }

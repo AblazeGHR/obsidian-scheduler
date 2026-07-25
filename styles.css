@@ -195,21 +195,6 @@
 }
 
 /* --- "…" cell to open all-fields modal --- */
-.scheduler-cell-more {
-    cursor: pointer;
-    text-align: center;
-    color: var(--text-muted);
-    font-weight: 600;
-    width: 32px;
-    min-width: 32px;
-    padding: 4px 0;
-    user-select: none;
-}
-.scheduler-cell-more:hover {
-    color: var(--text-accent);
-    background: var(--background-modifier-hover);
-}
-
 /* --- entry fields modal --- */
 .scheduler-fields-modal-overlay {
     position: fixed;

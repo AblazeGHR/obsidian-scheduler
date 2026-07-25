@@ -37,9 +37,7 @@ export function collectColumns(entries: PageEntry[], mapping: FieldMapping): str
 	const extra = Array.from(allKeys).filter(
 		(k) => k !== mapping.titleField && k !== mapping.dateField && !baseColumns.includes(k)
 	);
-	// Show at most 3 extra fields as columns; the rest are accessible via the "…" cell.
-	const limitedExtra = extra.slice(0, 3);
-	return [...baseColumns, ...limitedExtra].filter((c, i, arr) => arr.indexOf(c) === i);
+	return [...baseColumns, ...extra].filter((c, i, arr) => arr.indexOf(c) === i);
 }
 
 export function formatCellValue(entry: PageEntry, column: string, parentTitles?: Map<string, string>): string {

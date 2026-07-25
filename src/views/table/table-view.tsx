@@ -14,7 +14,6 @@ import {
 	formatTagValue,
 } from "./table-utils";
 import { expandRecurring } from "../../utils/recurrence";
-import { EntryFieldsModal } from "./entry-fields-modal";
 import { inferEntryFieldKinds, FieldKind } from "../../schema/field-types";
 import { DateCell } from "./date-cell";
 
@@ -470,7 +469,6 @@ function TableView({
 	const tableRef = useRef<HTMLTableElement | null>(null);
 	const resizeRef = useRef<{ cancel: () => void } | null>(null);
 	const ctx = useContextMenu();
-	const [fieldsModalEntry, setFieldsModalEntry] = useState<PageEntry | null>(null);
 
 	// Expand recurring entries within a fixed horizon so the table stays bounded.
 	const expanded = useMemo(() => {
@@ -795,9 +793,6 @@ function TableView({
 									/>
 								)
 						)}
-							<td class="scheduler-cell-more" onClick={() => setFieldsModalEntry(entry)} title="Show all fields">
-								…
-							</td>
 							</tr>
 						))}
 					</tbody>
@@ -874,16 +869,6 @@ function TableView({
 					/>
 				)}
 			</div>
-			{fieldsModalEntry && (
-				<EntryFieldsModal
-					entry={fieldsModalEntry}
-					mapping={mapping}
-					fields={Object.keys(fieldsModalEntry.fields)}
-					onEdit={onCellEdit}
-					onClose={() => setFieldsModalEntry(null)}
-					parentTitles={parentTitles}
-				/>
-			)}
 			{ctx.element}
 		</div>
 	);
