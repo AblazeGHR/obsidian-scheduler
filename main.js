@@ -3225,6 +3225,13 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
     onHiddenColsChange(next);
   }
   const [showColMenu, setShowColMenu] = d2(false);
+  const [colSearch, setColSearch] = d2("");
+  const filteredColumns = T2(() => {
+    const q3 = colSearch.trim().toLowerCase();
+    if (!q3)
+      return columns;
+    return columns.filter((c3) => c3.toLowerCase().includes(q3));
+  }, [columns, colSearch]);
   const [showFilter, setShowFilter] = d2(false);
   const [showCodeModal, setShowCodeModal] = d2(false);
   return /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar", children: [
@@ -3265,22 +3272,40 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
           "button",
           {
             class: "scheduler-col-toggle-btn",
-            onClick: () => setShowColMenu(!showColMenu),
+            onClick: () => {
+              setShowColMenu(!showColMenu);
+              setColSearch("");
+            },
             title: "Toggle columns",
             children: "Columns"
           }
         ),
-        showColMenu && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu", children: columns.map((col) => /* @__PURE__ */ u3("label", { class: "scheduler-col-menu-item", children: [
+        showColMenu && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu", children: [
           /* @__PURE__ */ u3(
             "input",
             {
-              type: "checkbox",
-              checked: !hiddenCols.has(col),
-              onChange: () => toggleColumn(col)
+              class: "scheduler-col-search",
+              type: "text",
+              value: colSearch,
+              placeholder: "Search columns\u2026",
+              onInput: (e3) => setColSearch(e3.target.value)
             }
           ),
-          col
-        ] })) })
+          /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-list", children: [
+            filteredColumns.map((col) => /* @__PURE__ */ u3("label", { class: "scheduler-col-menu-item", children: [
+              /* @__PURE__ */ u3(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: !hiddenCols.has(col),
+                  onChange: () => toggleColumn(col)
+                }
+              ),
+              col
+            ] })),
+            filteredColumns.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-empty", children: "No matching columns" })
+          ] })
+        ] })
       ] })
     ] }),
     showCodeModal && /* @__PURE__ */ u3(

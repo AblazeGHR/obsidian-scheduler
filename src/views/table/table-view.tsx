@@ -162,6 +162,13 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 	}
 
 	const [showColMenu, setShowColMenu] = useState(false);
+	const [colSearch, setColSearch] = useState("");
+
+	const filteredColumns = useMemo(() => {
+		const q = colSearch.trim().toLowerCase();
+		if (!q) return columns;
+		return columns.filter((c) => c.toLowerCase().includes(q));
+	}, [columns, colSearch]);
 	const [showFilter, setShowFilter] = useState(false);
 	const [showCodeModal, setShowCodeModal] = useState(false);
 
@@ -203,23 +210,35 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 				<div class="scheduler-col-toggle">
 					<button
 						class="scheduler-col-toggle-btn"
-						onClick={() => setShowColMenu(!showColMenu)}
+						onClick={() => { setShowColMenu(!showColMenu); setColSearch(""); }}
 						title="Toggle columns"
 					>
 						Columns
 					</button>
 					{showColMenu && (
 						<div class="scheduler-col-menu">
-							{columns.map((col) => (
-								<label class="scheduler-col-menu-item">
-									<input
-										type="checkbox"
-										checked={!hiddenCols.has(col)}
-										onChange={() => toggleColumn(col)}
-									/>
-									{col}
-								</label>
-							))}
+							<input
+								class="scheduler-col-search"
+								type="text"
+								value={colSearch}
+								placeholder="Search columns…"
+								onInput={(e: any) => setColSearch(e.target.value)}
+							/>
+							<div class="scheduler-col-menu-list">
+								{filteredColumns.map((col) => (
+									<label class="scheduler-col-menu-item">
+										<input
+											type="checkbox"
+											checked={!hiddenCols.has(col)}
+											onChange={() => toggleColumn(col)}
+										/>
+										{col}
+									</label>
+								))}
+								{filteredColumns.length === 0 && (
+									<div class="scheduler-col-menu-empty">No matching columns</div>
+								)}
+							</div>
 						</div>
 					)}
 				</div>
