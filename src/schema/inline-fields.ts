@@ -35,6 +35,8 @@ function parseInlineFields(line: string): { fields: Record<string, string>; stri
 	const re = new RegExp(INLINE_FIELD_RE.source, "g");
 	while ((match = re.exec(line)) !== null) {
 		const key = match[1].trim();
+		// Skip empty keys — whitespace-only captures like `[   :: val]`
+		if (!key) continue;
 		const val = match[2].trim();
 		fields[key] = val;
 		stripped = stripped.replace(match[0], "");

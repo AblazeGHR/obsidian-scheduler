@@ -10,7 +10,7 @@ export function mapPageEntry(rawPage: Record<string, unknown>, path: string, map
 		// not a real frontmatter field — exclude it so it doesn't leak in as a
 		// spurious empty/editable column. The source file is exposed separately
 		// via `entry.path` (rendered as a read-only "file" column in the table).
-		if (key === "file") continue;
+		if (key === "file" || key === "") continue;
 		fields[key] = rawPage[key];
 	}
 

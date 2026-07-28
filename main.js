@@ -748,7 +748,7 @@ function dateCompare(a3, b2) {
 function mapPageEntry(rawPage, path, mapping) {
   const fields = {};
   for (const key of Object.keys(rawPage)) {
-    if (key === "file")
+    if (key === "file" || key === "")
       continue;
     fields[key] = rawPage[key];
   }
@@ -843,6 +843,8 @@ function parseInlineFields(line) {
   const re = new RegExp(INLINE_FIELD_RE.source, "g");
   while ((match = re.exec(line)) !== null) {
     const key = match[1].trim();
+    if (!key)
+      continue;
     const val = match[2].trim();
     fields[key] = val;
     stripped = stripped.replace(match[0], "");
@@ -2920,7 +2922,7 @@ function collectColumns(entries, mapping) {
   const allKeys = /* @__PURE__ */ new Set();
   for (const entry of entries) {
     for (const key of Object.keys(entry.fields ?? {})) {
-      if (!isInternalField(key))
+      if (key && !isInternalField(key))
         allKeys.add(key);
     }
   }

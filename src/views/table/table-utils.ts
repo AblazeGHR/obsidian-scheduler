@@ -26,7 +26,7 @@ export function collectColumns(entries: PageEntry[], mapping: FieldMapping): str
 	const allKeys = new Set<string>();
 	for (const entry of entries) {
 		for (const key of Object.keys(entry.fields ?? {})) {
-			if (!isInternalField(key)) allKeys.add(key);
+			if (key && !isInternalField(key)) allKeys.add(key);
 		}
 	}
 	const baseColumns = ["title", "date", "file", ...mapping.tagFields];
