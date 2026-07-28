@@ -1046,6 +1046,113 @@ function u3(e3, t3, n2, o3, i4, u4) {
   return l.vnode && l.vnode(l3), l3;
 }
 
+// src/views/shared/searchable-select.tsx
+function SearchableSelect({ options, value, onChange, placeholder, class: cls }) {
+  const [open, setOpen] = d2(false);
+  const [query, setQuery] = d2("");
+  const [activeIdx, setActiveIdx] = d2(-1);
+  const inputRef = A2(null);
+  const wrapRef = A2(null);
+  const filtered = T2(() => {
+    const q3 = query.trim().toLowerCase();
+    if (!q3)
+      return options;
+    return options.filter((o3) => o3.toLowerCase().includes(q3));
+  }, [options, query]);
+  h2(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+      setQuery("");
+      setActiveIdx(-1);
+    }
+  }, [open]);
+  h2(() => {
+    if (!open)
+      return;
+    function onDown(e3) {
+      if (wrapRef.current && !wrapRef.current.contains(e3.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  function pick(val) {
+    onChange(val);
+    setOpen(false);
+  }
+  function handleKey(e3) {
+    if (e3.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (!open)
+      return;
+    if (e3.key === "ArrowDown") {
+      e3.preventDefault();
+      setActiveIdx((i4) => Math.min(i4 + 1, filtered.length - 1));
+    } else if (e3.key === "ArrowUp") {
+      e3.preventDefault();
+      setActiveIdx((i4) => i4 <= 0 ? -1 : i4 - 1);
+    } else if (e3.key === "Enter" && activeIdx >= 0 && activeIdx < filtered.length) {
+      e3.preventDefault();
+      pick(filtered[activeIdx]);
+    }
+  }
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: `scheduler-searchable ${cls ?? ""}${open ? " open" : ""}`,
+      ref: wrapRef,
+      onKeyDown: (e3) => handleKey(e3),
+      children: [
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: "scheduler-searchable-btn",
+            onClick: () => setOpen((o3) => !o3),
+            title: value || placeholder || "Select\u2026",
+            children: [
+              /* @__PURE__ */ u3("span", { class: "scheduler-searchable-val", children: value || "\xA0" }),
+              /* @__PURE__ */ u3("span", { class: "scheduler-searchable-arrow", children: "\u25BE" })
+            ]
+          }
+        ),
+        open && /* @__PURE__ */ u3("div", { class: "scheduler-searchable-dropdown", children: [
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              ref: inputRef,
+              class: "scheduler-searchable-input",
+              type: "text",
+              value: query,
+              placeholder: placeholder ?? "Search\u2026",
+              onInput: (e3) => {
+                setQuery(e3.target.value);
+                setActiveIdx(-1);
+              },
+              onKeyDown: (e3) => handleKey(e3)
+            }
+          ),
+          /* @__PURE__ */ u3("div", { class: "scheduler-searchable-list", children: [
+            filtered.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-searchable-empty", children: "No results" }),
+            filtered.map((o3, idx) => /* @__PURE__ */ u3(
+              "div",
+              {
+                class: `scheduler-searchable-item${idx === activeIdx ? " active" : ""}${o3 === value ? " selected" : ""}`,
+                onMouseDown: (e3) => e3.preventDefault(),
+                onClick: () => pick(o3),
+                children: o3
+              }
+            ))
+          ] })
+        ] })
+      ]
+    }
+  );
+}
+
 // src/views/filter/filter-panel.tsx
 var OPERATORS = [
   "equals",
@@ -1207,12 +1314,12 @@ function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
         clause.conditions.map((cond, j3) => /* @__PURE__ */ u3("div", { class: "scheduler-filter-subcond", children: [
           j3 > 0 && /* @__PURE__ */ u3("span", { class: "scheduler-filter-or-label", children: "or" }),
           /* @__PURE__ */ u3(
-            "select",
+            SearchableSelect,
             {
-              class: "scheduler-filter-select",
+              options: columns,
               value: cond.field,
-              onChange: (e3) => updateCondition(i4, j3, { field: e3.target.value }),
-              children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+              placeholder: "field\u2026",
+              onChange: (val) => updateCondition(i4, j3, { field: val })
             }
           ),
           /* @__PURE__ */ u3(
@@ -3203,12 +3310,12 @@ function BatchEditBar({ selectedCount, columns, mapping, kinds, onApply, onClear
       " selected"
     ] }),
     /* @__PURE__ */ u3(
-      "select",
+      SearchableSelect,
       {
-        class: "scheduler-batch-field",
+        options: columns,
         value: field,
-        onChange: (e3) => setField(e3.target.value),
-        children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+        placeholder: "field\u2026",
+        onChange: (val) => setField(val)
       }
     ),
     kind === "date" ? /* @__PURE__ */ u3(
@@ -3322,12 +3429,12 @@ function SortManager({ columns, sort, onSortChange }) {
       )),
       /* @__PURE__ */ u3("div", { class: "scheduler-sort-add", children: [
         /* @__PURE__ */ u3(
-          "select",
+          SearchableSelect,
           {
-            class: "scheduler-sort-add-field",
+            options: columns,
             value: newField,
-            onChange: (e3) => setNewField(e3.target.value),
-            children: columns.map((c3) => /* @__PURE__ */ u3("option", { value: c3, children: c3 }))
+            placeholder: "field\u2026",
+            onChange: (val) => setNewField(val)
           }
         ),
         /* @__PURE__ */ u3("button", { class: "scheduler-sort-add-btn", onClick: add, disabled: sort.some((s3) => s3.field === newField), children: "Add" })

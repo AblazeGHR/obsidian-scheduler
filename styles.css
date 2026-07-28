@@ -2164,3 +2164,91 @@
     background: var(--background-modifier-error-hover, rgba(220, 50, 47, 0.15));
 }
 
+/* --- searchable combobox --- */
+
+.scheduler-searchable {
+    position: relative;
+    display: inline-flex;
+    font-size: 12px;
+}
+.scheduler-searchable-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    color: var(--text-normal);
+    font-size: inherit;
+    min-width: 80px;
+    text-align: left;
+}
+.scheduler-searchable-btn:hover {
+    border-color: var(--interactive-accent);
+}
+.scheduler-searchable-val {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.scheduler-searchable-arrow {
+    color: var(--text-faint);
+    font-size: 10px;
+}
+.scheduler-searchable-dropdown {
+    position: absolute;
+    z-index: 150;
+    top: 100%;
+    left: 0;
+    margin-top: 2px;
+    min-width: 160px;
+    max-height: 260px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+}
+.scheduler-searchable-input {
+    margin: 4px;
+    padding: 3px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    font-size: 12px;
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    outline: none;
+}
+.scheduler-searchable-input:focus {
+    border-color: var(--interactive-accent);
+}
+.scheduler-searchable-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2px 0;
+}
+.scheduler-searchable-item {
+    padding: 4px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.scheduler-searchable-item:hover,
+.scheduler-searchable-item.active {
+    background: var(--background-modifier-hover);
+}
+.scheduler-searchable-item.selected {
+    color: var(--text-accent);
+    font-weight: 500;
+}
+.scheduler-searchable-empty {
+    padding: 6px 8px;
+    color: var(--text-faint);
+    font-size: 11px;
+}
+

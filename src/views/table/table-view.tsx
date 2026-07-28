@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useRef } from "preact/hooks";
 import { useContextMenu } from "../context-menu";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
+import { SearchableSelect } from "../shared/searchable-select";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterClause, AtomicCondition, FilterOperator } from "../../types";
 import {
@@ -261,15 +262,12 @@ function BatchEditBar({ selectedCount, columns, mapping, kinds, onApply, onClear
 	return (
 		<div class="scheduler-batch-bar">
 			<span class="scheduler-batch-count">{selectedCount} selected</span>
-			<select
-				class="scheduler-batch-field"
+			<SearchableSelect
+				options={columns}
 				value={field}
-				onChange={(e: any) => setField(e.target.value)}
-			>
-				{columns.map((c) => (
-					<option value={c}>{c}</option>
-				))}
-			</select>
+				placeholder="field…"
+				onChange={(val: string) => setField(val)}
+			/>
 			{kind === "date" ? (
 				<input
 					class="scheduler-batch-value"
@@ -395,15 +393,12 @@ function SortManager({ columns, sort, onSortChange }: SortManagerProps) {
 						</div>
 					))}
 					<div class="scheduler-sort-add">
-						<select
-							class="scheduler-sort-add-field"
+						<SearchableSelect
+							options={columns}
 							value={newField}
-							onChange={(e: any) => setNewField(e.target.value)}
-						>
-							{columns.map((c) => (
-								<option value={c}>{c}</option>
-							))}
-						</select>
+							placeholder="field…"
+							onChange={(val: string) => setNewField(val)}
+						/>
 						<button class="scheduler-sort-add-btn" onClick={add} disabled={sort.some((s) => s.field === newField)}>
 							Add
 						</button>

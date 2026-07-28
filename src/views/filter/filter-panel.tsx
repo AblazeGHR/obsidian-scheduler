@@ -1,5 +1,6 @@
 import { h } from "preact";
 import { FilterClause, VisualClause, RawClause, AtomicCondition, FilterOperator } from "../../types";
+import { SearchableSelect } from "../shared/searchable-select";
 
 // ============================================================
 // FilterPanel — popover content with AND/OR/NOT clause builder
@@ -214,17 +215,12 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 										{j > 0 && (
 											<span class="scheduler-filter-or-label">or</span>
 										)}
-										<select
-											class="scheduler-filter-select"
+										<SearchableSelect
+											options={columns}
 											value={cond.field}
-											onChange={(e: any) =>
-												updateCondition(i, j, { field: e.target.value })
-											}
-										>
-											{columns.map((c) => (
-												<option value={c}>{c}</option>
-											))}
-										</select>
+											placeholder="field…"
+											onChange={(val: string) => updateCondition(i, j, { field: val })}
+										/>
 										<select
 											class="scheduler-filter-operator"
 											value={cond.operator}
