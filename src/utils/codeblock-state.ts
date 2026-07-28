@@ -38,17 +38,24 @@ const VALID_VIEWS: ReadonlySet<string> = new Set(["table", "calendar", "timeline
  *   search: query
  *   page-size: 50
  */
-export function parseViewState(params: Record<string, string>): CodeblockViewState {
+export function parseViewState(params: Record<string, string>): { state: CodeblockViewState; warnings: string[] } {
 	const state: CodeblockViewState = { sort: [], filters: [], hiddenCols: [], search: "" };
+	const warnings: string[] = [];
 
 	// view
 	const v = params["view"];
-	if (v && VALID_VIEWS.has(v)) state.viewType = v as ViewType;
+	if (v && VALID_VIEWS.has(v)) {
+		state.viewType = v as ViewType;
+	} else if (v) {
+		warnings.push(`Invalid view type "${v}" — must be table/calendar/timeline/kanban`);
+	}
 
 	// sort: field:dir,field:dir,...
 	const sortRaw = params["sort"];
 	if (sortRaw) {
-		const parts = sortRaw.split(",").map((s) => s.trim()).filter(Boolean);
+		const rawParts = sortRaw.split(",").map((s) => s.trim()).filter(Boolean);
+		const parts = rawParts;
+		let validCount = 0;
 		for (const p of parts) {
 			const colon = p.lastIndexOf(":");
 			if (colon > 0) {
@@ -56,7 +63,12 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 				const dir = p.slice(colon + 1);
 				if (dir === "asc" || dir === "desc") {
 					state.sort.push({ field, direction: dir });
+					validCount++;
+				} else {
+					warnings.push(`Invalid sort direction in "${p}" — must be asc or desc`);
 				}
+			} else {
+				warnings.push(`Invalid sort format "${p}" — expected field:asc or field:desc`);
 			}
 		}
 	}
@@ -115,6 +127,8 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 
 			if (conditions.length > 0) {
 				state.filters.push({ type: "visual", not, conditions });
+			} else {
+				warnings.push(`Invalid filter clause "${seg}" — no valid field:operator:value condition found`);
 			}
 		}
 	}
@@ -138,10 +152,14 @@ export function parseViewState(params: Record<string, string>): CodeblockViewSta
 	const psRaw = params["page-size"];
 	if (psRaw) {
 		const n = parseInt(psRaw, 10);
-		if (!isNaN(n) && n >= 0) state.pageSize = n;
+		if (!isNaN(n) && n >= 0) {
+			state.pageSize = n;
+		} else {
+			warnings.push(`Invalid page-size "${psRaw}" — must be a number >= 0`);
+		}
 	}
 
-	return state;
+	return { state, warnings };
 }
 
 /**

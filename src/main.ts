@@ -329,8 +329,19 @@ export default class SchedulerPlugin extends Plugin {
 			const initialTemplate = params["template"];
 
 			// Parse view state from codeblock (sort, filters, hidden cols, search)
-			const initialState = parseViewState(params);
+			const { state: initialState, warnings } = parseViewState(params);
 			if (!initialState.viewType) initialState.viewType = initialView;
+
+			// Show toast for any invalid keys or values found during parsing
+			const validKeys = new Set(["view", "sort", "filters", "hidden", "visible", "search", "page-size", "folder", "template"]);
+			for (const key of Object.keys(params)) {
+				if (!validKeys.has(key)) {
+					warnings.push(`Unknown parameter "${key}" — will be ignored`);
+				}
+			}
+			for (const w of warnings) {
+				new Notice(w);
+			}
 
 			// Only the main `scheduler` block writes back state automatically;
 			// the aliases (scheduler-table etc.) force a specific view.
@@ -362,7 +373,7 @@ export default class SchedulerPlugin extends Plugin {
 		const params: Record<string, string> = {};
 		const lines = source.split("\n");
 		for (const line of lines) {
-			const match = line.match(/^\s*(\w+)\s*:\s*(.+)$/);
+			const match = line.match(/^\s*([\w-]+)\s*:\s*(.+)$/);
 			if (match) {
 				params[match[1].toLowerCase()] = match[2].trim();
 			}

@@ -5046,12 +5046,18 @@ var import_obsidian7 = require("obsidian");
 var VALID_VIEWS = /* @__PURE__ */ new Set(["table", "calendar", "timeline", "kanban"]);
 function parseViewState(params) {
   const state = { sort: [], filters: [], hiddenCols: [], search: "" };
+  const warnings = [];
   const v3 = params["view"];
-  if (v3 && VALID_VIEWS.has(v3))
+  if (v3 && VALID_VIEWS.has(v3)) {
     state.viewType = v3;
+  } else if (v3) {
+    warnings.push(`Invalid view type "${v3}" \u2014 must be table/calendar/timeline/kanban`);
+  }
   const sortRaw = params["sort"];
   if (sortRaw) {
-    const parts = sortRaw.split(",").map((s3) => s3.trim()).filter(Boolean);
+    const rawParts = sortRaw.split(",").map((s3) => s3.trim()).filter(Boolean);
+    const parts = rawParts;
+    let validCount = 0;
     for (const p3 of parts) {
       const colon = p3.lastIndexOf(":");
       if (colon > 0) {
@@ -5059,7 +5065,12 @@ function parseViewState(params) {
         const dir = p3.slice(colon + 1);
         if (dir === "asc" || dir === "desc") {
           state.sort.push({ field, direction: dir });
+          validCount++;
+        } else {
+          warnings.push(`Invalid sort direction in "${p3}" \u2014 must be asc or desc`);
         }
+      } else {
+        warnings.push(`Invalid sort format "${p3}" \u2014 expected field:asc or field:desc`);
       }
     }
   }
@@ -5109,6 +5120,8 @@ function parseViewState(params) {
       }).filter((c3) => c3.field && c3.operator);
       if (conditions.length > 0) {
         state.filters.push({ type: "visual", not, conditions });
+      } else {
+        warnings.push(`Invalid filter clause "${seg}" \u2014 no valid field:operator:value condition found`);
       }
     }
   }
@@ -5124,10 +5137,13 @@ function parseViewState(params) {
   const psRaw = params["page-size"];
   if (psRaw) {
     const n2 = parseInt(psRaw, 10);
-    if (!isNaN(n2) && n2 >= 0)
+    if (!isNaN(n2) && n2 >= 0) {
       state.pageSize = n2;
+    } else {
+      warnings.push(`Invalid page-size "${psRaw}" \u2014 must be a number >= 0`);
+    }
   }
-  return state;
+  return { state, warnings };
 }
 function serializeViewState(state, keepParams) {
   const lines = [];
@@ -5460,9 +5476,18 @@ ${when}`, 12e3);
       const initialView = params["view"] ?? opts.initialView ?? this.settings.defaultView;
       const newFileFolder = params["folder"];
       const initialTemplate = params["template"];
-      const initialState = parseViewState(params);
+      const { state: initialState, warnings } = parseViewState(params);
       if (!initialState.viewType)
         initialState.viewType = initialView;
+      const validKeys = /* @__PURE__ */ new Set(["view", "sort", "filters", "hidden", "visible", "search", "page-size", "folder", "template"]);
+      for (const key of Object.keys(params)) {
+        if (!validKeys.has(key)) {
+          warnings.push(`Unknown parameter "${key}" \u2014 will be ignored`);
+        }
+      }
+      for (const w3 of warnings) {
+        new import_obsidian8.Notice(w3);
+      }
       const isPersistent = blockType === "scheduler";
       const onStateChange = isPersistent ? (state) => {
         const keepParams = {};
@@ -5486,7 +5511,7 @@ ${when}`, 12e3);
     const params = {};
     const lines = source.split("\n");
     for (const line of lines) {
-      const match = line.match(/^\s*(\w+)\s*:\s*(.+)$/);
+      const match = line.match(/^\s*([\w-]+)\s*:\s*(.+)$/);
       if (match) {
         params[match[1].toLowerCase()] = match[2].trim();
       }
