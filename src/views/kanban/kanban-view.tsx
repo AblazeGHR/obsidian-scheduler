@@ -2,7 +2,8 @@ import { h } from "preact";
 import { useState, useMemo } from "preact/hooks";
 import { PageEntry, FieldMapping } from "../../types";
 import { formatCellValue } from "../table/table-utils";
-import { useContextMenu } from "../context-menu";
+import { useContextMenu, makeLongPressHandlers } from "../context-menu";
+import { useMobileMove } from "../shared/mobile-move";
 
 // ============================================================
 // Kanban view: group entries into columns by a chosen field.
@@ -41,6 +42,7 @@ function getEntryValues(entry: PageEntry, field: string, tagFields: string[]): s
 
 export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry, onDeleteEntry }: KanbanViewProps) {
 	const ctx = useContextMenu();
+	const mobileMove = useMobileMove();
 	// Candidate fields the user can group by (tag fields, filterable fields, plus any
 	// field present in the data).
 	const candidateFields = useMemo(() => {
@@ -161,27 +163,41 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 						}}
 						onDragLeave={() => setDragOverCol((c) => (c === col ? null : c))}
 						onDrop={() => handleDrop(col)}
+						onClick={() => {
+							if (!mobileMove.pendingPath) return;
+							const p = mobileMove.consume();
+							if (p) onGroupChange(p, groupField, col);
+						}}
 					>
 						<div class="scheduler-kanban-column-header">
 							<span class="scheduler-kanban-column-title">{col}</span>
 							<span class="scheduler-kanban-column-count">{buckets[col]?.length ?? 0}</span>
 						</div>
 						<div class="scheduler-kanban-column-body">
-							{(buckets[col] ?? []).map((entry) => (
+							{(buckets[col] ?? []).map((entry) => {
+							const longPress = makeLongPressHandlers();
+							return (
 							<div
-								class="scheduler-kanban-card"
+								class={`scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
 								draggable={true}
 								onDragStart={() => setDragPath(entry.path)}
 								onDragEnd={() => {
 									setDragPath(null);
 									setDragOverCol(null);
 								}}
-								onClick={() => onOpenEntry(entry.path)}
+								onClick={(e) => {
+									e.stopPropagation();
+									if (longPress.consumeClick()) return;
+									if (mobileMove.isMobile) mobileMove.toggle(entry.path);
+									else onOpenEntry(entry.path);
+								}}
 								onContextMenu={(e) =>
 									ctx.open(e, [
+										{ label: "Open entry", onClick: () => onOpenEntry(entry.path) },
 										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
 									])
 								}
+								{...longPress}
 								title={entry.path}
 							>
 									<div class="scheduler-kanban-card-title">{entry.title}</div>
@@ -198,7 +214,8 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 										</div>
 									)}
 								</div>
-							))}
+							);
+							})}
 						</div>
 						<button
 							class="scheduler-kanban-add"
@@ -227,6 +244,11 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 							setDragPath(null);
 							setDragOverCol(null);
 						}}
+						onClick={() => {
+							if (!mobileMove.pendingPath) return;
+							const p = mobileMove.consume();
+							if (p) onGroupChange(p, groupField, "");
+						}}
 					>
 						<div class="scheduler-kanban-column-header">
 							<span class="scheduler-kanban-column-title">Unassigned</span>
@@ -235,21 +257,30 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 							</span>
 						</div>
 						<div class="scheduler-kanban-column-body">
-							{(buckets[UNASSIGNED] ?? []).map((entry) => (
+							{(buckets[UNASSIGNED] ?? []).map((entry) => {
+							const longPress = makeLongPressHandlers();
+							return (
 							<div
-								class="scheduler-kanban-card"
+								class={`scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
 								draggable={true}
 								onDragStart={() => setDragPath(entry.path)}
 								onDragEnd={() => {
 									setDragPath(null);
 									setDragOverCol(null);
 								}}
-								onClick={() => onOpenEntry(entry.path)}
+								onClick={(e) => {
+									e.stopPropagation();
+									if (longPress.consumeClick()) return;
+									if (mobileMove.isMobile) mobileMove.toggle(entry.path);
+									else onOpenEntry(entry.path);
+								}}
 								onContextMenu={(e) =>
 									ctx.open(e, [
+										{ label: "Open entry", onClick: () => onOpenEntry(entry.path) },
 										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
 									])
 								}
+								{...longPress}
 								title={entry.path}
 							>
 									<div class="scheduler-kanban-card-title">{entry.title}</div>
@@ -266,7 +297,8 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 										</div>
 									)}
 								</div>
-							))}
+							);
+							})}
 						</div>
 					</div>
 				)}

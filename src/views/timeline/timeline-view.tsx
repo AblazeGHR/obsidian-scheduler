@@ -1,11 +1,13 @@
 import { h } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
+import { Platform } from "obsidian";
 import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
-import { useContextMenu } from "../context-menu";
+import { useContextMenu, makeLongPressHandlers } from "../context-menu";
 import { evaluateFilterTree } from "../../utils/filter-evaluator";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
+import { useMobileMove } from "../shared/mobile-move";
 
 const HOUR_HEIGHT = 60; // px per hour
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -160,6 +162,7 @@ interface CreateState {
 
 export function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }: TimelineViewProps) {
 	const ctx = useContextMenu();
+	const mobileMove = useMobileMove();
 	const [anchor, setAnchor] = useState(() => atMidnight(new Date()));
 	const [visibleDays, setVisibleDays] = useState(1);
 	const [showFilter, setShowFilter] = useState(false);
@@ -196,6 +199,9 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 	function startBlockDrag(e: MouseEvent, dayIndex: number, path: string, type: "move" | "resize-end" | "resize-start", start: Date, end: Date) {
 		e.preventDefault();
 		e.stopPropagation();
+		// Mobile: taps are handled by select-to-move; ignore the mousedown that
+		// touch synthesises so it cannot trigger a spurious move/write.
+		if (Platform.isMobile) return;
 		setDrag({
 			path,
 			dayIndex,
@@ -212,6 +218,9 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 
 	// --- create selection (drag on empty area) ---
 	function startCreate(e: MouseEvent, dayIndex: number) {
+		// Mobile: taps on the slots are the select-to-move drop target;
+		// creating new entries uses the "+ New" button instead.
+		if (Platform.isMobile) return;
 		const target = e.target as HTMLElement;
 		// only start when clicking empty slot background
 	// Allow mousedown on the slots element or any of its children (existing
@@ -411,57 +420,86 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 								</div>
 
 								{/* All-day strip */}
+							<div
+								class="scheduler-timeline-allday"
+								onDragOver={(e: any) => e.preventDefault()}
+								onDrop={(e: any) => {
+									e.preventDefault();
+									const raw = e.dataTransfer?.getData("text/plain");
+									if (!raw || !onTimeChange) return;
+									// Timed entry dropped on all-day → strip times
+									onTimeChange(raw, "", "");
+								}}
+								onClick={() => {
+									if (!mobileMove.pendingPath) return;
+									const p = mobileMove.consume();
+									if (p) onTimeChange?.(p, "", "");
+								}}
+							>
+								{allDay.map((e) => {
+									const longPress = makeLongPressHandlers();
+									return (
 								<div
-									class="scheduler-timeline-allday"
-									onDragOver={(e: any) => e.preventDefault()}
-									onDrop={(e: any) => {
-										e.preventDefault();
-										const raw = e.dataTransfer?.getData("text/plain");
-										if (!raw || !onTimeChange) return;
-										// Timed entry dropped on all-day → strip times
-										onTimeChange(raw, "", "");
+									class={`scheduler-timeline-allday-event${mobileMove.pendingPath === e.path ? " scheduler-mobile-move-src" : ""}`}
+									draggable={true}
+									onDragStart={(ev: any) => {
+										ev.dataTransfer.setData("text/plain", e.path);
+										ev.dataTransfer.effectAllowed = "move";
 									}}
+									onClick={(ev) => {
+										ev.stopPropagation();
+										if (longPress.consumeClick()) return;
+										if (mobileMove.isMobile) mobileMove.toggle(e.path);
+										else if (onOpenEntry) onOpenEntry(e.path);
+									}}
+									onContextMenu={(ev) =>
+										ctx.open(ev, [
+											{ label: "Open entry", onClick: () => onOpenEntry?.(e.path) },
+											{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e.path) },
+										])
+									}
+									{...longPress}
+									title={e.title}
 								>
-									{allDay.map((e) => (
-									<div
-										class="scheduler-timeline-allday-event"
-										draggable={true}
-										onDragStart={(ev: any) => {
-											ev.dataTransfer.setData("text/plain", e.path);
-											ev.dataTransfer.effectAllowed = "move";
-										}}
-										onClick={() => {
-											if (onOpenEntry) onOpenEntry(e.path);
-										}}
-										onContextMenu={(ev) =>
-											ctx.open(ev, [
-												{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e.path) },
-											])
-										}
-										title={e.title}
-									>
-											{e.title}
-											{e.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${e.recurrenceRule}`}>↻</span>}
-										</div>
-									))}
+										{e.title}
+										{e.recurrenceRule && <span class="scheduler-event-recurring" title={`Repeats: ${e.recurrenceRule}`}>↻</span>}
+									</div>
+									);
+								})}
 								</div>
 
 								{/* Time slots — entry side gap (1/16 of column width) is applied per-block in JS */}
-								<div class="scheduler-timeline-slots" onMouseDown={(e: any) => startCreate(e, di)} onDragOver={(e: any) => e.preventDefault()}
-									onDrop={(e: any) => {
-										e.preventDefault();
-										const raw = e.dataTransfer?.getData("text/plain");
-										if (!raw || !onTimeChange) return;
-										// All-day entry dropped on slots → convert to timed
-										const rect = (e.target as HTMLElement).closest(".scheduler-timeline-slots")?.getBoundingClientRect();
-										if (!rect) return;
-										const min = snap(((e.clientY - rect.top) / HOUR_HEIGHT) * 60);
-										const start = new Date(dayColumns[di]);
-										start.setHours(0, min, 0, 0);
-										const end = new Date(start.getTime() + 30 * 60000);
-										onTimeChange(raw, toLocalDateTime(start), toLocalDateTime(end));
-									}}
-								>
+							<div class="scheduler-timeline-slots" onMouseDown={(e: any) => startCreate(e, di)} onDragOver={(e: any) => e.preventDefault()}
+								onDrop={(e: any) => {
+									e.preventDefault();
+									const raw = e.dataTransfer?.getData("text/plain");
+									if (!raw || !onTimeChange) return;
+									// All-day entry dropped on slots → convert to timed
+									const rect = (e.target as HTMLElement).closest(".scheduler-timeline-slots")?.getBoundingClientRect();
+									if (!rect) return;
+									const min = snap(((e.clientY - rect.top) / HOUR_HEIGHT) * 60);
+									const start = new Date(dayColumns[di]);
+									start.setHours(0, min, 0, 0);
+									const end = new Date(start.getTime() + 30 * 60000);
+									onTimeChange(raw, toLocalDateTime(start), toLocalDateTime(end));
+								}}
+								onClick={(e) => {
+									if (!mobileMove.pendingPath) return;
+									const p = mobileMove.consume();
+									if (!p || !onTimeChange) return;
+									const rect = (e.currentTarget as HTMLElement).closest(".scheduler-timeline-slots")?.getBoundingClientRect();
+									if (!rect) return;
+									// Keep the source block's duration; place its start at the tapped minute.
+									const src = filtered.find((en) => en.path === p);
+									const durMin = src?.start && src?.end ? (src.end.getTime() - src.start.getTime()) / 60000 : 30;
+									const min = snap(((e.clientY - rect.top) / HOUR_HEIGHT) * 60);
+									const clamped = Math.max(0, Math.min(min, Math.max(0, 1440 - durMin)));
+									const start = new Date(dayColumns[di]);
+									start.setHours(0, clamped, 0, 0);
+									const end = new Date(start.getTime() + durMin * 60000);
+									onTimeChange(p, toLocalDateTime(start), toLocalDateTime(end));
+								}}
+							>
 									{HOURS.map((hh) => (
 										<div class="scheduler-timeline-slot" style={{ height: `${HOUR_HEIGHT}px` }} />
 									))}
@@ -479,12 +517,14 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 									.filter((b) => !(drag && drag.path === b.id))
 									.map((block) => {
 										const entry = timed.find((e) => e.path === block.id)!;
+										const longPress = makeLongPressHandlers();
 										const colWidth = 100 / block.totalCols;
 										const leftPct = (block.col + SIDE_GAP) * colWidth;
 										const widthPct = colWidth * (1 - 2 * SIDE_GAP);
 										return (
 											<div
-												class="scheduler-timeline-block"
+												class={`scheduler-timeline-block${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
+												onClick={(e) => e.stopPropagation()}
 												style={{
 													top: `${block.top}px`,
 													height: `${block.height}px`,
@@ -502,19 +542,23 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 													<div class="scheduler-timeline-block-time">
 														{formatTime(entry.start!)} — {formatTime(entry.end!)}
 													</div>
-													<div
-														class="scheduler-timeline-block-title"
-														onClick={(ev) => {
-															ev.stopPropagation();
-															if (onOpenEntry) onOpenEntry(entry.path);
-														}}
-														onContextMenu={(ev) => {
-															ev.stopPropagation();
-															ctx.open(ev, [
-																{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
-															]);
-														}}
-													>{entry.title}</div>
+												<div
+													class="scheduler-timeline-block-title"
+													onClick={(ev) => {
+														ev.stopPropagation();
+														if (longPress.consumeClick()) return;
+														if (mobileMove.isMobile) mobileMove.toggle(entry.path);
+														else if (onOpenEntry) onOpenEntry(entry.path);
+													}}
+													onContextMenu={(ev) => {
+														ev.stopPropagation();
+														ctx.open(ev, [
+															{ label: "Open entry", onClick: () => onOpenEntry?.(entry.path) },
+															{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+														]);
+													}}
+													{...longPress}
+												>{entry.title}</div>
 												</div>
 												<div
 													class="scheduler-timeline-block-grip scheduler-timeline-block-grip-bottom"

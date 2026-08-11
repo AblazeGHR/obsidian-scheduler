@@ -112,3 +112,72 @@ export function useContextMenu(): ContextMenuApi {
 
 	return { open, element: null };
 }
+
+// ============================================================
+// Long-press → contextmenu (mobile)
+//
+// Touch devices have no right-click. Long-pressing for `ms` (default 500)
+// dispatches a synthetic `contextmenu` MouseEvent onto the touched element,
+// so existing onContextMenu handlers open the menu with the tap coordinates.
+// If the finger moves >10px the long press is cancelled (scroll/drag).
+// A successful long press suppresses the following click via `consumeClick`.
+// ============================================================
+
+export interface LongPressHandlers {
+	onTouchStart: (e: TouchEvent) => void;
+	onTouchMove: (e: TouchEvent) => void;
+	onTouchEnd: () => void;
+	onTouchCancel: () => void;
+	/** Returns true (and clears the flag) if a long press just fired — call first in onClick. */
+	consumeClick: () => boolean;
+}
+
+export function makeLongPressHandlers(ms = 500): LongPressHandlers {
+	let timer: number | null = null;
+	let start: { x: number; y: number } | null = null;
+	let suppressClick = false;
+
+	function clear() {
+		if (timer !== null) window.clearTimeout(timer);
+		timer = null;
+		start = null;
+	}
+
+	return {
+		onTouchStart(e: TouchEvent) {
+			if (e.touches.length !== 1) return;
+			const t = e.touches[0];
+			start = { x: t.clientX, y: t.clientY };
+			timer = window.setTimeout(() => {
+				const s = start;
+				const target = e.target as HTMLElement;
+				clear();
+				if (!s || !target) return;
+				suppressClick = true;
+				// Synthesize a contextmenu so existing onContextMenu handlers fire
+				// with the long-press coordinates.
+				const ev = new MouseEvent("contextmenu", {
+					bubbles: true,
+					cancelable: true,
+					clientX: s.x,
+					clientY: s.y,
+				});
+				target.dispatchEvent(ev);
+			}, ms);
+		},
+		onTouchMove(e: TouchEvent) {
+			if (timer === null || !start) return;
+			const t = e.touches[0];
+			if (Math.abs(t.clientX - start.x) > 10 || Math.abs(t.clientY - start.y) > 10) {
+				clear();
+			}
+		},
+		onTouchEnd: clear,
+		onTouchCancel: clear,
+		consumeClick() {
+			const v = suppressClick;
+			suppressClick = false;
+			return v;
+		},
+	};
+}

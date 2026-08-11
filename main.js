@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => SchedulerPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian8 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -638,7 +638,7 @@ function D2(n2, t3) {
 }
 
 // src/views/react-renderer.tsx
-var import_obsidian4 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/utils/dataview-api.ts
 function getDataviewApi(app) {
@@ -1031,6 +1031,9 @@ function dateCompare2(a3, b2) {
     return m3;
   return a3.getDate() - b2.getDate();
 }
+
+// src/views/calendar/calendar-view.tsx
+var import_obsidian3 = require("obsidian");
 
 // node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
 var f3 = 0;
@@ -1821,6 +1824,74 @@ function useContextMenu() {
   }, [state, close]);
   return { open, element: null };
 }
+function makeLongPressHandlers(ms = 500) {
+  let timer = null;
+  let start = null;
+  let suppressClick = false;
+  function clear() {
+    if (timer !== null)
+      window.clearTimeout(timer);
+    timer = null;
+    start = null;
+  }
+  return {
+    onTouchStart(e3) {
+      if (e3.touches.length !== 1)
+        return;
+      const t3 = e3.touches[0];
+      start = { x: t3.clientX, y: t3.clientY };
+      timer = window.setTimeout(() => {
+        const s3 = start;
+        const target = e3.target;
+        clear();
+        if (!s3 || !target)
+          return;
+        suppressClick = true;
+        const ev = new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: s3.x,
+          clientY: s3.y
+        });
+        target.dispatchEvent(ev);
+      }, ms);
+    },
+    onTouchMove(e3) {
+      if (timer === null || !start)
+        return;
+      const t3 = e3.touches[0];
+      if (Math.abs(t3.clientX - start.x) > 10 || Math.abs(t3.clientY - start.y) > 10) {
+        clear();
+      }
+    },
+    onTouchEnd: clear,
+    onTouchCancel: clear,
+    consumeClick() {
+      const v3 = suppressClick;
+      suppressClick = false;
+      return v3;
+    }
+  };
+}
+
+// src/views/shared/mobile-move.ts
+var import_obsidian2 = require("obsidian");
+function useMobileMove() {
+  const [pendingPath, setPendingPath] = d2(null);
+  const toggle = q2((path) => {
+    setPendingPath((cur) => cur === path ? null : path);
+  }, []);
+  const cancel = q2(() => setPendingPath(null), []);
+  const consume = q2(() => {
+    let path = null;
+    setPendingPath((cur) => {
+      path = cur;
+      return null;
+    });
+    return path;
+  }, []);
+  return { isMobile: import_obsidian2.Platform.isMobile, pendingPath, toggle, cancel, consume };
+}
 
 // src/views/calendar/calendar-view.tsx
 var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1892,6 +1963,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
   const [showFilter, setShowFilter] = d2(false);
   const [showCodeModal, setShowCodeModal] = d2(false);
   const ctx = useContextMenu();
+  const mobileMove = useMobileMove();
   const [selectedPaths, setSelectedPaths] = d2(/* @__PURE__ */ new Set());
   const [selectionVisual, setSelectionVisual] = d2({
     selecting: false,
@@ -1965,6 +2037,8 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
   }, []);
   function handleGridMouseDown(e3) {
     if (e3.button !== 0)
+      return;
+    if (import_obsidian3.Platform.isMobile)
       return;
     const target = e3.target;
     if (target.closest(".scheduler-calendar-event") || target.closest("button"))
@@ -2126,6 +2200,14 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
             onCreateEntry,
             selectedPaths,
             onClearSelection: clearSelection,
+            isMobile: mobileMove.isMobile,
+            mobilePendingPath: mobileMove.pendingPath,
+            onMobileToggle: mobileMove.toggle,
+            onMobileDrop: (dateStr) => {
+              const p3 = mobileMove.consume();
+              if (p3)
+                onDateChange?.(p3, dateStr);
+            },
             onEntryContextMenu: (e3, path) => {
               if (selectedPaths.has(path) && selectedPaths.size > 1) {
                 ctx.open(e3, [
@@ -2140,6 +2222,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
                 ]);
               } else {
                 ctx.open(e3, [
+                  { label: "Open entry", onClick: () => onOpenEntry?.(path) },
                   { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(path) }
                 ]);
               }
@@ -2179,9 +2262,10 @@ function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 var MAX_VISIBLE_EVENTS = 3;
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu }) {
-  const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
-  const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu, isMobile, mobilePendingPath, onMobileToggle, onMobileDrop }) {
+  const maxVisible = isMobile ? 2 : MAX_VISIBLE_EVENTS;
+  const visible = calEntries.slice(0, maxVisible);
+  const overflow = calEntries.length - maxVisible;
   const [dragOver, setDragOver] = d2(false);
   function handleDragStart(e3, entry) {
     if (!e3.dataTransfer)
@@ -2235,23 +2319,35 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
       onDragEnter: () => setDragOver(true),
       onDragLeave: () => setDragOver(false),
       onDrop: handleDrop,
+      onClick: () => {
+        if (isMobile && mobilePendingPath && onMobileDrop)
+          onMobileDrop(dateStr);
+      },
       children: [
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-day-num", children: date.getDate() }),
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-events", children: [
           visible.map((occ, idx) => {
             const isSelected = selectedPaths && selectedPaths.has(occ.entry.path);
+            const isMoveSrc = mobilePendingPath === occ.entry.path;
+            const longPress = makeLongPressHandlers();
             return /* @__PURE__ */ u3(
               "div",
               {
-                class: `scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`,
+                class: `scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}${isMoveSrc ? " scheduler-mobile-move-src" : ""}`,
                 draggable: true,
                 onDragStart: (e3) => handleDragStart(e3, occ.entry),
                 onDragEnd: handleDragEnd,
-                onClick: () => {
-                  if (onOpenEntry)
-                    onOpenEntry(occ.entry.path);
+                onClick: (e3) => {
+                  e3.stopPropagation();
+                  if (longPress.consumeClick())
+                    return;
+                  if (isMobile)
+                    onMobileToggle?.(occ.entry.path);
+                  else
+                    onOpenEntry?.(occ.entry.path);
                 },
                 onContextMenu: (e3) => onEntryContextMenu?.(e3, occ.entry.path),
+                ...longPress,
                 title: occ.entry.title,
                 "data-entry-path": occ.entry.path,
                 children: [
@@ -2287,6 +2383,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 }
 
 // src/views/timeline/timeline-view.tsx
+var import_obsidian4 = require("obsidian");
 var HOUR_HEIGHT = 60;
 var HOURS = Array.from({ length: 24 }, (_2, i4) => i4);
 var SNAP_MINUTES = 15;
@@ -2385,6 +2482,7 @@ function layoutOverlaps(blocks) {
 }
 function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onTimeChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
   const ctx = useContextMenu();
+  const mobileMove = useMobileMove();
   const [anchor, setAnchor] = d2(() => atMidnight3(/* @__PURE__ */ new Date()));
   const [visibleDays, setVisibleDays] = d2(1);
   const [showFilter, setShowFilter] = d2(false);
@@ -2409,6 +2507,8 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
   function startBlockDrag(e3, dayIndex, path, type, start, end) {
     e3.preventDefault();
     e3.stopPropagation();
+    if (import_obsidian4.Platform.isMobile)
+      return;
     setDrag({
       path,
       dayIndex,
@@ -2423,6 +2523,8 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
     });
   }
   function startCreate(e3, dayIndex) {
+    if (import_obsidian4.Platform.isMobile)
+      return;
     const target = e3.target;
     const slotsTarget = target.closest(".scheduler-timeline-slots");
     if (!slotsTarget)
@@ -2600,29 +2702,46 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
                   return;
                 onTimeChange(raw, "", "");
               },
-              children: allDay.map((e3) => /* @__PURE__ */ u3(
-                "div",
-                {
-                  class: "scheduler-timeline-allday-event",
-                  draggable: true,
-                  onDragStart: (ev) => {
-                    ev.dataTransfer.setData("text/plain", e3.path);
-                    ev.dataTransfer.effectAllowed = "move";
-                  },
-                  onClick: () => {
-                    if (onOpenEntry)
-                      onOpenEntry(e3.path);
-                  },
-                  onContextMenu: (ev) => ctx.open(ev, [
-                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e3.path) }
-                  ]),
-                  title: e3.title,
-                  children: [
-                    e3.title,
-                    e3.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${e3.recurrenceRule}`, children: "\u21BB" })
-                  ]
-                }
-              ))
+              onClick: () => {
+                if (!mobileMove.pendingPath)
+                  return;
+                const p3 = mobileMove.consume();
+                if (p3)
+                  onTimeChange?.(p3, "", "");
+              },
+              children: allDay.map((e3) => {
+                const longPress = makeLongPressHandlers();
+                return /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: `scheduler-timeline-allday-event${mobileMove.pendingPath === e3.path ? " scheduler-mobile-move-src" : ""}`,
+                    draggable: true,
+                    onDragStart: (ev) => {
+                      ev.dataTransfer.setData("text/plain", e3.path);
+                      ev.dataTransfer.effectAllowed = "move";
+                    },
+                    onClick: (ev) => {
+                      ev.stopPropagation();
+                      if (longPress.consumeClick())
+                        return;
+                      if (mobileMove.isMobile)
+                        mobileMove.toggle(e3.path);
+                      else if (onOpenEntry)
+                        onOpenEntry(e3.path);
+                    },
+                    onContextMenu: (ev) => ctx.open(ev, [
+                      { label: "Open entry", onClick: () => onOpenEntry?.(e3.path) },
+                      { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(e3.path) }
+                    ]),
+                    ...longPress,
+                    title: e3.title,
+                    children: [
+                      e3.title,
+                      e3.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-event-recurring", title: `Repeats: ${e3.recurrenceRule}`, children: "\u21BB" })
+                    ]
+                  }
+                );
+              })
             }
           ),
           /* @__PURE__ */ u3(
@@ -2645,6 +2764,24 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
                 const end = new Date(start.getTime() + 30 * 6e4);
                 onTimeChange(raw, toLocalDateTime(start), toLocalDateTime(end));
               },
+              onClick: (e3) => {
+                if (!mobileMove.pendingPath)
+                  return;
+                const p3 = mobileMove.consume();
+                if (!p3 || !onTimeChange)
+                  return;
+                const rect = e3.currentTarget.closest(".scheduler-timeline-slots")?.getBoundingClientRect();
+                if (!rect)
+                  return;
+                const src = filtered.find((en) => en.path === p3);
+                const durMin = src?.start && src?.end ? (src.end.getTime() - src.start.getTime()) / 6e4 : 30;
+                const min = snap((e3.clientY - rect.top) / HOUR_HEIGHT * 60);
+                const clamped = Math.max(0, Math.min(min, Math.max(0, 1440 - durMin)));
+                const start = new Date(dayColumns[di]);
+                start.setHours(0, clamped, 0, 0);
+                const end = new Date(start.getTime() + durMin * 6e4);
+                onTimeChange(p3, toLocalDateTime(start), toLocalDateTime(end));
+              },
               children: [
                 HOURS.map((hh) => /* @__PURE__ */ u3("div", { class: "scheduler-timeline-slot", style: { height: `${HOUR_HEIGHT}px` } })),
                 today && /* @__PURE__ */ u3("div", { class: "scheduler-timeline-now", style: { top: `${nowTop}px` }, children: [
@@ -2653,13 +2790,15 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
                 ] }),
                 layout.filter((b2) => !(drag && drag.path === b2.id)).map((block) => {
                   const entry = timed.find((e3) => e3.path === block.id);
+                  const longPress = makeLongPressHandlers();
                   const colWidth = 100 / block.totalCols;
                   const leftPct = (block.col + SIDE_GAP) * colWidth;
                   const widthPct = colWidth * (1 - 2 * SIDE_GAP);
                   return /* @__PURE__ */ u3(
                     "div",
                     {
-                      class: "scheduler-timeline-block",
+                      class: `scheduler-timeline-block${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
+                      onClick: (e3) => e3.stopPropagation(),
                       style: {
                         top: `${block.top}px`,
                         height: `${block.height}px`,
@@ -2691,15 +2830,21 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
                                   class: "scheduler-timeline-block-title",
                                   onClick: (ev) => {
                                     ev.stopPropagation();
-                                    if (onOpenEntry)
+                                    if (longPress.consumeClick())
+                                      return;
+                                    if (mobileMove.isMobile)
+                                      mobileMove.toggle(entry.path);
+                                    else if (onOpenEntry)
                                       onOpenEntry(entry.path);
                                   },
                                   onContextMenu: (ev) => {
                                     ev.stopPropagation();
                                     ctx.open(ev, [
+                                      { label: "Open entry", onClick: () => onOpenEntry?.(entry.path) },
                                       { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
                                     ]);
                                   },
+                                  ...longPress,
                                   children: entry.title
                                 }
                               )
@@ -2861,8 +3006,8 @@ function sanitizeFilename(title) {
 }
 
 // src/utils/new-entry-modal.ts
-var import_obsidian2 = require("obsidian");
-var NewEntryModal = class extends import_obsidian2.Modal {
+var import_obsidian5 = require("obsidian");
+var NewEntryModal = class extends import_obsidian5.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.title = "";
@@ -2871,7 +3016,7 @@ var NewEntryModal = class extends import_obsidian2.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "New Entry" });
-    new import_obsidian2.Setting(contentEl).setName("Title").addText((text) => {
+    new import_obsidian5.Setting(contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Entry title...").onChange((value) => this.title = value);
       text.inputEl.addEventListener("keydown", (e3) => {
         if (e3.key === "Enter") {
@@ -2880,7 +3025,7 @@ var NewEntryModal = class extends import_obsidian2.Modal {
       });
       setTimeout(() => text.inputEl.focus(), 50);
     });
-    new import_obsidian2.Setting(contentEl).addButton(
+    new import_obsidian5.Setting(contentEl).addButton(
       (btn) => btn.setButtonText("Create").setCta().onClick(() => this.submit())
     );
   }
@@ -3031,6 +3176,9 @@ function formatTagValue(values) {
     return "[]";
   return `[${clean.join(", ")}]`;
 }
+
+// src/views/table/table-view.tsx
+var import_obsidian6 = require("obsidian");
 
 // src/schema/field-types.ts
 var DATE_RE = /^\d{4}-\d{2}-\d{2}/;
@@ -3439,6 +3587,28 @@ function SortManager({ columns, sort, onSortChange }) {
           onDragEnd: () => setDragIndex(null),
           children: [
             /* @__PURE__ */ u3("span", { class: "scheduler-sort-grip", title: "Drag to reorder priority", children: "\u22EE\u22EE" }),
+            import_obsidian6.Platform.isMobile && /* @__PURE__ */ u3("span", { class: "scheduler-sort-move", children: [
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  class: "scheduler-sort-move-btn",
+                  onClick: () => move(i4, i4 - 1),
+                  disabled: i4 === 0,
+                  title: "Move up",
+                  children: "\u2191"
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  class: "scheduler-sort-move-btn",
+                  onClick: () => move(i4, i4 + 1),
+                  disabled: i4 === sort.length - 1,
+                  title: "Move down",
+                  children: "\u2193"
+                }
+              )
+            ] }),
             /* @__PURE__ */ u3("span", { class: "scheduler-sort-prio", children: i4 + 1 }),
             /* @__PURE__ */ u3("span", { class: "scheduler-sort-field", children: s3.field }),
             /* @__PURE__ */ u3(
@@ -3624,6 +3794,8 @@ function TableView({
   function startResize(e3, col) {
     e3.preventDefault();
     e3.stopPropagation();
+    if (import_obsidian6.Platform.isMobile)
+      return;
     resizeRef.current?.cancel();
     resizeRef.current = null;
     let active = true;
@@ -3736,49 +3908,58 @@ function TableView({
           )
         ] }))
       ] }) }),
-      /* @__PURE__ */ u3("tbody", { children: paged.map((entry, idx) => /* @__PURE__ */ u3(
-        "tr",
-        {
-          class: `${selected.has(entry.path) ? "scheduler-row-selected" : ""}${activeRow === idx ? " scheduler-row-active" : ""}`,
-          onClick: () => setActiveRow(idx),
-          children: [
-            /* @__PURE__ */ u3("td", { class: "scheduler-col-select", children: /* @__PURE__ */ u3(
-              "input",
-              {
-                type: "checkbox",
-                checked: selected.has(entry.path),
-                onChange: () => toggleRow(entry.path)
-              }
-            ) }),
-            visibleCols.map(
-              (col) => col === "title" ? /* @__PURE__ */ u3(
-                "td",
+      /* @__PURE__ */ u3("tbody", { children: paged.map((entry, idx) => {
+        const longPress = makeLongPressHandlers();
+        return /* @__PURE__ */ u3(
+          "tr",
+          {
+            class: `${selected.has(entry.path) ? "scheduler-row-selected" : ""}${activeRow === idx ? " scheduler-row-active" : ""}`,
+            onClick: () => setActiveRow(idx),
+            children: [
+              /* @__PURE__ */ u3("td", { class: "scheduler-col-select", children: /* @__PURE__ */ u3(
+                "input",
                 {
-                  class: "scheduler-cell-title",
-                  onClick: () => openFile(entry.path),
-                  onContextMenu: (e3) => ctx.open(e3, [
-                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
-                  ]),
-                  children: [
-                    formatCellValue(entry, col, parentTitles),
-                    entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-recurring-mark", title: `Repeats: ${entry.recurrenceRule}`, children: "\u21BB" })
-                  ]
+                  type: "checkbox",
+                  checked: selected.has(entry.path),
+                  onChange: () => toggleRow(entry.path)
                 }
-              ) : getCellKind(col, mapping, fieldKinds) === "date" ? /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-display", children: /* @__PURE__ */ u3(DateCell, { entry, column: col, mapping, onEdit: onCellEdit }) }) : /* @__PURE__ */ u3(
-                EditableCell,
-                {
-                  entry,
-                  column: col,
-                  mapping,
-                  kinds: fieldKinds,
-                  onEdit: onCellEdit
-                }
+              ) }),
+              visibleCols.map(
+                (col) => col === "title" ? /* @__PURE__ */ u3(
+                  "td",
+                  {
+                    class: "scheduler-cell-title",
+                    onClick: () => {
+                      if (longPress.consumeClick())
+                        return;
+                      openFile(entry.path);
+                    },
+                    onContextMenu: (e3) => ctx.open(e3, [
+                      { label: "Open entry", onClick: () => openFile(entry.path) },
+                      { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                    ]),
+                    ...longPress,
+                    children: [
+                      formatCellValue(entry, col, parentTitles),
+                      entry.recurrenceRule && /* @__PURE__ */ u3("span", { class: "scheduler-recurring-mark", title: `Repeats: ${entry.recurrenceRule}`, children: "\u21BB" })
+                    ]
+                  }
+                ) : getCellKind(col, mapping, fieldKinds) === "date" ? /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-display", children: /* @__PURE__ */ u3(DateCell, { entry, column: col, mapping, onEdit: onCellEdit }) }) : /* @__PURE__ */ u3(
+                  EditableCell,
+                  {
+                    entry,
+                    column: col,
+                    mapping,
+                    kinds: fieldKinds,
+                    onEdit: onCellEdit
+                  }
+                )
               )
-            )
-          ]
-        },
-        entry.occurrenceId ?? entry.path
-      )) }),
+            ]
+          },
+          entry.occurrenceId ?? entry.path
+        );
+      }) }),
       onCreateEntry && /* @__PURE__ */ u3("tfoot", { children: /* @__PURE__ */ u3("tr", { children: /* @__PURE__ */ u3("td", { colSpan: visibleCols.length + 1, class: "scheduler-table-add-row", onClick: onCreateEntry, children: "+ New entry" }) }) })
     ] }) }),
     /* @__PURE__ */ u3("div", { class: "scheduler-pagination", children: [
@@ -3866,6 +4047,7 @@ function getEntryValues(entry, field, tagFields) {
 }
 function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntry, onDeleteEntry }) {
   const ctx = useContextMenu();
+  const mobileMove = useMobileMove();
   const candidateFields = T2(() => {
     const set = /* @__PURE__ */ new Set();
     mapping.tagFields.forEach((f4) => set.add(f4));
@@ -3970,35 +4152,55 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
           },
           onDragLeave: () => setDragOverCol((c3) => c3 === col ? null : c3),
           onDrop: () => handleDrop(col),
+          onClick: () => {
+            if (!mobileMove.pendingPath)
+              return;
+            const p3 = mobileMove.consume();
+            if (p3)
+              onGroupChange(p3, groupField, col);
+          },
           children: [
             /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-header", children: [
               /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: col }),
               /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[col]?.length ?? 0 })
             ] }),
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[col] ?? []).map((entry) => /* @__PURE__ */ u3(
-              "div",
-              {
-                class: "scheduler-kanban-card",
-                draggable: true,
-                onDragStart: () => setDragPath(entry.path),
-                onDragEnd: () => {
-                  setDragPath(null);
-                  setDragOverCol(null);
-                },
-                onClick: () => onOpenEntry(entry.path),
-                onContextMenu: (e3) => ctx.open(e3, [
-                  { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
-                ]),
-                title: entry.path,
-                children: [
-                  /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
-                  (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
-                    entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
-                    entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
-                  ] })
-                ]
-              }
-            )) }),
+            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[col] ?? []).map((entry) => {
+              const longPress = makeLongPressHandlers();
+              return /* @__PURE__ */ u3(
+                "div",
+                {
+                  class: `scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
+                  draggable: true,
+                  onDragStart: () => setDragPath(entry.path),
+                  onDragEnd: () => {
+                    setDragPath(null);
+                    setDragOverCol(null);
+                  },
+                  onClick: (e3) => {
+                    e3.stopPropagation();
+                    if (longPress.consumeClick())
+                      return;
+                    if (mobileMove.isMobile)
+                      mobileMove.toggle(entry.path);
+                    else
+                      onOpenEntry(entry.path);
+                  },
+                  onContextMenu: (e3) => ctx.open(e3, [
+                    { label: "Open entry", onClick: () => onOpenEntry(entry.path) },
+                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                  ]),
+                  ...longPress,
+                  title: entry.path,
+                  children: [
+                    /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
+                    (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
+                      entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
+                      entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
+                    ] })
+                  ]
+                }
+              );
+            }) }),
             /* @__PURE__ */ u3(
               "button",
               {
@@ -4026,35 +4228,55 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
             setDragPath(null);
             setDragOverCol(null);
           },
+          onClick: () => {
+            if (!mobileMove.pendingPath)
+              return;
+            const p3 = mobileMove.consume();
+            if (p3)
+              onGroupChange(p3, groupField, "");
+          },
           children: [
             /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-header", children: [
               /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: "Unassigned" }),
               /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[UNASSIGNED]?.length ?? 0 })
             ] }),
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[UNASSIGNED] ?? []).map((entry) => /* @__PURE__ */ u3(
-              "div",
-              {
-                class: "scheduler-kanban-card",
-                draggable: true,
-                onDragStart: () => setDragPath(entry.path),
-                onDragEnd: () => {
-                  setDragPath(null);
-                  setDragOverCol(null);
-                },
-                onClick: () => onOpenEntry(entry.path),
-                onContextMenu: (e3) => ctx.open(e3, [
-                  { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
-                ]),
-                title: entry.path,
-                children: [
-                  /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
-                  (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
-                    entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
-                    entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
-                  ] })
-                ]
-              }
-            )) })
+            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[UNASSIGNED] ?? []).map((entry) => {
+              const longPress = makeLongPressHandlers();
+              return /* @__PURE__ */ u3(
+                "div",
+                {
+                  class: `scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
+                  draggable: true,
+                  onDragStart: () => setDragPath(entry.path),
+                  onDragEnd: () => {
+                    setDragPath(null);
+                    setDragOverCol(null);
+                  },
+                  onClick: (e3) => {
+                    e3.stopPropagation();
+                    if (longPress.consumeClick())
+                      return;
+                    if (mobileMove.isMobile)
+                      mobileMove.toggle(entry.path);
+                    else
+                      onOpenEntry(entry.path);
+                  },
+                  onContextMenu: (e3) => ctx.open(e3, [
+                    { label: "Open entry", onClick: () => onOpenEntry(entry.path) },
+                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+                  ]),
+                  ...longPress,
+                  title: entry.path,
+                  children: [
+                    /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
+                    (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
+                      entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
+                      entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
+                    ] })
+                  ]
+                }
+              );
+            }) })
           ]
         }
       ),
@@ -4274,7 +4496,7 @@ function triggerIcsFilePicker(onText) {
 }
 
 // src/utils/inline-editor.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var INLINE_PATH_RE = /#L\d+$/;
 function isInlinePath(path) {
   return INLINE_PATH_RE.test(path);
@@ -4290,7 +4512,7 @@ async function applyInlineEdit(app, path, transform) {
   if (!parsed)
     return null;
   const file = app.vault.getAbstractFileByPath(parsed.filePath);
-  if (!(file instanceof import_obsidian3.TFile))
+  if (!(file instanceof import_obsidian7.TFile))
     return null;
   let result = null;
   await app.vault.process(file, (data) => {
@@ -4385,7 +4607,7 @@ function setInlineField(lineText, field, value) {
   }
   return lineText.trimEnd() + " " + replacement;
 }
-var ReactRenderer = class extends import_obsidian4.MarkdownRenderChild {
+var ReactRenderer = class extends import_obsidian8.MarkdownRenderChild {
   constructor(container, element) {
     super(container);
     this.element = element;
@@ -4716,7 +4938,7 @@ ${titleLine}
       const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
       const existing = plugin.app.vault.getAbstractFileByPath(filePath);
       if (existing) {
-        new import_obsidian4.Notice(`"${title}" already exists \u2014 appending suffix.`, 4e3);
+        new import_obsidian8.Notice(`"${title}" already exists \u2014 appending suffix.`, 4e3);
       }
       plugin.app.vault.create(filePath, finalFm).then(() => setDataVersion((v3) => v3 + 1)).catch(() => {
         plugin.app.vault.create(
@@ -4732,7 +4954,7 @@ ${titleLine}
       if (!parsed)
         return;
       const file2 = plugin.app.vault.getAbstractFileByPath(parsed.filePath);
-      if (!(file2 instanceof import_obsidian4.TFile))
+      if (!(file2 instanceof import_obsidian8.TFile))
         return;
       plugin.app.vault.read(file2).then((before) => {
         const lines = before.split("\n");
@@ -4748,7 +4970,7 @@ ${titleLine}
       return;
     }
     const file = plugin.app.vault.getAbstractFileByPath(path);
-    if (file instanceof import_obsidian4.TFile) {
+    if (file instanceof import_obsidian8.TFile) {
       plugin.app.fileManager.trashFile(file).then(() => refreshData());
     }
   }
@@ -4909,7 +5131,7 @@ function SchedulerViewTabs({ current, onChange }) {
   )) });
 }
 var VIEW_TYPE_SCHEDULER = "obsidian-scheduler-view";
-var SchedulerView = class extends import_obsidian4.ItemView {
+var SchedulerView = class extends import_obsidian8.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -4954,7 +5176,7 @@ function createCodeblockRenderer(el, plugin, initialView, newFileFolder, initial
 }
 
 // src/query/data-cache.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 var DATE_RE2 = /^\d{4}-\d{2}-\d{2}/;
 var SchedulerDataCache = class {
   constructor(app) {
@@ -5004,7 +5226,7 @@ var SchedulerDataCache = class {
   /** Merge Obsidian metadata-cache inline fields (whole-line `key:: value`) as a fallback. */
   mergeInlineFields(entry, path, mapping) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian5.TFile))
+    if (!(file instanceof import_obsidian9.TFile))
       return;
     const cache = this.app.metadataCache.getFileCache(file);
     const inline = cache?.inlineFields;
@@ -5035,7 +5257,7 @@ var SchedulerDataCache = class {
 };
 
 // src/utils/undo-manager.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var UndoManager = class {
   constructor(app, notify) {
     this.undoStack = [];
@@ -5053,7 +5275,7 @@ var UndoManager = class {
    */
   async apply(path, transform) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (!(file instanceof import_obsidian6.TFile))
+    if (!(file instanceof import_obsidian10.TFile))
       return;
     await this.app.vault.process(file, (data) => {
       const before = data;
@@ -5099,7 +5321,7 @@ var UndoManager = class {
   }
   async write(path, content) {
     const file = this.app.vault.getAbstractFileByPath(path);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian10.TFile) {
       await this.app.vault.process(file, () => content);
     }
   }
@@ -5176,7 +5398,7 @@ function entriesToMarkdown(entries, columns, mapping) {
 }
 
 // src/utils/codeblock-state.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 var VALID_VIEWS = /* @__PURE__ */ new Set(["table", "calendar", "timeline", "kanban"]);
 function parseViewState(params) {
   const state = { sort: [], filters: [], hiddenCols: [], search: "" };
@@ -5320,7 +5542,7 @@ function serializeViewState(state, keepParams) {
 }
 async function writeCodeblockState(app, filePath, blockType, originalSource, newSource) {
   const file = app.vault.getAbstractFileByPath(filePath);
-  if (!(file instanceof import_obsidian7.TFile))
+  if (!(file instanceof import_obsidian11.TFile))
     return;
   await app.vault.process(file, (data) => {
     const lines = data.split("\n");
@@ -5356,7 +5578,7 @@ async function writeCodeblockState(app, filePath, blockType, originalSource, new
 }
 
 // src/main.ts
-var SchedulerPlugin = class extends import_obsidian8.Plugin {
+var SchedulerPlugin = class extends import_obsidian12.Plugin {
   constructor() {
     super(...arguments);
     /** Listeners notified when underlying data changes (e.g. after undo/redo) */
@@ -5483,7 +5705,7 @@ var SchedulerPlugin = class extends import_obsidian8.Plugin {
   }
   showReminder(r3, now) {
     const when = formatDueLabel(r3, now);
-    const notice = new import_obsidian8.Notice(`\u{1F514} Reminder: ${r3.entry.title}
+    const notice = new import_obsidian12.Notice(`\u{1F514} Reminder: ${r3.entry.title}
 ${when}`, 12e3);
     notice.noticeEl.addEventListener("click", () => {
       this.app.workspace.openLinkText(r3.entry.path, "", false);
@@ -5493,7 +5715,7 @@ ${when}`, 12e3);
   /** Export the given entries to an .ics file in the vault. */
   exportEntriesToIcal(entries) {
     if (!isDataviewAvailable(this.app)) {
-      new import_obsidian8.Notice("Dataview plugin is required to export.", 8e3);
+      new import_obsidian12.Notice("Dataview plugin is required to export.", 8e3);
       return;
     }
     const ics = exportToICal(entries, this.settings.fieldMapping);
@@ -5501,7 +5723,7 @@ ${when}`, 12e3);
     const stamp = /* @__PURE__ */ new Date();
     const fname = `scheduler-export-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, "0")}${String(stamp.getDate()).padStart(2, "0")}.ics`;
     const path = folder ? `${folder}/${fname}` : fname;
-    this.app.vault.create(path, ics).then(() => new import_obsidian8.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian8.Notice("iCal export failed (file may already exist).", 8e3));
+    this.app.vault.create(path, ics).then(() => new import_obsidian12.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian12.Notice("iCal export failed (file may already exist).", 8e3));
   }
   /** Export all entries (no expansion) to an .ics file in the vault. */
   exportAllToIcal() {
@@ -5513,7 +5735,7 @@ ${when}`, 12e3);
   /** Export the given entries to a Markdown table file in the vault. */
   exportEntriesToMarkdown(entries, columns) {
     if (!isDataviewAvailable(this.app)) {
-      new import_obsidian8.Notice("Dataview plugin is required to export.", 8e3);
+      new import_obsidian12.Notice("Dataview plugin is required to export.", 8e3);
       return;
     }
     const md = entriesToMarkdown(entries, columns, this.settings.fieldMapping);
@@ -5521,7 +5743,7 @@ ${when}`, 12e3);
     const stamp = /* @__PURE__ */ new Date();
     const fname = `scheduler-export-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, "0")}${String(stamp.getDate()).padStart(2, "0")}.md`;
     const path = folder ? `${folder}/${fname}` : fname;
-    this.app.vault.create(path, md).then(() => new import_obsidian8.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian8.Notice("Markdown export failed (file may already exist).", 8e3));
+    this.app.vault.create(path, md).then(() => new import_obsidian12.Notice(`Exported ${entries.length} entries to ${path}`, 8e3)).catch(() => new import_obsidian12.Notice("Markdown export failed (file may already exist).", 8e3));
   }
   /** Export all entries (no expansion) to a Markdown table file in the vault. */
   exportAllToMarkdown() {
@@ -5535,7 +5757,7 @@ ${when}`, 12e3);
   async importIcalFromText(text) {
     const events = parseICal(text);
     if (events.length === 0) {
-      new import_obsidian8.Notice("No events found in the .ics file.", 8e3);
+      new import_obsidian12.Notice("No events found in the .ics file.", 8e3);
       return;
     }
     const folder = this.settings.folders.length > 0 ? this.settings.folders[0] : "";
@@ -5555,7 +5777,7 @@ ${when}`, 12e3);
         skipped++;
       }
     }
-    new import_obsidian8.Notice(`iCal import: ${created} created, ${skipped} skipped.`, 8e3);
+    new import_obsidian12.Notice(`iCal import: ${created} created, ${skipped} skipped.`, 8e3);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -5620,7 +5842,7 @@ ${when}`, 12e3);
         }
       }
       for (const w3 of warnings) {
-        new import_obsidian8.Notice(w3);
+        new import_obsidian12.Notice(w3);
       }
       const isPersistent = blockType === "scheduler";
       const onStateChange = isPersistent ? (state) => {

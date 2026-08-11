@@ -1,10 +1,12 @@
 import { h } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
+import { Platform } from "obsidian";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
 import { PageEntry, FieldMapping, FilterClause } from "../../types";
 import { expandRecurring } from "../../utils/recurrence";
-import { useContextMenu } from "../context-menu";
+import { useContextMenu, makeLongPressHandlers } from "../context-menu";
+import { useMobileMove } from "../shared/mobile-move";
 import { evaluateFilterTree } from "../../utils/filter-evaluator";
 
 interface CalendarViewProps {
@@ -108,6 +110,7 @@ export function CalendarView({ entries, mapping, filters, onFiltersChange, colum
 	const [showFilter, setShowFilter] = useState(false);
 	const [showCodeModal, setShowCodeModal] = useState(false);
 	const ctx = useContextMenu();
+	const mobileMove = useMobileMove();
 
 	// --- Box selection state ---
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -194,6 +197,8 @@ export function CalendarView({ entries, mapping, filters, onFiltersChange, colum
 	// Grid mousedown — immediate Windows-style box selection
 	function handleGridMouseDown(e: MouseEvent) {
 		if (e.button !== 0) return; // left button only; right-click opens the context menu
+		// Mobile: touch synthesises mousedown; box-select is a desktop interaction.
+		if (Platform.isMobile) return;
 		const target = e.target as HTMLElement;
 		// Don't start selection on event elements or buttons
 		if (target.closest(".scheduler-calendar-event") || target.closest("button")) return;
@@ -382,27 +387,35 @@ export function CalendarView({ entries, mapping, filters, onFiltersChange, colum
 								onDateChange={onDateChange}
 								onOpenEntry={onOpenEntry}
 								onCreateEntry={onCreateEntry}
-								selectedPaths={selectedPaths}
-								onClearSelection={clearSelection}
-							onEntryContextMenu={(e, path) => {
-								if (selectedPaths.has(path) && selectedPaths.size > 1) {
-									ctx.open(e, [
-										{
-											label: `Delete ${selectedPaths.size} entries`,
-											danger: true,
-											onClick: () => {
-												selectedPaths.forEach((p) => onDeleteEntry?.(p));
-												clearSelection();
-											},
-										},
-									]);
-								} else {
-									ctx.open(e, [
-										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(path) },
-									]);
-								}
+							selectedPaths={selectedPaths}
+							onClearSelection={clearSelection}
+							isMobile={mobileMove.isMobile}
+							mobilePendingPath={mobileMove.pendingPath}
+							onMobileToggle={mobileMove.toggle}
+							onMobileDrop={(dateStr) => {
+								const p = mobileMove.consume();
+								if (p) onDateChange?.(p, dateStr);
 							}}
-							/>
+						onEntryContextMenu={(e, path) => {
+							if (selectedPaths.has(path) && selectedPaths.size > 1) {
+								ctx.open(e, [
+									{
+										label: `Delete ${selectedPaths.size} entries`,
+										danger: true,
+										onClick: () => {
+											selectedPaths.forEach((p) => onDeleteEntry?.(p));
+											clearSelection();
+										},
+									},
+								]);
+							} else {
+								ctx.open(e, [
+									{ label: "Open entry", onClick: () => onOpenEntry?.(path) },
+									{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(path) },
+								]);
+							}
+						}}
+						/>
 						);
 					})}
 				</div>
@@ -453,11 +466,17 @@ interface CalendarCellProps {
 	selectedPaths?: Set<string>;
 	onClearSelection?: () => void;
 	onEntryContextMenu?: (e: MouseEvent, path: string) => void;
+	// Mobile select-to-move
+	isMobile?: boolean;
+	mobilePendingPath?: string | null;
+	onMobileToggle?: (path: string) => void;
+	onMobileDrop?: (dateStr: string) => void;
 }
 
-function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu }: CalendarCellProps) {
-	const visible = calEntries.slice(0, MAX_VISIBLE_EVENTS);
-	const overflow = calEntries.length - MAX_VISIBLE_EVENTS;
+function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEntry, onCreateEntry, selectedPaths, onClearSelection, onEntryContextMenu, isMobile, mobilePendingPath, onMobileToggle, onMobileDrop }: CalendarCellProps) {
+	const maxVisible = isMobile ? 2 : MAX_VISIBLE_EVENTS;
+	const visible = calEntries.slice(0, maxVisible);
+	const overflow = calEntries.length - maxVisible;
 	const [dragOver, setDragOver] = useState(false);
 
 	function handleDragStart(e: DragEvent, entry: PageEntry) {
@@ -514,22 +533,31 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 			onDragEnter={() => setDragOver(true)}
 			onDragLeave={() => setDragOver(false)}
 			onDrop={handleDrop}
+			onClick={() => {
+				if (isMobile && mobilePendingPath && onMobileDrop) onMobileDrop(dateStr);
+			}}
 		>
 			<div class="scheduler-calendar-day-num">{date.getDate()}</div>
 			<div class="scheduler-calendar-events">
 				{visible.map((occ, idx) => {
 					const isSelected = selectedPaths && selectedPaths.has(occ.entry.path);
+					const isMoveSrc = mobilePendingPath === occ.entry.path;
+					const longPress = makeLongPressHandlers();
 					return (
 						<div
 							key={occ.entry.occurrenceId ?? occ.entry.path}
-						class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}`}
+						class={`scheduler-calendar-event${occ.isStart ? " span-start" : " span-mid"}${occ.isEnd ? " span-end" : ""}${occ.entry.recurrenceRule ? " recurring" : ""}${isSelected ? " scheduler-calendar-selected-entry" : ""}${isMoveSrc ? " scheduler-mobile-move-src" : ""}`}
 						draggable={true}
 						onDragStart={(e) => handleDragStart(e, occ.entry)}
 						onDragEnd={handleDragEnd}
-						onClick={() => {
-							if (onOpenEntry) onOpenEntry(occ.entry.path);
+						onClick={(e) => {
+							e.stopPropagation();
+							if (longPress.consumeClick()) return;
+							if (isMobile) onMobileToggle?.(occ.entry.path);
+							else onOpenEntry?.(occ.entry.path);
 						}}
 						onContextMenu={(e) => onEntryContextMenu?.(e, occ.entry.path)}
+						{...longPress}
 						title={occ.entry.title}
 						data-entry-path={occ.entry.path}
 					>

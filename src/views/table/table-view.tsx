@@ -1,6 +1,7 @@
 import { h, Fragment } from "preact";
 import { useState, useMemo, useEffect, useRef } from "preact/hooks";
-import { useContextMenu } from "../context-menu";
+import { Platform } from "obsidian";
+import { useContextMenu, makeLongPressHandlers } from "../context-menu";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
 import { SearchableSelect } from "../shared/searchable-select";
@@ -397,6 +398,26 @@ function SortManager({ columns, sort, onSortChange }: SortManagerProps) {
 							<span class="scheduler-sort-grip" title="Drag to reorder priority">
 								⋮⋮
 							</span>
+							{Platform.isMobile && (
+								<span class="scheduler-sort-move">
+									<button
+										class="scheduler-sort-move-btn"
+										onClick={() => move(i, i - 1)}
+										disabled={i === 0}
+										title="Move up"
+									>
+										↑
+									</button>
+									<button
+										class="scheduler-sort-move-btn"
+										onClick={() => move(i, i + 1)}
+										disabled={i === sort.length - 1}
+										title="Move down"
+									>
+										↓
+									</button>
+								</span>
+							)}
 							<span class="scheduler-sort-prio">{i + 1}</span>
 							<span class="scheduler-sort-field">{s.field}</span>
 							<button
@@ -635,6 +656,9 @@ function TableView({
 	function startResize(e: MouseEvent, col: string) {
 		e.preventDefault();
 		e.stopPropagation();
+		// Touch devices synthesise mousedown; dragging here would fight
+		// horizontal scroll / taps. Column auto-fit is available via double-tap.
+		if (Platform.isMobile) return;
 		// Cancel any in-progress resize
 		resizeRef.current?.cancel();
 		resizeRef.current = null;
@@ -762,12 +786,14 @@ function TableView({
 						</tr>
 					</thead>
 					<tbody>
-					{paged.map((entry, idx) => (
-						<tr
-							key={entry.occurrenceId ?? entry.path}
-							class={`${selected.has(entry.path) ? "scheduler-row-selected" : ""}${activeRow === idx ? " scheduler-row-active" : ""}`}
-							onClick={() => setActiveRow(idx)}
-						>
+				{paged.map((entry, idx) => {
+					const longPress = makeLongPressHandlers();
+					return (
+					<tr
+						key={entry.occurrenceId ?? entry.path}
+						class={`${selected.has(entry.path) ? "scheduler-row-selected" : ""}${activeRow === idx ? " scheduler-row-active" : ""}`}
+						onClick={() => setActiveRow(idx)}
+					>
 							<td class="scheduler-col-select">
 								<input
 									type="checkbox"
@@ -777,15 +803,20 @@ function TableView({
 							</td>
 						{visibleCols.map((col) =>
 							col === "title" ? (
-								<td
-									class="scheduler-cell-title"
-									onClick={() => openFile(entry.path)}
-									onContextMenu={(e: any) =>
-										ctx.open(e, [
-											{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
-										])
-									}
-								>
+							<td
+								class="scheduler-cell-title"
+								onClick={() => {
+									if (longPress.consumeClick()) return;
+									openFile(entry.path);
+								}}
+								onContextMenu={(e: any) =>
+									ctx.open(e, [
+										{ label: "Open entry", onClick: () => openFile(entry.path) },
+										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+									])
+								}
+								{...longPress}
+							>
 									{formatCellValue(entry, col, parentTitles)}
 									{entry.recurrenceRule && (
 										<span class="scheduler-recurring-mark" title={`Repeats: ${entry.recurrenceRule}`}>
@@ -808,7 +839,8 @@ function TableView({
 								)
 						)}
 							</tr>
-						))}
+					);
+				})}
 					</tbody>
 					{onCreateEntry && (
 						<tfoot>
