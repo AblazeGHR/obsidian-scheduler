@@ -16,6 +16,7 @@ import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
 import { CodeblockViewState } from "../utils/codeblock-state";
 import { isInlinePath, parseInlinePath, applyInlineEdit } from "../utils/inline-editor";
+import { Popover, isInsidePopoverHost } from "./shared/popover";
 
 // ============================================================
 // Error Boundary — catches render errors and shows them
@@ -368,7 +369,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		if (!onStateChangeRef.current) return;
 		function onMouseDown(e: MouseEvent) {
 			const root = rootRef.current;
-			if (root && !root.contains(e.target as Node)) {
+			if (root && !root.contains(e.target as Node) && !isInsidePopoverHost(e.target as Node)) {
 				doSave();
 			}
 		}
@@ -779,17 +780,6 @@ function ToolbarDropdown({ label, children }: ToolbarDropdownProps) {
 	const [open, setOpen] = useState(false);
 	const wrapRef = useRef<HTMLDivElement | null>(null);
 
-	useEffect(() => {
-		if (!open) return;
-		function onDown(e: MouseEvent) {
-			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-				setOpen(false);
-			}
-		}
-		document.addEventListener("mousedown", onDown);
-		return () => document.removeEventListener("mousedown", onDown);
-	}, [open]);
-
 	return (
 		<div class="scheduler-toolbar-dropdown" ref={wrapRef}>
 			<button
@@ -799,11 +789,15 @@ function ToolbarDropdown({ label, children }: ToolbarDropdownProps) {
 			>
 				{label} ▼
 			</button>
-			{open && (
-				<div class="scheduler-toolbar-dropdown-menu" onClick={() => setOpen(false)}>
-					{children}
-				</div>
-			)}
+			<Popover
+				anchorRef={wrapRef}
+				open={open}
+				align="end"
+				className="scheduler-toolbar-dropdown-menu"
+				onOutsideClick={() => setOpen(false)}
+			>
+				<div onClick={() => setOpen(false)}>{children}</div>
+			</Popover>
 		</div>
 	);
 }

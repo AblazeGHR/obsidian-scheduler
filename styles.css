@@ -508,11 +508,8 @@
 }
 
 .scheduler-filter-panel {
-    position: absolute;
-    z-index: 100;
-    top: 100%;
-    left: 0;
-    margin-top: 4px;
+    /* Positioned by the body portal (Popover) via inline position:fixed —
+       no longer absolutely positioned inside the filter manager. */
     min-width: 420px;
     max-width: 560px;
     background: var(--background-primary);

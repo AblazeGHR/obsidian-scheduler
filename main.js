@@ -252,15 +252,15 @@ function H() {
   }
 }
 function L(n2, l3, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h5, p3, v3, y3, _2, g2, m3 = t3 && t3.__k || w, b2 = l3.length;
+  var s3, h6, p3, v3, y3, _2, g2, m3 = t3 && t3.__k || w, b2 = l3.length;
   for (f4 = T(u4, l3, m3, f4, b2), s3 = 0; s3 < b2; s3++)
-    null != (p3 = u4.__k[s3]) && (h5 = -1 != p3.__i && m3[p3.__i] || d, p3.__i = s3, _2 = q(n2, p3, h5, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h5.ref != p3.ref && (h5.ref && J(h5.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), (g2 = !!(4 & p3.__u)) || h5.__k === p3.__k ? (f4 = j(p3, f4, n2, g2), g2 && h5.__e && (h5.__e = null)) : "function" == typeof p3.type && void 0 !== _2 ? f4 = _2 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
+    null != (p3 = u4.__k[s3]) && (h6 = -1 != p3.__i && m3[p3.__i] || d, p3.__i = s3, _2 = q(n2, p3, h6, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h6.ref != p3.ref && (h6.ref && J(h6.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), (g2 = !!(4 & p3.__u)) || h6.__k === p3.__k ? (f4 = j(p3, f4, n2, g2), g2 && h6.__e && (h6.__e = null)) : "function" == typeof p3.type && void 0 !== _2 ? f4 = _2 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
   return u4.__e = y3, f4;
 }
 function T(n2, l3, u4, t3, i4) {
-  var r3, o3, e3, f4, c3, a3 = u4.length, s3 = a3, h5 = 0;
+  var r3, o3, e3, f4, c3, a3 = u4.length, s3 = a3, h6 = 0;
   for (n2.__k = new Array(i4), r3 = 0; r3 < i4; r3++)
-    null != (o3 = l3[r3]) && "boolean" != typeof o3 && "function" != typeof o3 ? ("string" == typeof o3 || "number" == typeof o3 || "bigint" == typeof o3 || o3.constructor == String ? o3 = n2.__k[r3] = x(null, o3, null, null, null) : g(o3) ? o3 = n2.__k[r3] = x(S, { children: o3 }, null, null, null) : void 0 === o3.constructor && o3.__b > 0 ? o3 = n2.__k[r3] = x(o3.type, o3.props, o3.key, o3.ref ? o3.ref : null, o3.__v) : n2.__k[r3] = o3, f4 = r3 + h5, o3.__ = n2, o3.__b = n2.__b + 1, e3 = null, -1 != (c3 = o3.__i = O(o3, u4, f4, s3)) && (s3--, (e3 = u4[c3]) && (e3.__u |= 2)), null == e3 || null == e3.__v ? (-1 == c3 && (i4 > a3 ? h5-- : i4 < a3 && h5++), "function" != typeof o3.type && (o3.__u |= 4)) : c3 != f4 && (c3 == f4 - 1 ? h5-- : c3 == f4 + 1 ? h5++ : (c3 > f4 ? h5-- : h5++, o3.__u |= 4))) : n2.__k[r3] = null;
+    null != (o3 = l3[r3]) && "boolean" != typeof o3 && "function" != typeof o3 ? ("string" == typeof o3 || "number" == typeof o3 || "bigint" == typeof o3 || o3.constructor == String ? o3 = n2.__k[r3] = x(null, o3, null, null, null) : g(o3) ? o3 = n2.__k[r3] = x(S, { children: o3 }, null, null, null) : void 0 === o3.constructor && o3.__b > 0 ? o3 = n2.__k[r3] = x(o3.type, o3.props, o3.key, o3.ref ? o3.ref : null, o3.__v) : n2.__k[r3] = o3, f4 = r3 + h6, o3.__ = n2, o3.__b = n2.__b + 1, e3 = null, -1 != (c3 = o3.__i = O(o3, u4, f4, s3)) && (s3--, (e3 = u4[c3]) && (e3.__u |= 2)), null == e3 || null == e3.__v ? (-1 == c3 && (i4 > a3 ? h6-- : i4 < a3 && h6++), "function" != typeof o3.type && (o3.__u |= 4)) : c3 != f4 && (c3 == f4 - 1 ? h6-- : c3 == f4 + 1 ? h6++ : (c3 > f4 ? h6-- : h6++, o3.__u |= 4))) : n2.__k[r3] = null;
   if (s3)
     for (r3 = 0; r3 < a3; r3++)
       null != (e3 = u4[r3]) && 0 == (2 & e3.__u) && (e3.__e == t3 && (t3 = $(e3)), K(e3, e3));
@@ -334,13 +334,13 @@ function V(n2) {
   };
 }
 function q(n2, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h5, p3, v3, y3, d3, _2, k3, x2, M, $2, I2, P2, A3, H2, T3, j3 = u4.type;
+  var s3, h6, p3, v3, y3, d3, _2, k3, x2, M, $2, I2, P2, A3, H2, T3, j3 = u4.type;
   if (void 0 !== u4.constructor)
     return null;
   128 & t3.__u && (c3 = !!(32 & t3.__u), o3 = [f4 = u4.__e = t3.__e]), (s3 = l.__b) && s3(u4);
   n:
     if ("function" == typeof j3) {
-      h5 = e3.length;
+      h6 = e3.length;
       try {
         if (x2 = u4.props, M = j3.prototype && j3.prototype.render, $2 = (s3 = j3.contextType) && i4[s3.__c], I2 = s3 ? $2 ? $2.props.value : s3.__ : i4, t3.__c ? k3 = (p3 = u4.__c = t3.__c).__ = p3.__E : (M ? u4.__c = p3 = new j3(x2, I2) : (u4.__c = p3 = new C(x2, I2), p3.constructor = j3, p3.render = Q), $2 && $2.sub(p3), p3.state || (p3.state = {}), p3.__n = i4, v3 = p3.__d = true, p3.__h = [], p3._sb = []), M && null == p3.__s && (p3.__s = p3.state), M && null != j3.getDerivedStateFromProps && (p3.__s == p3.state && (p3.__s = m({}, p3.__s)), m(p3.__s, j3.getDerivedStateFromProps(x2, p3.__s))), y3 = p3.props, d3 = p3.state, p3.__v = u4, v3)
           M && null == j3.getDerivedStateFromProps && null != p3.componentWillMount && p3.componentWillMount(), M && null != p3.componentDidMount && p3.__h.push(p3.componentDidMount);
@@ -363,7 +363,7 @@ function q(n2, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
           } while (p3.__d && ++A3 < 25);
         p3.state = p3.__s, null != p3.getChildContext && (i4 = m(m({}, i4), p3.getChildContext())), M && !v3 && null != p3.getSnapshotBeforeUpdate && (_2 = p3.getSnapshotBeforeUpdate(y3, d3)), H2 = null != s3 && s3.type === S && null == s3.key ? E(s3.props.children) : s3, f4 = L(n2, g(H2) ? H2 : [H2], u4, t3, i4, r3, o3, e3, f4, c3, a3), p3.base = u4.__e, u4.__u &= -161, p3.__h.length && e3.push(p3), k3 && (p3.__E = p3.__ = null);
       } catch (n3) {
-        if (e3.length = h5, u4.__v = null, c3 || null != o3)
+        if (e3.length = h6, u4.__v = null, c3 || null != o3)
           if (n3.then) {
             for (u4.__u |= c3 ? 160 : 128; f4 && 8 == f4.nodeType && f4.nextSibling; )
               f4 = f4.nextSibling;
@@ -402,7 +402,7 @@ function E(n2) {
   return "object" != typeof n2 || null == n2 || n2.__b > 0 ? n2 : g(n2) ? n2.map(E) : void 0 !== n2.constructor ? null : m({}, n2);
 }
 function G(u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h5, p3, v3, y3, w3, _2, m3 = i4.props || d, k3 = t3.props, x2 = t3.type;
+  var s3, h6, p3, v3, y3, w3, _2, m3 = i4.props || d, k3 = t3.props, x2 = t3.type;
   if ("svg" == x2 ? o3 = "http://www.w3.org/2000/svg" : "math" == x2 ? o3 = "http://www.w3.org/1998/Math/MathML" : o3 || (o3 = "http://www.w3.org/1999/xhtml"), null != e3) {
     for (s3 = 0; s3 < e3.length; s3++)
       if ((y3 = e3[s3]) && "setAttribute" in y3 == !!x2 && (x2 ? y3.localName == x2 : 3 == y3.nodeType)) {
@@ -424,9 +424,9 @@ function G(u4, t3, i4, r3, o3, e3, f4, c3, a3) {
     for (s3 in m3)
       y3 = m3[s3], "dangerouslySetInnerHTML" == s3 ? p3 = y3 : "children" == s3 || s3 in k3 || "value" == s3 && "defaultValue" in k3 || "checked" == s3 && "defaultChecked" in k3 || N(u4, s3, null, y3, o3);
     for (s3 in k3)
-      y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h5 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _2 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
-    if (h5)
-      c3 || p3 && (h5.__html == p3.__html || h5.__html == u4.innerHTML) || (u4.innerHTML = h5.__html), t3.__k = [];
+      y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h6 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _2 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
+    if (h6)
+      c3 || p3 && (h6.__html == p3.__html || h6.__html == u4.innerHTML) || (u4.innerHTML = h6.__html), t3.__k = [];
     else if (p3 && (u4.innerHTML = ""), L("template" == t3.type ? u4.content : u4, g(v3) ? v3 : [v3], t3, i4, r3, "foreignObject" == x2 ? "http://www.w3.org/1999/xhtml" : o3, e3, f4, e3 ? e3[0] : i4.__k && $(i4, 0), c3, a3), null != e3)
       for (s3 = e3.length; s3--; )
         b(e3[s3]);
@@ -1032,9 +1032,6 @@ function dateCompare2(a3, b2) {
   return a3.getDate() - b2.getDate();
 }
 
-// src/views/calendar/calendar-view.tsx
-var import_obsidian3 = require("obsidian");
-
 // node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
 var f3 = 0;
 var i3 = Array.isArray;
@@ -1050,6 +1047,125 @@ function u3(e3, t3, n2, o3, i4, u4) {
       void 0 === p3[c3] && (p3[c3] = a3[c3]);
   return l.vnode && l.vnode(l3), l3;
 }
+
+// src/views/shared/popover.tsx
+var liveHosts = /* @__PURE__ */ new Set();
+function isInsidePopoverHost(target) {
+  if (!target)
+    return false;
+  for (const host of liveHosts) {
+    if (host.contains(target))
+      return true;
+  }
+  return false;
+}
+function Popover({
+  anchorRef,
+  open,
+  align = "start",
+  offsetY = 4,
+  onOutsideClick,
+  className,
+  children
+}) {
+  const hostRef = A2(null);
+  const [pos, setPos] = d2(null);
+  h2(() => {
+    const host = document.createElement("div");
+    host.className = "scheduler-popover-host";
+    document.body.appendChild(host);
+    hostRef.current = host;
+    liveHosts.add(host);
+    return () => {
+      R(null, host);
+      host.remove();
+      liveHosts.delete(host);
+      hostRef.current = null;
+    };
+  }, []);
+  const reposition = q2(() => {
+    const host = hostRef.current;
+    const el = host?.firstElementChild;
+    const anchor = anchorRef?.current;
+    if (!anchor || !el)
+      return;
+    const r3 = anchor.getBoundingClientRect();
+    const margin = 8;
+    const w3 = el.offsetWidth || 200;
+    const h6 = el.offsetHeight || 0;
+    let left = align === "end" ? r3.right - w3 : r3.left;
+    let top = r3.bottom + offsetY;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w3 - margin));
+    top = Math.max(margin, Math.min(top, window.innerHeight - h6 - margin));
+    setPos(
+      (prev) => prev && Math.abs(prev.left - left) < 1 && Math.abs(prev.top - top) < 1 ? prev : { left, top }
+    );
+  }, [anchorRef, align, offsetY]);
+  h2(() => {
+    const host = hostRef.current;
+    if (!host)
+      return;
+    if (!open) {
+      R(null, host);
+      setPos(null);
+      return;
+    }
+    R(
+      /* @__PURE__ */ u3(
+        "div",
+        {
+          class: className,
+          style: {
+            position: "fixed",
+            left: `${pos?.left ?? 0}px`,
+            top: `${pos?.top ?? 0}px`,
+            right: "auto",
+            bottom: "auto",
+            marginTop: 0,
+            // offsetY handles the gap; cancel CSS margin-top
+            zIndex: 1e3,
+            maxHeight: "calc(100vh - 16px)",
+            overflowY: "auto",
+            overflowX: "hidden"
+          },
+          children
+        }
+      ),
+      host
+    );
+    reposition();
+  }, [open, children, pos, reposition]);
+  h2(() => {
+    if (!open)
+      return;
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open, reposition]);
+  h2(() => {
+    if (!open || !onOutsideClick)
+      return;
+    function onDown(e3) {
+      const host = hostRef.current;
+      const anchor = anchorRef?.current;
+      const t3 = e3.target;
+      if (anchor && anchor.contains(t3))
+        return;
+      if (host && host.contains(t3))
+        return;
+      onOutsideClick?.();
+    }
+    document.addEventListener("mousedown", onDown, true);
+    return () => document.removeEventListener("mousedown", onDown, true);
+  }, [open, onOutsideClick, anchorRef]);
+  return null;
+}
+
+// src/views/calendar/calendar-view.tsx
+var import_obsidian3 = require("obsidian");
 
 // src/views/shared/searchable-select.tsx
 function SearchableSelect({ options, value, onChange, placeholder, class: cls }) {
@@ -1070,17 +1186,6 @@ function SearchableSelect({ options, value, onChange, placeholder, class: cls })
       setQuery("");
       setActiveIdx(-1);
     }
-  }, [open]);
-  h2(() => {
-    if (!open)
-      return;
-    function onDown(e3) {
-      if (wrapRef.current && !wrapRef.current.contains(e3.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
   function pick(val) {
     onChange(val);
@@ -1124,35 +1229,45 @@ function SearchableSelect({ options, value, onChange, placeholder, class: cls })
             ]
           }
         ),
-        open && /* @__PURE__ */ u3("div", { class: "scheduler-searchable-dropdown", children: [
-          /* @__PURE__ */ u3(
-            "input",
-            {
-              ref: inputRef,
-              class: "scheduler-searchable-input",
-              type: "text",
-              value: query,
-              placeholder: placeholder ?? "Search\u2026",
-              onInput: (e3) => {
-                setQuery(e3.target.value);
-                setActiveIdx(-1);
-              },
-              onKeyDown: (e3) => handleKey(e3)
-            }
-          ),
-          /* @__PURE__ */ u3("div", { class: "scheduler-searchable-list", children: [
-            filtered.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-searchable-empty", children: "No results" }),
-            filtered.map((o3, idx) => /* @__PURE__ */ u3(
-              "div",
-              {
-                class: `scheduler-searchable-item${idx === activeIdx ? " active" : ""}${o3 === value ? " selected" : ""}`,
-                onMouseDown: (e3) => e3.preventDefault(),
-                onClick: () => pick(o3),
-                children: o3
-              }
-            ))
-          ] })
-        ] })
+        open && /* @__PURE__ */ u3(
+          Popover,
+          {
+            anchorRef: wrapRef,
+            open,
+            className: "scheduler-searchable-dropdown",
+            offsetY: 2,
+            onOutsideClick: () => setOpen(false),
+            children: [
+              /* @__PURE__ */ u3(
+                "input",
+                {
+                  ref: inputRef,
+                  class: "scheduler-searchable-input",
+                  type: "text",
+                  value: query,
+                  placeholder: placeholder ?? "Search\u2026",
+                  onInput: (e3) => {
+                    setQuery(e3.target.value);
+                    setActiveIdx(-1);
+                  },
+                  onKeyDown: (e3) => handleKey(e3)
+                }
+              ),
+              /* @__PURE__ */ u3("div", { class: "scheduler-searchable-list", children: [
+                filtered.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-searchable-empty", children: "No results" }),
+                filtered.map((o3, idx) => /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: `scheduler-searchable-item${idx === activeIdx ? " active" : ""}${o3 === value ? " selected" : ""}`,
+                    onMouseDown: (e3) => e3.preventDefault(),
+                    onClick: () => pick(o3),
+                    children: o3
+                  }
+                ))
+              ] })
+            ]
+          }
+        )
       ]
     }
   );
@@ -1962,6 +2077,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
   const [mode, setMode] = d2("month");
   const [showFilter, setShowFilter] = d2(false);
   const [showCodeModal, setShowCodeModal] = d2(false);
+  const filterAnchorRef = A2(null);
   const ctx = useContextMenu();
   const mobileMove = useMobileMove();
   const [selectedPaths, setSelectedPaths] = d2(/* @__PURE__ */ new Set());
@@ -2138,7 +2254,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
       /* @__PURE__ */ u3("div", { class: "scheduler-calendar-nav-group", children: [
         /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(-1), title: "Previous", children: "\u2039" }),
         /* @__PURE__ */ u3("div", { class: "scheduler-calendar-title", children: /* @__PURE__ */ u3("span", { class: "scheduler-calendar-month", children: title }) }),
-        onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+        onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", ref: filterAnchorRef, children: [
           /* @__PURE__ */ u3("button", { class: "scheduler-filter-btn", onClick: () => setShowFilter((o3) => !o3), title: "Filters", children: [
             "Filter ",
             showFilter ? "\u25B2" : "\u25BC",
@@ -2146,7 +2262,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
             filters?.length ?? 0,
             ")"
           ] }),
-          showFilter && /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) })
+          /* @__PURE__ */ u3(Popover, { anchorRef: filterAnchorRef, open: showFilter, children: /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) }) })
         ] }),
         /* @__PURE__ */ u3("button", { class: "scheduler-calendar-nav", onClick: () => step2(1), title: "Next", children: "\u203A" })
       ] }),
@@ -2487,6 +2603,7 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
   const [visibleDays, setVisibleDays] = d2(1);
   const [showFilter, setShowFilter] = d2(false);
   const [showCodeModal, setShowCodeModal] = d2(false);
+  const filterAnchorRef = A2(null);
   const [drag, setDrag] = d2(null);
   const [create, setCreate] = d2(null);
   const scrollRef = A2(null);
@@ -2638,7 +2755,7 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
     /* @__PURE__ */ u3("div", { class: "scheduler-timeline-header", children: [
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-nav", onClick: () => step2(-1), children: "\u2039" }),
       /* @__PURE__ */ u3("div", { class: "scheduler-timeline-date", children: titleRange }),
-      onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+      onFiltersChange && columns && /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", ref: filterAnchorRef, children: [
         /* @__PURE__ */ u3("button", { class: "scheduler-filter-btn", onClick: () => setShowFilter((o3) => !o3), title: "Filters", children: [
           "Filter ",
           showFilter ? "\u25B2" : "\u25BC",
@@ -2646,7 +2763,7 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
           filters?.length ?? 0,
           ")"
         ] }),
-        showFilter && /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) })
+        /* @__PURE__ */ u3(Popover, { anchorRef: filterAnchorRef, open: showFilter, children: /* @__PURE__ */ u3(FilterPanel, { columns, clauses: filters ?? [], onClausesChange: onFiltersChange, onCodeEdit: () => setShowCodeModal(true) }) })
       ] }),
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-nav", onClick: () => step2(1), children: "\u203A" }),
       /* @__PURE__ */ u3("button", { class: "scheduler-timeline-today", onClick: goToToday, children: "Today" }),
@@ -3376,6 +3493,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
   }
   const [showColMenu, setShowColMenu] = d2(false);
   const [colSearch, setColSearch] = d2("");
+  const colAnchorRef = A2(null);
   const filteredColumns = T2(() => {
     const q3 = colSearch.trim().toLowerCase();
     if (!q3)
@@ -3384,10 +3502,11 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
   }, [columns, colSearch]);
   const [showFilter, setShowFilter] = d2(false);
   const [showCodeModal, setShowCodeModal] = d2(false);
+  const filterAnchorRef = A2(null);
   return /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar", children: [
     /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-left", children: [
       /* @__PURE__ */ u3(SortManager, { columns, sort, onSortChange }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", children: [
+      /* @__PURE__ */ u3("div", { class: "scheduler-filter-manager", ref: filterAnchorRef, children: [
         /* @__PURE__ */ u3(
           "button",
           {
@@ -3403,7 +3522,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
             ]
           }
         ),
-        showFilter && /* @__PURE__ */ u3(
+        /* @__PURE__ */ u3(Popover, { anchorRef: filterAnchorRef, open: showFilter, children: /* @__PURE__ */ u3(
           FilterPanel,
           {
             columns,
@@ -3411,13 +3530,13 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
             onClausesChange: onFiltersChange,
             onCodeEdit: () => setShowCodeModal(true)
           }
-        )
+        ) })
       ] })
     ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-filter-bar-right", children: [
       onCreateEntry && /* @__PURE__ */ u3("button", { class: "scheduler-filter-new", onClick: onCreateEntry, title: "New entry with current filters", children: "+ New" }),
       /* @__PURE__ */ u3("span", { class: "scheduler-filter-count", children: entriesCount === totalCount ? `${totalCount} entries` : `${entriesCount} / ${totalCount} entries` }),
-      /* @__PURE__ */ u3("div", { class: "scheduler-col-toggle", children: [
+      /* @__PURE__ */ u3("div", { class: "scheduler-col-toggle", ref: colAnchorRef, children: [
         /* @__PURE__ */ u3(
           "button",
           {
@@ -3430,32 +3549,41 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
             children: "Columns"
           }
         ),
-        showColMenu && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu", children: [
-          /* @__PURE__ */ u3(
-            "input",
-            {
-              class: "scheduler-col-search",
-              type: "text",
-              value: colSearch,
-              placeholder: "Search columns\u2026",
-              onInput: (e3) => setColSearch(e3.target.value)
-            }
-          ),
-          /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-list", children: [
-            filteredColumns.map((col) => /* @__PURE__ */ u3("label", { class: "scheduler-col-menu-item", children: [
+        /* @__PURE__ */ u3(
+          Popover,
+          {
+            anchorRef: colAnchorRef,
+            open: showColMenu,
+            align: "end",
+            className: "scheduler-col-menu",
+            children: [
               /* @__PURE__ */ u3(
                 "input",
                 {
-                  type: "checkbox",
-                  checked: !hiddenCols.has(col),
-                  onChange: () => toggleColumn(col)
+                  class: "scheduler-col-search",
+                  type: "text",
+                  value: colSearch,
+                  placeholder: "Search columns\u2026",
+                  onInput: (e3) => setColSearch(e3.target.value)
                 }
               ),
-              col
-            ] })),
-            filteredColumns.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-empty", children: "No matching columns" })
-          ] })
-        ] })
+              /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-list", children: [
+                filteredColumns.map((col) => /* @__PURE__ */ u3("label", { class: "scheduler-col-menu-item", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "checkbox",
+                      checked: !hiddenCols.has(col),
+                      onChange: () => toggleColumn(col)
+                    }
+                  ),
+                  col
+                ] })),
+                filteredColumns.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-col-menu-empty", children: "No matching columns" })
+              ] })
+            ]
+          }
+        )
       ] })
     ] }),
     showCodeModal && /* @__PURE__ */ u3(
@@ -3531,6 +3659,7 @@ function SortManager({ columns, sort, onSortChange }) {
   const [open, setOpen] = d2(false);
   const [dragIndex, setDragIndex] = d2(null);
   const [newField, setNewField] = d2(columns[0] ?? "title");
+  const anchorRef = A2(null);
   function toggleDir(i4) {
     onSortChange(
       sort.map(
@@ -3554,7 +3683,7 @@ function SortManager({ columns, sort, onSortChange }) {
       return;
     onSortChange([...sort, { field: newField, direction: "asc" }]);
   }
-  return /* @__PURE__ */ u3("div", { class: "scheduler-sort-manager", children: [
+  return /* @__PURE__ */ u3("div", { class: "scheduler-sort-manager", ref: anchorRef, children: [
     /* @__PURE__ */ u3(
       "button",
       {
@@ -3570,7 +3699,7 @@ function SortManager({ columns, sort, onSortChange }) {
         ]
       }
     ),
-    open && /* @__PURE__ */ u3("div", { class: "scheduler-sort-panel", children: [
+    /* @__PURE__ */ u3(Popover, { anchorRef, open, className: "scheduler-sort-panel", children: [
       sort.length === 0 && /* @__PURE__ */ u3("div", { class: "scheduler-sort-empty", children: "No sort yet. Click a column header to sort, or add a field below." }),
       sort.map((s3, i4) => /* @__PURE__ */ u3(
         "div",
@@ -4763,7 +4892,7 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
       return;
     function onMouseDown(e3) {
       const root = rootRef.current;
-      if (root && !root.contains(e3.target)) {
+      if (root && !root.contains(e3.target) && !isInsidePopoverHost(e3.target)) {
         doSave();
       }
     }
@@ -5087,17 +5216,6 @@ ${titleLine}
 function ToolbarDropdown({ label, children }) {
   const [open, setOpen] = d2(false);
   const wrapRef = A2(null);
-  h2(() => {
-    if (!open)
-      return;
-    function onDown(e3) {
-      if (wrapRef.current && !wrapRef.current.contains(e3.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
   return /* @__PURE__ */ u3("div", { class: "scheduler-toolbar-dropdown", ref: wrapRef, children: [
     /* @__PURE__ */ u3(
       "button",
@@ -5111,7 +5229,17 @@ function ToolbarDropdown({ label, children }) {
         ]
       }
     ),
-    open && /* @__PURE__ */ u3("div", { class: "scheduler-toolbar-dropdown-menu", onClick: () => setOpen(false), children })
+    /* @__PURE__ */ u3(
+      Popover,
+      {
+        anchorRef: wrapRef,
+        open,
+        align: "end",
+        className: "scheduler-toolbar-dropdown-menu",
+        onOutsideClick: () => setOpen(false),
+        children: /* @__PURE__ */ u3("div", { onClick: () => setOpen(false), children })
+      }
+    )
   ] });
 }
 function SchedulerViewTabs({ current, onChange }) {

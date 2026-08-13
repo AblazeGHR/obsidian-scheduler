@@ -5,6 +5,7 @@ import { useContextMenu, makeLongPressHandlers } from "../context-menu";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
 import { SearchableSelect } from "../shared/searchable-select";
+import { Popover } from "../shared/popover";
 import { QueryEngine } from "../../query/query-engine";
 import { PageEntry, FieldMapping, SortConfig, FilterClause, AtomicCondition, FilterOperator } from "../../types";
 import {
@@ -164,6 +165,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 
 	const [showColMenu, setShowColMenu] = useState(false);
 	const [colSearch, setColSearch] = useState("");
+	const colAnchorRef = useRef<HTMLDivElement | null>(null);
 
 	const filteredColumns = useMemo(() => {
 		const q = colSearch.trim().toLowerCase();
@@ -172,12 +174,13 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 	}, [columns, colSearch]);
 	const [showFilter, setShowFilter] = useState(false);
 	const [showCodeModal, setShowCodeModal] = useState(false);
+	const filterAnchorRef = useRef<HTMLDivElement | null>(null);
 
 		return (
 		<div class="scheduler-filter-bar">
 			<div class="scheduler-filter-bar-left">
 				<SortManager columns={columns} sort={sort} onSortChange={onSortChange} />
-				<div class="scheduler-filter-manager">
+				<div class="scheduler-filter-manager" ref={filterAnchorRef}>
 					<button
 						class="scheduler-filter-btn"
 						onClick={() => setShowFilter((o) => !o)}
@@ -185,14 +188,14 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 					>
 						Filter {showFilter ? "▲" : "▼"} ({filters.length})
 					</button>
-					{showFilter && (
+					<Popover anchorRef={filterAnchorRef} open={showFilter}>
 						<FilterPanel
 							columns={columns}
 							clauses={filters}
 							onClausesChange={onFiltersChange}
 							onCodeEdit={() => setShowCodeModal(true)}
 						/>
-					)}
+					</Popover>
 				</div>
 			</div>
 
@@ -208,7 +211,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 						: `${entriesCount} / ${totalCount} entries`}
 				</span>
 
-				<div class="scheduler-col-toggle">
+				<div class="scheduler-col-toggle" ref={colAnchorRef}>
 					<button
 						class="scheduler-col-toggle-btn"
 						onClick={() => { setShowColMenu(!showColMenu); setColSearch(""); }}
@@ -216,32 +219,35 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 					>
 						Columns
 					</button>
-					{showColMenu && (
-						<div class="scheduler-col-menu">
-							<input
-								class="scheduler-col-search"
-								type="text"
-								value={colSearch}
-								placeholder="Search columns…"
-								onInput={(e: any) => setColSearch(e.target.value)}
-							/>
-							<div class="scheduler-col-menu-list">
-								{filteredColumns.map((col) => (
-									<label class="scheduler-col-menu-item">
-										<input
-											type="checkbox"
-											checked={!hiddenCols.has(col)}
-											onChange={() => toggleColumn(col)}
-										/>
-										{col}
-									</label>
-								))}
-								{filteredColumns.length === 0 && (
-									<div class="scheduler-col-menu-empty">No matching columns</div>
-								)}
-							</div>
+					<Popover
+						anchorRef={colAnchorRef}
+						open={showColMenu}
+						align="end"
+						className="scheduler-col-menu"
+					>
+						<input
+							class="scheduler-col-search"
+							type="text"
+							value={colSearch}
+							placeholder="Search columns…"
+							onInput={(e: any) => setColSearch(e.target.value)}
+						/>
+						<div class="scheduler-col-menu-list">
+							{filteredColumns.map((col) => (
+								<label class="scheduler-col-menu-item">
+									<input
+										type="checkbox"
+										checked={!hiddenCols.has(col)}
+										onChange={() => toggleColumn(col)}
+									/>
+									{col}
+								</label>
+							))}
+							{filteredColumns.length === 0 && (
+								<div class="scheduler-col-menu-empty">No matching columns</div>
+							)}
 						</div>
-					)}
+					</Popover>
 				</div>
 			</div>
 			{showCodeModal && (
@@ -341,6 +347,7 @@ function SortManager({ columns, sort, onSortChange }: SortManagerProps) {
 	const [open, setOpen] = useState(false);
 	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [newField, setNewField] = useState(columns[0] ?? "title");
+	const anchorRef = useRef<HTMLDivElement | null>(null);
 
 	function toggleDir(i: number) {
 		onSortChange(
@@ -368,7 +375,7 @@ function SortManager({ columns, sort, onSortChange }: SortManagerProps) {
 	}
 
 	return (
-		<div class="scheduler-sort-manager">
+		<div class="scheduler-sort-manager" ref={anchorRef}>
 			<button
 				class="scheduler-sort-btn"
 				onClick={() => setOpen((o) => !o)}
@@ -376,75 +383,73 @@ function SortManager({ columns, sort, onSortChange }: SortManagerProps) {
 			>
 				Sort {open ? "▲" : "▼"} ({sort.length})
 			</button>
-			{open && (
-				<div class="scheduler-sort-panel">
-					{sort.length === 0 && (
-						<div class="scheduler-sort-empty">
-							No sort yet. Click a column header to sort, or add a field below.
-						</div>
-					)}
-					{sort.map((s, i) => (
-						<div
-							class={`scheduler-sort-row${dragIndex === i ? " dragging" : ""}`}
-							draggable={true}
-							onDragStart={() => setDragIndex(i)}
-							onDragOver={(e: any) => e.preventDefault()}
-							onDrop={() => {
-								if (dragIndex !== null) move(dragIndex, i);
-								setDragIndex(null);
-							}}
-							onDragEnd={() => setDragIndex(null)}
-						>
-							<span class="scheduler-sort-grip" title="Drag to reorder priority">
-								⋮⋮
+			<Popover anchorRef={anchorRef} open={open} className="scheduler-sort-panel">
+				{sort.length === 0 && (
+					<div class="scheduler-sort-empty">
+						No sort yet. Click a column header to sort, or add a field below.
+					</div>
+				)}
+				{sort.map((s, i) => (
+					<div
+						class={`scheduler-sort-row${dragIndex === i ? " dragging" : ""}`}
+						draggable={true}
+						onDragStart={() => setDragIndex(i)}
+						onDragOver={(e: any) => e.preventDefault()}
+						onDrop={() => {
+							if (dragIndex !== null) move(dragIndex, i);
+							setDragIndex(null);
+						}}
+						onDragEnd={() => setDragIndex(null)}
+					>
+						<span class="scheduler-sort-grip" title="Drag to reorder priority">
+							⋮⋮
+						</span>
+						{Platform.isMobile && (
+							<span class="scheduler-sort-move">
+								<button
+									class="scheduler-sort-move-btn"
+									onClick={() => move(i, i - 1)}
+									disabled={i === 0}
+									title="Move up"
+								>
+									↑
+								</button>
+								<button
+									class="scheduler-sort-move-btn"
+									onClick={() => move(i, i + 1)}
+									disabled={i === sort.length - 1}
+									title="Move down"
+								>
+									↓
+								</button>
 							</span>
-							{Platform.isMobile && (
-								<span class="scheduler-sort-move">
-									<button
-										class="scheduler-sort-move-btn"
-										onClick={() => move(i, i - 1)}
-										disabled={i === 0}
-										title="Move up"
-									>
-										↑
-									</button>
-									<button
-										class="scheduler-sort-move-btn"
-										onClick={() => move(i, i + 1)}
-										disabled={i === sort.length - 1}
-										title="Move down"
-									>
-										↓
-									</button>
-								</span>
-							)}
-							<span class="scheduler-sort-prio">{i + 1}</span>
-							<span class="scheduler-sort-field">{s.field}</span>
-							<button
-								class="scheduler-sort-dir"
-								onClick={() => toggleDir(i)}
-								title={s.direction === "asc" ? "Ascending" : "Descending"}
-							>
-								{s.direction === "asc" ? "↑" : "↓"}
-							</button>
-							<button class="scheduler-sort-remove" onClick={() => remove(i)} title="Remove sort">
-								×
-							</button>
-						</div>
-					))}
-					<div class="scheduler-sort-add">
-						<SearchableSelect
-							options={columns}
-							value={newField}
-							placeholder="field…"
-							onChange={(val: string) => setNewField(val)}
-						/>
-						<button class="scheduler-sort-add-btn" onClick={add} disabled={sort.some((s) => s.field === newField)}>
-							Add
+						)}
+						<span class="scheduler-sort-prio">{i + 1}</span>
+						<span class="scheduler-sort-field">{s.field}</span>
+						<button
+							class="scheduler-sort-dir"
+							onClick={() => toggleDir(i)}
+							title={s.direction === "asc" ? "Ascending" : "Descending"}
+						>
+							{s.direction === "asc" ? "↑" : "↓"}
+						</button>
+						<button class="scheduler-sort-remove" onClick={() => remove(i)} title="Remove sort">
+							×
 						</button>
 					</div>
+				))}
+				<div class="scheduler-sort-add">
+					<SearchableSelect
+						options={columns}
+						value={newField}
+						placeholder="field…"
+						onChange={(val: string) => setNewField(val)}
+					/>
+					<button class="scheduler-sort-add-btn" onClick={add} disabled={sort.some((s) => s.field === newField)}>
+						Add
+					</button>
 				</div>
-			)}
+			</Popover>
 		</div>
 	);
 }

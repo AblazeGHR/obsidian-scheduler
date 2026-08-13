@@ -7,6 +7,7 @@ import { useContextMenu, makeLongPressHandlers } from "../context-menu";
 import { evaluateFilterTree } from "../../utils/filter-evaluator";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
+import { Popover } from "../shared/popover";
 import { useMobileMove } from "../shared/mobile-move";
 
 const HOUR_HEIGHT = 60; // px per hour
@@ -167,6 +168,7 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 	const [visibleDays, setVisibleDays] = useState(1);
 	const [showFilter, setShowFilter] = useState(false);
 	const [showCodeModal, setShowCodeModal] = useState(false);
+	const filterAnchorRef = useRef<HTMLDivElement | null>(null);
 	const [drag, setDrag] = useState<DragState | null>(null);
 	const [create, setCreate] = useState<CreateState | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -354,13 +356,13 @@ export function TimelineView({ entries, mapping, filters, onFiltersChange, colum
 				<button class="scheduler-timeline-nav" onClick={() => step(-1)}>&lsaquo;</button>
 				<div class="scheduler-timeline-date">{titleRange}</div>
 				{onFiltersChange && columns && (
-					<div class="scheduler-filter-manager">
+					<div class="scheduler-filter-manager" ref={filterAnchorRef}>
 						<button class="scheduler-filter-btn" onClick={() => setShowFilter((o) => !o)} title="Filters">
 							Filter {showFilter ? "▲" : "▼"} ({filters?.length ?? 0})
 						</button>
-						{showFilter && (
+						<Popover anchorRef={filterAnchorRef} open={showFilter}>
 							<FilterPanel columns={columns} clauses={filters ?? []} onClausesChange={onFiltersChange} onCodeEdit={() => setShowCodeModal(true)} />
-						)}
+						</Popover>
 					</div>
 				)}
 				<button class="scheduler-timeline-nav" onClick={() => step(1)}>&rsaquo;</button>

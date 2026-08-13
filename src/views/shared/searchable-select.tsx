@@ -1,5 +1,6 @@
 import { h } from "preact";
 import { useState, useRef, useEffect, useMemo } from "preact/hooks";
+import { Popover } from "./popover";
 
 interface SearchableSelectProps {
 	/** All available options. */
@@ -40,18 +41,6 @@ export function SearchableSelect({ options, value, onChange, placeholder, class:
 		}
 	}, [open]);
 
-	// Close on outside click
-	useEffect(() => {
-		if (!open) return;
-		function onDown(e: MouseEvent) {
-			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-				setOpen(false);
-			}
-		}
-		document.addEventListener("mousedown", onDown);
-		return () => document.removeEventListener("mousedown", onDown);
-	}, [open]);
-
 	function pick(val: string) {
 		onChange(val);
 		setOpen(false);
@@ -89,7 +78,13 @@ export function SearchableSelect({ options, value, onChange, placeholder, class:
 				<span class="scheduler-searchable-arrow">&#9662;</span>
 			</button>
 			{open && (
-				<div class="scheduler-searchable-dropdown">
+				<Popover
+					anchorRef={wrapRef}
+					open={open}
+					className="scheduler-searchable-dropdown"
+					offsetY={2}
+					onOutsideClick={() => setOpen(false)}
+				>
 					<input
 						ref={inputRef}
 						class="scheduler-searchable-input"
@@ -113,7 +108,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, class:
 							</div>
 						))}
 					</div>
-				</div>
+				</Popover>
 			)}
 		</div>
 	);

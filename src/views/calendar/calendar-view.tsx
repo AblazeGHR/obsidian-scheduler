@@ -1,5 +1,6 @@
 import { h } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
+import { Popover } from "../shared/popover";
 import { Platform } from "obsidian";
 import { FilterPanel } from "../filter/filter-panel";
 import { FilterModal } from "../filter/filter-modal";
@@ -109,6 +110,7 @@ export function CalendarView({ entries, mapping, filters, onFiltersChange, colum
 	const [mode, setMode] = useState<"month" | "week">("month");
 	const [showFilter, setShowFilter] = useState(false);
 	const [showCodeModal, setShowCodeModal] = useState(false);
+	const filterAnchorRef = useRef<HTMLDivElement | null>(null);
 	const ctx = useContextMenu();
 	const mobileMove = useMobileMove();
 
@@ -320,13 +322,13 @@ export function CalendarView({ entries, mapping, filters, onFiltersChange, colum
 						<span class="scheduler-calendar-month">{title}</span>
 					</div>
 					{onFiltersChange && columns && (
-						<div class="scheduler-filter-manager">
+						<div class="scheduler-filter-manager" ref={filterAnchorRef}>
 							<button class="scheduler-filter-btn" onClick={() => setShowFilter((o) => !o)} title="Filters">
 								Filter {showFilter ? "▲" : "▼"} ({filters?.length ?? 0})
 							</button>
-							{showFilter && (
+							<Popover anchorRef={filterAnchorRef} open={showFilter}>
 								<FilterPanel columns={columns} clauses={filters ?? []} onClausesChange={onFiltersChange} onCodeEdit={() => setShowCodeModal(true)} />
-							)}
+							</Popover>
 						</div>
 					)}
 					<button class="scheduler-calendar-nav" onClick={() => step(1)} title="Next">
