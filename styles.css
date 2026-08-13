@@ -2360,3 +2360,182 @@
     cursor: default;
 }
 
+/* ============================================================
+ * Mobile / touch adaptation — compaction
+ * The desktop px sizes crowd a phone screen, so fonts, paddings
+ * and gaps are scaled down proportionally on mobile (`.is-mobile`
+ * is added by Obsidian to <body> on iOS/Android). Layout rows
+ * that can't fit one line wrap / stack instead of squeezing.
+ * ============================================================ */
+
+/* --- Base type scale (phones + tablets) --- */
+.is-mobile .scheduler-root {
+    font-size: 11px;
+}
+.is-mobile .scheduler-view-content {
+    padding: 6px;
+}
+.is-mobile .scheduler-table {
+    font-size: 11px;
+}
+.is-mobile .scheduler-table th,
+.is-mobile .scheduler-table td,
+.is-mobile .scheduler-cell-display {
+    padding: 4px 6px;
+}
+
+/* --- Toolbar: tabs get their own row, then search + dropdowns --- */
+.is-mobile .scheduler-toolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 2px;
+}
+.is-mobile .scheduler-view-tabs {
+    flex: 1 1 100%;
+    order: -1;
+    padding: 0;
+    gap: 2px;
+}
+.is-mobile .scheduler-view-tab {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 4px;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 11px;
+}
+.is-mobile .scheduler-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+}
+.is-mobile .scheduler-search-input {
+    width: 100%;
+    min-width: 90px;
+    min-height: 30px;
+}
+
+/* --- Compact buttons (smaller than desktop, still tappable) --- */
+.is-mobile .scheduler-toolbar-dropdown-btn,
+.is-mobile .scheduler-filter-btn,
+.is-mobile .scheduler-sort-btn,
+.is-mobile .scheduler-col-toggle-btn,
+.is-mobile .scheduler-filter-new,
+.is-mobile .scheduler-calendar-nav,
+.is-mobile .scheduler-calendar-today,
+.is-mobile .scheduler-calendar-mode,
+.is-mobile .scheduler-calendar-jump,
+.is-mobile .scheduler-timeline-nav,
+.is-mobile .scheduler-timeline-today,
+.is-mobile .scheduler-timeline-daycount-btn,
+.is-mobile .scheduler-timeline-new,
+.is-mobile .scheduler-searchable-btn,
+.is-mobile .scheduler-page-btn,
+.is-mobile .scheduler-batch-apply,
+.is-mobile .scheduler-batch-clear,
+.is-mobile .scheduler-filter-add,
+.is-mobile .scheduler-filter-clear,
+.is-mobile .scheduler-kanban-add,
+.is-mobile .scheduler-kanban-add-confirm {
+    min-height: 30px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+}
+
+/* --- Table filter bar: stack the left / right groups --- */
+.is-mobile .scheduler-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+.is-mobile .scheduler-filter-bar-left,
+.is-mobile .scheduler-filter-bar-right {
+    width: 100%;
+    flex-wrap: wrap;
+}
+.is-mobile .scheduler-filter-bar-right {
+    gap: 6px;
+}
+
+/* --- Calendar header: wrap instead of squeezing --- */
+.is-mobile .scheduler-calendar-header {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.is-mobile .scheduler-calendar-nav-group {
+    flex: 1 1 auto;
+    margin-right: 0;
+}
+.is-mobile .scheduler-calendar-month,
+.is-mobile .scheduler-calendar-year {
+    font-size: 13px;
+}
+
+/* --- Timeline header: wrap, date flexes --- */
+.is-mobile .scheduler-timeline-header {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.is-mobile .scheduler-timeline-date {
+    flex: 1 1 auto;
+    font-size: 13px;
+}
+.is-mobile .scheduler-timeline-today {
+    margin-left: 0;
+}
+.is-mobile .scheduler-timeline-daycount {
+    margin-left: auto;
+}
+.is-mobile .scheduler-timeline-daycol {
+    min-width: 64px;
+}
+
+/* --- Kanban: stack columns vertically --- */
+.is-mobile .scheduler-kanban-board {
+    flex-direction: column;
+    overflow-x: hidden;
+}
+.is-mobile .scheduler-kanban-column,
+.is-mobile .scheduler-kanban-column-add {
+    width: 100%;
+    min-width: 0;
+}
+.is-mobile .scheduler-kanban-controls {
+    gap: 6px;
+}
+.is-mobile .scheduler-kanban-card {
+    padding: 6px 8px;
+}
+
+/* --- Filter / sort panels: let inner rows wrap --- */
+.is-mobile .scheduler-filter-clause,
+.is-mobile .scheduler-filter-subcond {
+    flex-wrap: wrap;
+}
+
+/* --- Batch edit bar --- */
+.is-mobile .scheduler-batch-value {
+    flex: 1 1 auto;
+    min-width: 110px;
+}
+
+/* --- Pagination: wrap + safe-area bottom --- */
+.is-mobile .scheduler-pagination {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+/* --- Context menu: bigger touch rows --- */
+.is-mobile .scheduler-ctx-item {
+    padding: 10px 14px;
+}
+
+/* --- Extra compaction on narrow phones --- */
+@media (max-width: 380px) {
+    .is-mobile .scheduler-search-input {
+        min-width: 80px;
+    }
+}
+
