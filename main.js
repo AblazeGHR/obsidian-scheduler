@@ -3405,11 +3405,11 @@ function parseDateInput(s3) {
     return toISODate(d3);
   return null;
 }
-function EditableCell({ entry, column, mapping, kinds, onEdit }) {
+function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }) {
   const kind = getCellKind(column, mapping, kinds);
   const field = writeFieldFor(column, mapping);
   const raw = column === "date" ? entry.date : entry.fields?.[column];
-  const display = formatCellValue(entry, column);
+  const display = formatCellValue(entry, column, parentTitles);
   const [editing, setEditing] = d2(false);
   if (kind === "file") {
     return /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-readonly", title: entry.path, children: display });
@@ -4080,6 +4080,7 @@ function TableView({
                     column: col,
                     mapping,
                     kinds: fieldKinds,
+                    parentTitles,
                     onEdit: onCellEdit
                   }
                 )

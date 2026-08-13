@@ -29,6 +29,8 @@ interface EditableCellProps {
 	column: string;
 	mapping: FieldMapping;
 	kinds?: Record<string, FieldKind>;
+	/** path→title map for resolving `parent` cells to their task title. */
+	parentTitles?: Map<string, string>;
 	onEdit?: (path: string, field: string, value: string) => void;
 }
 
@@ -47,11 +49,11 @@ function parseDateInput(s: string): string | null {
  * directly editable in place (contentEditable). No input box, no style change.
  * Commits on blur / Enter; Escape cancels.
  */
-function EditableCell({ entry, column, mapping, kinds, onEdit }: EditableCellProps) {
+function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }: EditableCellProps) {
 	const kind = getCellKind(column, mapping, kinds);
 	const field = writeFieldFor(column, mapping);
 	const raw = column === "date" ? entry.date : entry.fields?.[column];
-	const display = formatCellValue(entry, column);
+	const display = formatCellValue(entry, column, parentTitles);
 
 	const [editing, setEditing] = useState(false);
 
@@ -834,13 +836,14 @@ function TableView({
 									<DateCell entry={entry} column={col} mapping={mapping} onEdit={onCellEdit} />
 								</td>
 							) : (
-									<EditableCell
-										entry={entry}
-										column={col}
-										mapping={mapping}
-										kinds={fieldKinds}
-										onEdit={onCellEdit}
-									/>
+								<EditableCell
+									entry={entry}
+									column={col}
+									mapping={mapping}
+									kinds={fieldKinds}
+									parentTitles={parentTitles}
+									onEdit={onCellEdit}
+								/>
 								)
 						)}
 							</tr>
