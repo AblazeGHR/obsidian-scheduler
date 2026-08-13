@@ -4236,6 +4236,17 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
   const [dragPath, setDragPath] = d2(null);
   const [dragOverCol, setDragOverCol] = d2(null);
   const [newColInput, setNewColInput] = d2("");
+  const [collapsedCols, setCollapsedCols] = d2(/* @__PURE__ */ new Set());
+  function toggleCollapsed(col) {
+    setCollapsedCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(col))
+        next.delete(col);
+      else
+        next.add(col);
+      return next;
+    });
+  }
   function handleDrop(colValue) {
     if (dragPath && colValue !== UNASSIGNED) {
       onGroupChange(dragPath, groupField, colValue);
@@ -4250,6 +4261,43 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
     }
     setNewColInput("");
   }
+  const renderCards = (list) => list.map((entry) => {
+    const longPress = makeLongPressHandlers();
+    return /* @__PURE__ */ u3(
+      "div",
+      {
+        class: `scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
+        draggable: true,
+        onDragStart: () => setDragPath(entry.path),
+        onDragEnd: () => {
+          setDragPath(null);
+          setDragOverCol(null);
+        },
+        onClick: (e3) => {
+          e3.stopPropagation();
+          if (longPress.consumeClick())
+            return;
+          if (mobileMove.isMobile)
+            mobileMove.toggle(entry.path);
+          else
+            onOpenEntry(entry.path);
+        },
+        onContextMenu: (e3) => ctx.open(e3, [
+          { label: "Open entry", onClick: () => onOpenEntry(entry.path) },
+          { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
+        ]),
+        ...longPress,
+        title: entry.path,
+        children: [
+          /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
+          (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
+            entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
+            entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
+          ] })
+        ]
+      }
+    );
+  });
   const isTagField = mapping.tagFields.includes(groupField);
   return /* @__PURE__ */ u3("div", { class: "scheduler-kanban", children: [
     ctx.element,
@@ -4271,81 +4319,62 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
       isTagField && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-hint", children: "Moving a card sets this tag (replaces other tags)" })
     ] }),
     /* @__PURE__ */ u3("div", { class: "scheduler-kanban-board", children: [
-      columns.map((col) => /* @__PURE__ */ u3(
-        "div",
-        {
-          class: `scheduler-kanban-column${dragOverCol === col ? " drag-over" : ""}`,
-          onDragOver: (e3) => {
-            e3.preventDefault();
-            setDragOverCol(col);
-          },
-          onDragLeave: () => setDragOverCol((c3) => c3 === col ? null : c3),
-          onDrop: () => handleDrop(col),
-          onClick: () => {
-            if (!mobileMove.pendingPath)
-              return;
-            const p3 = mobileMove.consume();
-            if (p3)
-              onGroupChange(p3, groupField, col);
-          },
-          children: [
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-header", children: [
-              /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: col }),
-              /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[col]?.length ?? 0 })
-            ] }),
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[col] ?? []).map((entry) => {
-              const longPress = makeLongPressHandlers();
-              return /* @__PURE__ */ u3(
+      columns.map((col) => {
+        const isCollapsed = collapsedCols.has(col);
+        return /* @__PURE__ */ u3(
+          "div",
+          {
+            class: `scheduler-kanban-column${dragOverCol === col ? " drag-over" : ""}${isCollapsed ? " is-collapsed" : ""}`,
+            onDragOver: (e3) => {
+              e3.preventDefault();
+              setDragOverCol(col);
+            },
+            onDragLeave: () => setDragOverCol((c3) => c3 === col ? null : c3),
+            onDrop: () => handleDrop(col),
+            onClick: () => {
+              if (!mobileMove.pendingPath)
+                return;
+              const p3 = mobileMove.consume();
+              if (p3)
+                onGroupChange(p3, groupField, col);
+            },
+            children: [
+              /* @__PURE__ */ u3(
                 "div",
                 {
-                  class: `scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
-                  draggable: true,
-                  onDragStart: () => setDragPath(entry.path),
-                  onDragEnd: () => {
-                    setDragPath(null);
-                    setDragOverCol(null);
-                  },
+                  class: "scheduler-kanban-column-header",
+                  title: isCollapsed ? "Expand column" : "Collapse column",
                   onClick: (e3) => {
                     e3.stopPropagation();
-                    if (longPress.consumeClick())
-                      return;
-                    if (mobileMove.isMobile)
-                      mobileMove.toggle(entry.path);
-                    else
-                      onOpenEntry(entry.path);
+                    toggleCollapsed(col);
                   },
-                  onContextMenu: (e3) => ctx.open(e3, [
-                    { label: "Open entry", onClick: () => onOpenEntry(entry.path) },
-                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
-                  ]),
-                  ...longPress,
-                  title: entry.path,
                   children: [
-                    /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
-                    (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
-                      entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
-                      entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
-                    ] })
+                    /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title-group", children: [
+                      /* @__PURE__ */ u3("span", { class: "scheduler-kanban-chevron" }),
+                      /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: col })
+                    ] }),
+                    /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[col]?.length ?? 0 })
                   ]
                 }
-              );
-            }) }),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                class: "scheduler-kanban-add",
-                onClick: () => onCreateEntry(groupField, col),
-                title: `Create entry in "${col}"`,
-                children: "+ Add"
-              }
-            )
-          ]
-        }
-      )),
+              ),
+              /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: renderCards(buckets[col] ?? []) }),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  class: "scheduler-kanban-add",
+                  onClick: () => onCreateEntry(groupField, col),
+                  title: `Create entry in "${col}"`,
+                  children: "+ Add"
+                }
+              )
+            ]
+          }
+        );
+      }),
       (buckets[UNASSIGNED]?.length ?? 0) > 0 && /* @__PURE__ */ u3(
         "div",
         {
-          class: `scheduler-kanban-column scheduler-kanban-column-unassigned${dragOverCol === UNASSIGNED ? " drag-over" : ""}`,
+          class: `scheduler-kanban-column scheduler-kanban-column-unassigned${dragOverCol === UNASSIGNED ? " drag-over" : ""}${collapsedCols.has(UNASSIGNED) ? " is-collapsed" : ""}`,
           onDragOver: (e3) => {
             e3.preventDefault();
             setDragOverCol(UNASSIGNED);
@@ -4365,47 +4394,25 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
               onGroupChange(p3, groupField, "");
           },
           children: [
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-header", children: [
-              /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: "Unassigned" }),
-              /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[UNASSIGNED]?.length ?? 0 })
-            ] }),
-            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: (buckets[UNASSIGNED] ?? []).map((entry) => {
-              const longPress = makeLongPressHandlers();
-              return /* @__PURE__ */ u3(
-                "div",
-                {
-                  class: `scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`,
-                  draggable: true,
-                  onDragStart: () => setDragPath(entry.path),
-                  onDragEnd: () => {
-                    setDragPath(null);
-                    setDragOverCol(null);
-                  },
-                  onClick: (e3) => {
-                    e3.stopPropagation();
-                    if (longPress.consumeClick())
-                      return;
-                    if (mobileMove.isMobile)
-                      mobileMove.toggle(entry.path);
-                    else
-                      onOpenEntry(entry.path);
-                  },
-                  onContextMenu: (e3) => ctx.open(e3, [
-                    { label: "Open entry", onClick: () => onOpenEntry(entry.path) },
-                    { label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) }
-                  ]),
-                  ...longPress,
-                  title: entry.path,
-                  children: [
-                    /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-title", children: entry.title }),
-                    (entry.date || entry.tags && entry.tags.length > 0) && /* @__PURE__ */ u3("div", { class: "scheduler-kanban-card-meta", children: [
-                      entry.date && /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-date", children: formatCellValue(entry, "date") }),
-                      entry.tags.map((t3) => /* @__PURE__ */ u3("span", { class: "scheduler-kanban-card-tag", children: t3 }))
-                    ] })
-                  ]
-                }
-              );
-            }) })
+            /* @__PURE__ */ u3(
+              "div",
+              {
+                class: "scheduler-kanban-column-header",
+                title: collapsedCols.has(UNASSIGNED) ? "Expand column" : "Collapse column",
+                onClick: (e3) => {
+                  e3.stopPropagation();
+                  toggleCollapsed(UNASSIGNED);
+                },
+                children: [
+                  /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title-group", children: [
+                    /* @__PURE__ */ u3("span", { class: "scheduler-kanban-chevron" }),
+                    /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-title", children: "Unassigned" })
+                  ] }),
+                  /* @__PURE__ */ u3("span", { class: "scheduler-kanban-column-count", children: buckets[UNASSIGNED]?.length ?? 0 })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3("div", { class: "scheduler-kanban-column-body", children: renderCards(buckets[UNASSIGNED] ?? []) })
           ]
         }
       ),

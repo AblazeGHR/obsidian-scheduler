@@ -1692,6 +1692,9 @@
     display: flex;
     flex-direction: column;
     max-height: 100%;
+    /* Base height of one card — the column body window fits this many rows. */
+    --kanban-card-h: 36px;
+    --kanban-gap: 8px;
 }
 
 .scheduler-kanban-column.drag-over {
@@ -1716,6 +1719,49 @@
     top: 0;
     background: var(--background-secondary);
     border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    user-select: none;
+    gap: 6px;
+}
+
+.scheduler-kanban-column-header:hover {
+    background: var(--background-modifier-hover);
+}
+
+.scheduler-kanban-column-title-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.scheduler-kanban-column-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scheduler-kanban-chevron {
+    font-size: 10px;
+    color: var(--text-muted);
+    flex: none;
+    display: inline-block;
+    line-height: 1;
+}
+
+.scheduler-kanban-chevron::before {
+    content: "▾";
+}
+
+/* Collapsed: chevron points right, body window and add button hidden */
+.scheduler-kanban-column.is-collapsed .scheduler-kanban-chevron::before {
+    content: "▸";
+}
+
+.scheduler-kanban-column.is-collapsed .scheduler-kanban-column-body,
+.scheduler-kanban-column.is-collapsed .scheduler-kanban-add {
+    display: none;
 }
 
 .scheduler-kanban-column-count {
@@ -1731,9 +1777,11 @@
     padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--kanban-gap);
     overflow-y: auto;
     flex: 1 1 auto;
+    /* Window that fits 5 cards at a time; overflow scrolls on the side. */
+    height: calc(var(--kanban-card-h) * 5 + var(--kanban-gap) * 4 + 16px);
 }
 
 .scheduler-kanban-card {

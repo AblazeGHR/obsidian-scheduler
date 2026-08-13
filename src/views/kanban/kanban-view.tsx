@@ -109,6 +109,17 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 	const [dragPath, setDragPath] = useState<string | null>(null);
 	const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 	const [newColInput, setNewColInput] = useState("");
+	// Columns currently collapsed (card window hidden, header only)
+	const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
+
+	function toggleCollapsed(col: string) {
+		setCollapsedCols((prev) => {
+			const next = new Set(prev);
+			if (next.has(col)) next.delete(col);
+			else next.add(col);
+			return next;
+		});
+	}
 
 	function handleDrop(colValue: string) {
 		if (dragPath && colValue !== UNASSIGNED) {
@@ -125,6 +136,51 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 		}
 		setNewColInput("");
 	}
+
+	// Shared card rendering used by every column (keeps card markup in one place).
+	const renderCards = (list: PageEntry[]) =>
+		list.map((entry) => {
+			const longPress = makeLongPressHandlers();
+			return (
+				<div
+					class={`scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
+					draggable={true}
+					onDragStart={() => setDragPath(entry.path)}
+					onDragEnd={() => {
+						setDragPath(null);
+						setDragOverCol(null);
+					}}
+					onClick={(e) => {
+						e.stopPropagation();
+						if (longPress.consumeClick()) return;
+						if (mobileMove.isMobile) mobileMove.toggle(entry.path);
+						else onOpenEntry(entry.path);
+					}}
+					onContextMenu={(e) =>
+						ctx.open(e, [
+							{ label: "Open entry", onClick: () => onOpenEntry(entry.path) },
+							{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
+						])
+					}
+					{...longPress}
+					title={entry.path}
+				>
+					<div class="scheduler-kanban-card-title">{entry.title}</div>
+					{(entry.date || (entry.tags && entry.tags.length > 0)) && (
+						<div class="scheduler-kanban-card-meta">
+							{entry.date && (
+								<span class="scheduler-kanban-card-date">
+									{formatCellValue(entry, "date")}
+								</span>
+							)}
+							{entry.tags.map((t) => (
+								<span class="scheduler-kanban-card-tag">{t}</span>
+							))}
+						</div>
+					)}
+				</div>
+			);
+		});
 
 	const isTagField = mapping.tagFields.includes(groupField);
 
@@ -151,9 +207,11 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 			</div>
 
 			<div class="scheduler-kanban-board">
-				{columns.map((col) => (
+				{columns.map((col) => {
+					const isCollapsed = collapsedCols.has(col);
+					return (
 					<div
-						class={`scheduler-kanban-column${dragOverCol === col ? " drag-over" : ""}`}
+						class={`scheduler-kanban-column${dragOverCol === col ? " drag-over" : ""}${isCollapsed ? " is-collapsed" : ""}`}
 						onDragOver={(e: any) => {
 							e.preventDefault();
 							setDragOverCol(col);
@@ -166,54 +224,21 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 							if (p) onGroupChange(p, groupField, col);
 						}}
 					>
-						<div class="scheduler-kanban-column-header">
-							<span class="scheduler-kanban-column-title">{col}</span>
+						<div
+							class="scheduler-kanban-column-header"
+							title={isCollapsed ? "Expand column" : "Collapse column"}
+							onClick={(e) => {
+								e.stopPropagation();
+								toggleCollapsed(col);
+							}}
+						>
+							<span class="scheduler-kanban-column-title-group">
+								<span class="scheduler-kanban-chevron" />
+								<span class="scheduler-kanban-column-title">{col}</span>
+							</span>
 							<span class="scheduler-kanban-column-count">{buckets[col]?.length ?? 0}</span>
 						</div>
-						<div class="scheduler-kanban-column-body">
-							{(buckets[col] ?? []).map((entry) => {
-							const longPress = makeLongPressHandlers();
-							return (
-							<div
-								class={`scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
-								draggable={true}
-								onDragStart={() => setDragPath(entry.path)}
-								onDragEnd={() => {
-									setDragPath(null);
-									setDragOverCol(null);
-								}}
-								onClick={(e) => {
-									e.stopPropagation();
-									if (longPress.consumeClick()) return;
-									if (mobileMove.isMobile) mobileMove.toggle(entry.path);
-									else onOpenEntry(entry.path);
-								}}
-								onContextMenu={(e) =>
-									ctx.open(e, [
-										{ label: "Open entry", onClick: () => onOpenEntry(entry.path) },
-										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
-									])
-								}
-								{...longPress}
-								title={entry.path}
-							>
-									<div class="scheduler-kanban-card-title">{entry.title}</div>
-									{(entry.date || (entry.tags && entry.tags.length > 0)) && (
-										<div class="scheduler-kanban-card-meta">
-											{entry.date && (
-												<span class="scheduler-kanban-card-date">
-													{formatCellValue(entry, "date")}
-												</span>
-											)}
-											{entry.tags.map((t) => (
-												<span class="scheduler-kanban-card-tag">{t}</span>
-											))}
-										</div>
-									)}
-								</div>
-							);
-							})}
-						</div>
+						<div class="scheduler-kanban-column-body">{renderCards(buckets[col] ?? [])}</div>
 						<button
 							class="scheduler-kanban-add"
 							onClick={() => onCreateEntry(groupField, col)}
@@ -222,14 +247,15 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 							+ Add
 						</button>
 					</div>
-				))}
+					);
+				})}
 
 				{/* Unassigned column (entries with no value for the group field) */}
 				{(buckets[UNASSIGNED]?.length ?? 0) > 0 && (
 					<div
 						class={`scheduler-kanban-column scheduler-kanban-column-unassigned${
 							dragOverCol === UNASSIGNED ? " drag-over" : ""
-						}`}
+						}${collapsedCols.has(UNASSIGNED) ? " is-collapsed" : ""}`}
 						onDragOver={(e: any) => {
 							e.preventDefault();
 							setDragOverCol(UNASSIGNED);
@@ -247,55 +273,28 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 							if (p) onGroupChange(p, groupField, "");
 						}}
 					>
-						<div class="scheduler-kanban-column-header">
-							<span class="scheduler-kanban-column-title">Unassigned</span>
+						<div
+							class="scheduler-kanban-column-header"
+							title={
+								collapsedCols.has(UNASSIGNED)
+									? "Expand column"
+									: "Collapse column"
+							}
+							onClick={(e) => {
+								e.stopPropagation();
+								toggleCollapsed(UNASSIGNED);
+							}}
+						>
+							<span class="scheduler-kanban-column-title-group">
+								<span class="scheduler-kanban-chevron" />
+								<span class="scheduler-kanban-column-title">Unassigned</span>
+							</span>
 							<span class="scheduler-kanban-column-count">
 								{buckets[UNASSIGNED]?.length ?? 0}
 							</span>
 						</div>
 						<div class="scheduler-kanban-column-body">
-							{(buckets[UNASSIGNED] ?? []).map((entry) => {
-							const longPress = makeLongPressHandlers();
-							return (
-							<div
-								class={`scheduler-kanban-card${mobileMove.pendingPath === entry.path ? " scheduler-mobile-move-src" : ""}`}
-								draggable={true}
-								onDragStart={() => setDragPath(entry.path)}
-								onDragEnd={() => {
-									setDragPath(null);
-									setDragOverCol(null);
-								}}
-								onClick={(e) => {
-									e.stopPropagation();
-									if (longPress.consumeClick()) return;
-									if (mobileMove.isMobile) mobileMove.toggle(entry.path);
-									else onOpenEntry(entry.path);
-								}}
-								onContextMenu={(e) =>
-									ctx.open(e, [
-										{ label: "Open entry", onClick: () => onOpenEntry(entry.path) },
-										{ label: "Delete entry", danger: true, onClick: () => onDeleteEntry?.(entry.path) },
-									])
-								}
-								{...longPress}
-								title={entry.path}
-							>
-									<div class="scheduler-kanban-card-title">{entry.title}</div>
-									{(entry.date || (entry.tags && entry.tags.length > 0)) && (
-										<div class="scheduler-kanban-card-meta">
-											{entry.date && (
-												<span class="scheduler-kanban-card-date">
-													{formatCellValue(entry, "date")}
-												</span>
-											)}
-											{entry.tags.map((t) => (
-												<span class="scheduler-kanban-card-tag">{t}</span>
-											))}
-										</div>
-									)}
-								</div>
-							);
-							})}
+							{renderCards(buckets[UNASSIGNED] ?? [])}
 						</div>
 					</div>
 				)}
