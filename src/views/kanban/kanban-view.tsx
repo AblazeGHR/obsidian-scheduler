@@ -4,6 +4,7 @@ import { PageEntry, FieldMapping } from "../../types";
 import { formatCellValue } from "../table/table-utils";
 import { useContextMenu, makeLongPressHandlers } from "../context-menu";
 import { useMobileMove } from "../shared/mobile-move";
+import { SearchableSelect } from "../shared/searchable-select";
 
 // ============================================================
 // Kanban view: group entries into columns by a chosen field.
@@ -133,18 +134,14 @@ export function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCre
 			<div class="scheduler-kanban-controls">
 				<label class="scheduler-kanban-group-label">
 					Group by:
-					<select
-						class="scheduler-kanban-group-select"
+					<SearchableSelect
+						options={candidateFields}
 						value={groupField}
-						onChange={(e: any) => {
-							setGroupField(e.target.value);
+						onChange={(val) => {
+							setGroupField(val);
 							setExtraColumns([]);
 						}}
-					>
-						{candidateFields.map((f) => (
-							<option value={f}>{f}</option>
-						))}
-					</select>
+					/>
 				</label>
 				{isTagField && (
 					<span class="scheduler-kanban-hint">

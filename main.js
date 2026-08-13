@@ -4256,15 +4256,14 @@ function KanbanView({ entries, mapping, onGroupChange, onOpenEntry, onCreateEntr
       /* @__PURE__ */ u3("label", { class: "scheduler-kanban-group-label", children: [
         "Group by:",
         /* @__PURE__ */ u3(
-          "select",
+          SearchableSelect,
           {
-            class: "scheduler-kanban-group-select",
+            options: candidateFields,
             value: groupField,
-            onChange: (e3) => {
-              setGroupField(e3.target.value);
+            onChange: (val) => {
+              setGroupField(val);
               setExtraColumns([]);
-            },
-            children: candidateFields.map((f4) => /* @__PURE__ */ u3("option", { value: f4, children: f4 }))
+            }
           }
         )
       ] }),
