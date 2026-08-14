@@ -657,17 +657,68 @@ function isDataviewAvailable(app) {
   return app.plugins?.enabledPlugins?.has?.("dataview") ?? false;
 }
 
+// src/utils/inline-editor.ts
+var import_obsidian2 = require("obsidian");
+var INLINE_PATH_RE = /#L\d+$/;
+function isInlinePath(path) {
+  return INLINE_PATH_RE.test(path);
+}
+function parseInlinePath(path) {
+  const m3 = path.match(/^(.+)#L(\d+)$/);
+  if (!m3)
+    return null;
+  return { filePath: m3[1], line: parseInt(m3[2]) };
+}
+function toParentPathValue(v3) {
+  if (typeof v3 === "string")
+    return v3;
+  if (v3 && typeof v3 === "object") {
+    const path = v3["path"];
+    if (typeof path === "string") {
+      if (/#L\d+$/.test(path))
+        return path;
+      return path.endsWith(".md") ? path : `${path}.md`;
+    }
+  }
+  return "";
+}
+async function applyInlineEdit(app, path, transform) {
+  const parsed = parseInlinePath(path);
+  if (!parsed)
+    return null;
+  const file = app.vault.getAbstractFileByPath(parsed.filePath);
+  if (!(file instanceof import_obsidian2.TFile))
+    return null;
+  let result = null;
+  await app.vault.process(file, (data) => {
+    const lines = data.split("\n");
+    if (parsed.line < 1 || parsed.line > lines.length)
+      return data;
+    const lineIdx = parsed.line - 1;
+    const originalLine = lines[lineIdx];
+    const newLine = transform(originalLine);
+    if (newLine === originalLine)
+      return data;
+    lines[lineIdx] = newLine;
+    const after = lines.join("\n");
+    result = { path: parsed.filePath, before: data, after };
+    return after;
+  });
+  return result;
+}
+
 // src/utils/filter-evaluator.ts
-function evaluateAtomic(entry, cond) {
+function evaluateAtomic(entry, cond, titleByPath) {
   const val = getFieldValue(entry, cond.field);
   const fv = cond.value;
+  const values = cond.field === "parent" ? expandParentValues(val, titleByPath) : [val];
   switch (cond.operator) {
     case "equals":
-      return atomicEquals(val, fv);
+      return values.some((v3) => atomicEquals(v3, fv));
     case "not_equals":
-      return !atomicEquals(val, fv);
+      return !values.some((v3) => atomicEquals(v3, fv));
     case "contains":
-      return atomicContains(val, fv);
+      return values.some((v3) => atomicContains(v3, fv));
     case "greater_than":
       return atomicCompare(val, fv) > 0;
     case "less_than":
@@ -677,13 +728,13 @@ function evaluateAtomic(entry, cond) {
     case "after":
       return atomicCompare(val, fv) > 0;
     case "starts_with":
-      return String(val ?? "").toLowerCase().startsWith(fv.toLowerCase());
+      return values.some((v3) => String(v3 ?? "").toLowerCase().startsWith(fv.toLowerCase()));
     case "ends_with":
-      return String(val ?? "").toLowerCase().endsWith(fv.toLowerCase());
+      return values.some((v3) => String(v3 ?? "").toLowerCase().endsWith(fv.toLowerCase()));
     case "regex":
       try {
         const re = new RegExp(fv, fv.includes("(?i)") ? "" : "i");
-        return re.test(String(val ?? ""));
+        return values.some((v3) => re.test(String(v3 ?? "")));
       } catch {
         return false;
       }
@@ -691,7 +742,16 @@ function evaluateAtomic(entry, cond) {
       return true;
   }
 }
-function evaluateClause(entry, clause) {
+function expandParentValues(val, titleByPath) {
+  const path = toParentPathValue(val);
+  if (!path || !titleByPath)
+    return [val];
+  const title = titleByPath.get(path);
+  if (!title || title === path)
+    return [val];
+  return [val, title];
+}
+function evaluateClause(entry, clause, titleByPath) {
   let result;
   if (clause.type === "raw") {
     try {
@@ -700,14 +760,15 @@ function evaluateClause(entry, clause) {
       result = false;
     }
   } else {
-    result = clause.conditions.length === 0 ? true : clause.conditions.some((c3) => evaluateAtomic(entry, c3));
+    result = clause.conditions.length === 0 ? true : clause.conditions.some((c3) => evaluateAtomic(entry, c3, titleByPath));
   }
   return clause.not ? !result : result;
 }
 function evaluateFilterTree(entries, clauses) {
   if (!clauses || clauses.length === 0)
     return entries;
-  return entries.filter((entry) => clauses.every((clause) => evaluateClause(entry, clause)));
+  const titleByPath = new Map(entries.map((e3) => [e3.path, e3.title]));
+  return entries.filter((entry) => clauses.every((clause) => evaluateClause(entry, clause, titleByPath)));
 }
 function atomicEquals(a3, b2) {
   if (a3 instanceof Date) {
@@ -984,7 +1045,8 @@ var QueryEngine = class {
   static applyFilters(entries, filters) {
     if (filters.length === 0)
       return entries;
-    return entries.filter((entry) => filters.every((c3) => evaluateClause(entry, c3)));
+    const titleByPath = new Map(entries.map((e3) => [e3.path, e3.title]));
+    return entries.filter((entry) => filters.every((c3) => evaluateClause(entry, c3, titleByPath)));
   }
 };
 function getFieldValue(entry, field) {
@@ -1166,7 +1228,7 @@ function Popover({
 }
 
 // src/views/calendar/calendar-view.tsx
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/views/shared/searchable-select.tsx
 function SearchableSelect({ options, value, onChange, placeholder, class: cls }) {
@@ -1274,6 +1336,346 @@ function SearchableSelect({ options, value, onChange, placeholder, class: cls })
   );
 }
 
+// src/views/table/table-utils.ts
+var INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
+function isInternalField(key) {
+  return INTERNAL_FIELD_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+function isDisplayableValue(val) {
+  if (val === null || val === void 0)
+    return false;
+  if (typeof val === "string")
+    return val.length > 0;
+  if (typeof val === "number")
+    return true;
+  if (typeof val === "boolean")
+    return true;
+  if (val instanceof Date)
+    return !isNaN(val.getTime());
+  if (Array.isArray(val)) {
+    const first = val[0];
+    return typeof first === "string";
+  }
+  return false;
+}
+function collectColumns(entries, mapping) {
+  const allKeys = /* @__PURE__ */ new Set();
+  for (const entry of entries) {
+    for (const key of Object.keys(entry.fields ?? {})) {
+      if (key && !isInternalField(key))
+        allKeys.add(key);
+    }
+  }
+  const baseColumns = ["title", "date", "file", ...mapping.tagFields];
+  const hasParent = entries.some((e3) => e3.fields?.["parent"] != null);
+  if (hasParent && !baseColumns.includes("parent")) {
+    baseColumns.splice(3, 0, "parent");
+  }
+  const extra = Array.from(allKeys).filter(
+    (k3) => k3 !== mapping.titleField && k3 !== mapping.dateField && !baseColumns.includes(k3)
+  );
+  return [...baseColumns, ...extra].filter((c3, i4, arr) => arr.indexOf(c3) === i4);
+}
+function formatCellValue(entry, column, parentTitles) {
+  switch (column) {
+    case "title":
+      return entry.title;
+    case "date":
+      return entry.date ? formatDate(entry.date) : "";
+    case "file":
+      return fileBaseName(entry.path);
+    case "parent": {
+      const parentPath = toParentPathValue(entry.fields?.["parent"]);
+      if (!parentPath)
+        return "";
+      const title = parentTitles?.get(parentPath);
+      return title ? `${title}(${parentPath})` : parentPath;
+    }
+    default:
+      const val = entry.fields?.[column];
+      if (val === null || val === void 0)
+        return "";
+      if (isDisplayableValue(val)) {
+        if (Array.isArray(val))
+          return val.join(", ");
+        if (val instanceof Date)
+          return formatDate(val);
+        return String(val);
+      }
+      return "";
+  }
+}
+function formatDate(val) {
+  if (val instanceof Date)
+    return val.toLocaleDateString();
+  if (typeof val === "number")
+    return new Date(val).toLocaleDateString();
+  if (typeof val === "string") {
+    const d3 = new Date(val);
+    if (!isNaN(d3.getTime()))
+      return d3.toLocaleDateString();
+  }
+  return String(val ?? "");
+}
+function fileBaseName(path) {
+  const last = path.split("/").pop() ?? path;
+  return last.replace(/\.md$/, "");
+}
+function toISODate(date) {
+  const y3 = date.getFullYear();
+  const m3 = String(date.getMonth() + 1).padStart(2, "0");
+  const d3 = String(date.getDate()).padStart(2, "0");
+  return `${y3}-${m3}-${d3}`;
+}
+function toInputDate(raw) {
+  if (raw instanceof Date)
+    return toISODate(raw);
+  if (typeof raw === "string") {
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw))
+      return raw.slice(0, 10);
+    const d3 = new Date(raw);
+    if (!isNaN(d3.getTime()))
+      return toISODate(d3);
+  }
+  if (typeof raw === "number") {
+    const d3 = new Date(raw);
+    if (!isNaN(d3.getTime()))
+      return toISODate(d3);
+  }
+  return "";
+}
+function getCellKind(column, mapping, kinds) {
+  if (column === "file" || column === "parent")
+    return "file";
+  if (column === "date" || column === mapping.dateField)
+    return "date";
+  if (mapping.tagFields.includes(column))
+    return "tags";
+  if (kinds) {
+    const k3 = kinds[column];
+    if (k3 === "tags")
+      return "tags";
+    if (k3 === "date")
+      return "date";
+  }
+  return "text";
+}
+function writeFieldFor(column, mapping) {
+  if (column === "date")
+    return mapping.dateField;
+  return column;
+}
+function formatTagValue(values) {
+  const clean = values.map((v3) => v3.trim()).filter((v3) => v3.length > 0);
+  if (clean.length === 0)
+    return "[]";
+  return `[${clean.join(", ")}]`;
+}
+
+// src/utils/suggest.ts
+function levenshtein(a3, b2) {
+  const m3 = a3.length;
+  const n2 = b2.length;
+  if (m3 === 0)
+    return n2;
+  if (n2 === 0)
+    return m3;
+  let prev = new Array(n2 + 1);
+  let curr = new Array(n2 + 1);
+  for (let j3 = 0; j3 <= n2; j3++)
+    prev[j3] = j3;
+  for (let i4 = 1; i4 <= m3; i4++) {
+    curr[0] = i4;
+    for (let j3 = 1; j3 <= n2; j3++) {
+      const cost = a3[i4 - 1] === b2[j3 - 1] ? 0 : 1;
+      curr[j3] = Math.min(prev[j3] + 1, curr[j3 - 1] + 1, prev[j3 - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n2];
+}
+function rankSuggestions(query, options, limit = 6) {
+  const q3 = query.trim().toLowerCase();
+  if (!q3)
+    return options.slice(0, limit);
+  const scored = [];
+  for (const opt of options) {
+    const label = opt.label.toLowerCase();
+    if (label === q3) {
+      scored.push({ opt, score: 200 });
+    } else if (label.startsWith(q3)) {
+      scored.push({ opt, score: 100 - label.length * 0.5 });
+    } else if (label.includes(q3)) {
+      scored.push({ opt, score: 70 - label.length * 0.5 });
+    } else if (q3.length >= 3) {
+      const dist = levenshtein(q3, label);
+      const sim = 1 - dist / Math.max(q3.length, label.length);
+      if (sim >= 0.6)
+        scored.push({ opt, score: sim * 40 });
+    }
+  }
+  scored.sort((a3, b2) => b2.score - a3.score);
+  return scored.slice(0, limit).map((x2) => x2.opt);
+}
+var INTERNAL_FIELD_PREFIXES2 = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
+function isInternalField2(key) {
+  return INTERNAL_FIELD_PREFIXES2.some((prefix) => key.startsWith(prefix));
+}
+function fieldValueToString(v3) {
+  if (v3 === null || v3 === void 0)
+    return "";
+  if (v3 instanceof Date)
+    return formatDate(v3);
+  if (Array.isArray(v3))
+    return v3.filter((x2) => x2 !== null && x2 !== void 0).map(String).join(", ");
+  if (typeof v3 === "object") {
+    const path = v3["path"];
+    if (typeof path === "string")
+      return path;
+    return JSON.stringify(v3);
+  }
+  return String(v3);
+}
+function collectFieldSuggestions(entries, mapping) {
+  const titleByPath = /* @__PURE__ */ new Map();
+  for (const e3 of entries)
+    titleByPath.set(e3.path, e3.title);
+  const buckets = /* @__PURE__ */ new Map();
+  const add = (field, value, label) => {
+    const v3 = value.trim();
+    if (!v3)
+      return;
+    const m3 = buckets.get(field) ?? /* @__PURE__ */ new Map();
+    const key = v3;
+    const existing = m3.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      m3.set(key, { label: label ?? v3, value: v3, count: 1 });
+    }
+    buckets.set(field, m3);
+  };
+  for (const e3 of entries) {
+    add(mapping.titleField, e3.title);
+    add("title", e3.title);
+    if (e3.date)
+      add(mapping.dateField, formatDate(e3.date));
+    for (const tf of mapping.tagFields) {
+      const raw = e3.fields?.[tf];
+      if (Array.isArray(raw)) {
+        for (const item of raw)
+          add(tf, String(item));
+      } else if (typeof raw === "string") {
+        add(tf, raw);
+      }
+    }
+    const parent = toParentPathValue(e3.fields?.["parent"]);
+    if (parent) {
+      const title = titleByPath.get(parent);
+      add("parent", parent, title ? `${title}(${parent})` : parent);
+    }
+    for (const [k3, v3] of Object.entries(e3.fields ?? {})) {
+      if (k3 === "parent" || k3 === mapping.titleField || mapping.tagFields.includes(k3) || isInternalField2(k3)) {
+        continue;
+      }
+      const s3 = fieldValueToString(v3);
+      if (s3)
+        add(k3, s3);
+    }
+  }
+  const out = /* @__PURE__ */ new Map();
+  for (const [field, m3] of buckets) {
+    out.set(
+      field,
+      [...m3.values()].sort((a3, b2) => b2.count - a3.count).map(({ label, value }) => ({ label, value }))
+    );
+  }
+  return out;
+}
+
+// src/views/shared/suggestion-input.tsx
+var SUGGEST_LIMIT = 6;
+function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput }) {
+  const [open, setOpen] = d2(false);
+  const [activeIdx, setActiveIdx] = d2(-1);
+  const inputRef = A2(null);
+  const wrapRef = A2(null);
+  const ranked = T2(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
+  h2(() => {
+    if (open && ranked.length === 0)
+      setOpen(false);
+  }, [ranked, open]);
+  function pick(opt) {
+    onInput(opt.value);
+    setOpen(false);
+    setActiveIdx(-1);
+    inputRef.current?.focus();
+  }
+  function handleKey(e3) {
+    if (e3.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+    if (!open || ranked.length === 0)
+      return;
+    if (e3.key === "ArrowDown") {
+      e3.preventDefault();
+      setActiveIdx((i4) => Math.min(i4 + 1, ranked.length - 1));
+    } else if (e3.key === "ArrowUp") {
+      e3.preventDefault();
+      setActiveIdx((i4) => i4 <= 0 ? -1 : i4 - 1);
+    } else if ((e3.key === "Enter" || e3.key === "Tab") && activeIdx >= 0 && activeIdx < ranked.length) {
+      e3.preventDefault();
+      pick(ranked[activeIdx]);
+    }
+  }
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: `scheduler-suggestion ${cls ?? ""}${open && ranked.length > 0 ? " open" : ""}`,
+      ref: wrapRef,
+      children: [
+        /* @__PURE__ */ u3(
+          "input",
+          {
+            ref: inputRef,
+            class: cls ?? "",
+            type: "text",
+            value,
+            placeholder,
+            onInput: (e3) => {
+              onInput(e3.target.value);
+              setActiveIdx(-1);
+              setOpen(true);
+            },
+            onFocus: () => setOpen(true),
+            onKeyDown: (e3) => handleKey(e3)
+          }
+        ),
+        open && ranked.length > 0 && /* @__PURE__ */ u3(
+          Popover,
+          {
+            anchorRef: wrapRef,
+            open,
+            className: "scheduler-suggestion-dropdown",
+            offsetY: 2,
+            onOutsideClick: () => setOpen(false),
+            children: /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-list", children: ranked.map((opt, idx) => /* @__PURE__ */ u3(
+              "div",
+              {
+                class: `scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === value ? " selected" : ""}`,
+                onMouseDown: (e3) => e3.preventDefault(),
+                onClick: () => pick(opt),
+                children: opt.label
+              }
+            )) })
+          }
+        )
+      ]
+    }
+  );
+}
+
 // src/views/filter/filter-panel.tsx
 var OPERATORS = [
   "equals",
@@ -1324,7 +1726,7 @@ function expressionToClause(expr) {
   }
   return { type: "visual", not, conditions };
 }
-function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
+function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit, suggestions }) {
   function addClause() {
     const cond = {
       field: defaultField(columns),
@@ -1455,13 +1857,13 @@ function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }) {
             }
           ),
           /* @__PURE__ */ u3(
-            "input",
+            SuggestionInput,
             {
               class: "scheduler-filter-value",
-              type: "text",
               value: cond.value,
+              suggestions: suggestions?.get(cond.field) ?? [],
               placeholder: "value\u2026",
-              onInput: (e3) => updateCondition(i4, j3, { value: e3.target.value })
+              onInput: (v3) => updateCondition(i4, j3, { value: v3 })
             }
           ),
           /* @__PURE__ */ u3(
@@ -1991,7 +2393,7 @@ function makeLongPressHandlers(ms = 500) {
 }
 
 // src/views/shared/mobile-move.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 function useMobileMove() {
   const [pendingPath, setPendingPath] = d2(null);
   const toggle = q2((path) => {
@@ -2006,7 +2408,7 @@ function useMobileMove() {
     });
     return path;
   }, []);
-  return { isMobile: import_obsidian2.Platform.isMobile, pendingPath, toggle, cancel, consume };
+  return { isMobile: import_obsidian3.Platform.isMobile, pendingPath, toggle, cancel, consume };
 }
 
 // src/views/calendar/calendar-view.tsx
@@ -2155,7 +2557,7 @@ function CalendarView({ entries, mapping, filters, onFiltersChange, columns, onD
   function handleGridMouseDown(e3) {
     if (e3.button !== 0)
       return;
-    if (import_obsidian3.Platform.isMobile)
+    if (import_obsidian4.Platform.isMobile)
       return;
     const target = e3.target;
     if (target.closest(".scheduler-calendar-event") || target.closest("button"))
@@ -2500,7 +2902,7 @@ function CalendarCell({ date, dateStr, calEntries, today, onDateChange, onOpenEn
 }
 
 // src/views/timeline/timeline-view.tsx
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var HOUR_HEIGHT = 60;
 var HOURS = Array.from({ length: 24 }, (_2, i4) => i4);
 var SNAP_MINUTES = 15;
@@ -2625,7 +3027,7 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
   function startBlockDrag(e3, dayIndex, path, type, start, end) {
     e3.preventDefault();
     e3.stopPropagation();
-    if (import_obsidian4.Platform.isMobile)
+    if (import_obsidian5.Platform.isMobile)
       return;
     setDrag({
       path,
@@ -2641,7 +3043,7 @@ function TimelineView({ entries, mapping, filters, onFiltersChange, columns, onT
     });
   }
   function startCreate(e3, dayIndex) {
-    if (import_obsidian4.Platform.isMobile)
+    if (import_obsidian5.Platform.isMobile)
       return;
     const target = e3.target;
     const slotsTarget = target.closest(".scheduler-timeline-slots");
@@ -3124,8 +3526,8 @@ function sanitizeFilename(title) {
 }
 
 // src/utils/new-entry-modal.ts
-var import_obsidian5 = require("obsidian");
-var NewEntryModal = class extends import_obsidian5.Modal {
+var import_obsidian6 = require("obsidian");
+var NewEntryModal = class extends import_obsidian6.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.title = "";
@@ -3134,7 +3536,7 @@ var NewEntryModal = class extends import_obsidian5.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h3", { text: "New Entry" });
-    new import_obsidian5.Setting(contentEl).setName("Title").addText((text) => {
+    new import_obsidian6.Setting(contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Entry title...").onChange((value) => this.title = value);
       text.inputEl.addEventListener("keydown", (e3) => {
         if (e3.key === "Enter") {
@@ -3143,7 +3545,7 @@ var NewEntryModal = class extends import_obsidian5.Modal {
       });
       setTimeout(() => text.inputEl.focus(), 50);
     });
-    new import_obsidian5.Setting(contentEl).addButton(
+    new import_obsidian6.Setting(contentEl).addButton(
       (btn) => btn.setButtonText("Create").setCta().onClick(() => this.submit())
     );
   }
@@ -3158,192 +3560,6 @@ var NewEntryModal = class extends import_obsidian5.Modal {
     this.contentEl.empty();
   }
 };
-
-// src/utils/inline-editor.ts
-var import_obsidian6 = require("obsidian");
-var INLINE_PATH_RE = /#L\d+$/;
-function isInlinePath(path) {
-  return INLINE_PATH_RE.test(path);
-}
-function parseInlinePath(path) {
-  const m3 = path.match(/^(.+)#L(\d+)$/);
-  if (!m3)
-    return null;
-  return { filePath: m3[1], line: parseInt(m3[2]) };
-}
-function toParentPathValue(v3) {
-  if (typeof v3 === "string")
-    return v3;
-  if (v3 && typeof v3 === "object") {
-    const path = v3["path"];
-    if (typeof path === "string") {
-      if (/#L\d+$/.test(path))
-        return path;
-      return path.endsWith(".md") ? path : `${path}.md`;
-    }
-  }
-  return "";
-}
-async function applyInlineEdit(app, path, transform) {
-  const parsed = parseInlinePath(path);
-  if (!parsed)
-    return null;
-  const file = app.vault.getAbstractFileByPath(parsed.filePath);
-  if (!(file instanceof import_obsidian6.TFile))
-    return null;
-  let result = null;
-  await app.vault.process(file, (data) => {
-    const lines = data.split("\n");
-    if (parsed.line < 1 || parsed.line > lines.length)
-      return data;
-    const lineIdx = parsed.line - 1;
-    const originalLine = lines[lineIdx];
-    const newLine = transform(originalLine);
-    if (newLine === originalLine)
-      return data;
-    lines[lineIdx] = newLine;
-    const after = lines.join("\n");
-    result = { path: parsed.filePath, before: data, after };
-    return after;
-  });
-  return result;
-}
-
-// src/views/table/table-utils.ts
-var INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
-function isInternalField(key) {
-  return INTERNAL_FIELD_PREFIXES.some((prefix) => key.startsWith(prefix));
-}
-function isDisplayableValue(val) {
-  if (val === null || val === void 0)
-    return false;
-  if (typeof val === "string")
-    return val.length > 0;
-  if (typeof val === "number")
-    return true;
-  if (typeof val === "boolean")
-    return true;
-  if (val instanceof Date)
-    return !isNaN(val.getTime());
-  if (Array.isArray(val)) {
-    const first = val[0];
-    return typeof first === "string";
-  }
-  return false;
-}
-function collectColumns(entries, mapping) {
-  const allKeys = /* @__PURE__ */ new Set();
-  for (const entry of entries) {
-    for (const key of Object.keys(entry.fields ?? {})) {
-      if (key && !isInternalField(key))
-        allKeys.add(key);
-    }
-  }
-  const baseColumns = ["title", "date", "file", ...mapping.tagFields];
-  const hasParent = entries.some((e3) => e3.fields?.["parent"] != null);
-  if (hasParent && !baseColumns.includes("parent")) {
-    baseColumns.splice(3, 0, "parent");
-  }
-  const extra = Array.from(allKeys).filter(
-    (k3) => k3 !== mapping.titleField && k3 !== mapping.dateField && !baseColumns.includes(k3)
-  );
-  return [...baseColumns, ...extra].filter((c3, i4, arr) => arr.indexOf(c3) === i4);
-}
-function formatCellValue(entry, column, parentTitles) {
-  switch (column) {
-    case "title":
-      return entry.title;
-    case "date":
-      return entry.date ? formatDate(entry.date) : "";
-    case "file":
-      return fileBaseName(entry.path);
-    case "parent": {
-      const parentPath = toParentPathValue(entry.fields?.["parent"]);
-      if (!parentPath)
-        return "";
-      const title = parentTitles?.get(parentPath);
-      return title ? `${title}(${parentPath})` : parentPath;
-    }
-    default:
-      const val = entry.fields?.[column];
-      if (val === null || val === void 0)
-        return "";
-      if (isDisplayableValue(val)) {
-        if (Array.isArray(val))
-          return val.join(", ");
-        if (val instanceof Date)
-          return formatDate(val);
-        return String(val);
-      }
-      return "";
-  }
-}
-function formatDate(val) {
-  if (val instanceof Date)
-    return val.toLocaleDateString();
-  if (typeof val === "number")
-    return new Date(val).toLocaleDateString();
-  if (typeof val === "string") {
-    const d3 = new Date(val);
-    if (!isNaN(d3.getTime()))
-      return d3.toLocaleDateString();
-  }
-  return String(val ?? "");
-}
-function fileBaseName(path) {
-  const last = path.split("/").pop() ?? path;
-  return last.replace(/\.md$/, "");
-}
-function toISODate(date) {
-  const y3 = date.getFullYear();
-  const m3 = String(date.getMonth() + 1).padStart(2, "0");
-  const d3 = String(date.getDate()).padStart(2, "0");
-  return `${y3}-${m3}-${d3}`;
-}
-function toInputDate(raw) {
-  if (raw instanceof Date)
-    return toISODate(raw);
-  if (typeof raw === "string") {
-    if (/^\d{4}-\d{2}-\d{2}/.test(raw))
-      return raw.slice(0, 10);
-    const d3 = new Date(raw);
-    if (!isNaN(d3.getTime()))
-      return toISODate(d3);
-  }
-  if (typeof raw === "number") {
-    const d3 = new Date(raw);
-    if (!isNaN(d3.getTime()))
-      return toISODate(d3);
-  }
-  return "";
-}
-function getCellKind(column, mapping, kinds) {
-  if (column === "file" || column === "parent")
-    return "file";
-  if (column === "date" || column === mapping.dateField)
-    return "date";
-  if (mapping.tagFields.includes(column))
-    return "tags";
-  if (kinds) {
-    const k3 = kinds[column];
-    if (k3 === "tags")
-      return "tags";
-    if (k3 === "date")
-      return "date";
-  }
-  return "text";
-}
-function writeFieldFor(column, mapping) {
-  if (column === "date")
-    return mapping.dateField;
-  return column;
-}
-function formatTagValue(values) {
-  const clean = values.map((v3) => v3.trim()).filter((v3) => v3.length > 0);
-  if (clean.length === 0)
-    return "[]";
-  return `[${clean.join(", ")}]`;
-}
 
 // src/views/table/table-view.tsx
 var import_obsidian7 = require("obsidian");
@@ -3553,7 +3769,7 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }) {
     }
   );
 }
-function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry }) {
+function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry, suggestions }) {
   function toggleColumn(col) {
     const next = new Set(hiddenCols);
     if (next.has(col)) {
@@ -3600,7 +3816,8 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
             columns,
             clauses: filters,
             onClausesChange: onFiltersChange,
-            onCodeEdit: () => setShowCodeModal(true)
+            onCodeEdit: () => setShowCodeModal(true),
+            suggestions
           }
         ) })
       ] })
@@ -3856,7 +4073,8 @@ function TableView({
   onCreateEntry,
   onDeleteEntry,
   initialPageSize,
-  onPageSizeChange
+  onPageSizeChange,
+  suggestions
 }) {
   const visibleCols = columns.filter((c3) => !hiddenCols.has(c3));
   const [selected, setSelected] = d2(/* @__PURE__ */ new Set());
@@ -4061,7 +4279,8 @@ function TableView({
         sort,
         onSortChange,
         kinds: fieldKinds,
-        onCreateEntry
+        onCreateEntry,
+        suggestions
       }
     ),
     selected.size > 0 && /* @__PURE__ */ u3(
@@ -4835,6 +5054,10 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
     [entries, inlineEntries]
   );
   const columns = T2(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
+  const fieldSuggestions = T2(
+    () => collectFieldSuggestions(allEntries, plugin.settings.fieldMapping),
+    [allEntries]
+  );
   const visibleConverted = A2(false);
   h2(() => {
     if (visibleConverted.current)
@@ -5250,7 +5473,8 @@ ${titleLine}
           onCreateEntry: () => handleCreateEntry(),
           onDeleteEntry: handleDeleteEntry,
           initialPageSize: initialState?.pageSize,
-          onPageSizeChange: setPageSize
+          onPageSizeChange: setPageSize,
+          suggestions: fieldSuggestions
         }
       ),
       viewType === "calendar" && /* @__PURE__ */ u3(ErrorBoundary, { children: /* @__PURE__ */ u3(CalendarView, { entries: filteredEntries, mapping: plugin.settings.fieldMapping, onDateChange: handleDateChange, onOpenEntry: handleOpenEntry, onCreateEntry: (dateStr) => handleCreateEntry(dateStr), onDeleteEntry: handleDeleteEntry, filters, onFiltersChange: setFilters, columns }) }),

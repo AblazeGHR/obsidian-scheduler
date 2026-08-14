@@ -16,6 +16,7 @@ import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
 import { CodeblockViewState } from "../utils/codeblock-state";
 import { isInlinePath, parseInlinePath, applyInlineEdit, toParentPathValue } from "../utils/inline-editor";
+import { collectFieldSuggestions } from "../utils/suggest";
 import { Popover, isInsidePopoverHost } from "./shared/popover";
 
 // ============================================================
@@ -237,6 +238,12 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		[entries, inlineEntries]
 	);
 	const columns = useMemo(() => collectColumns(allEntries, plugin.settings.fieldMapping), [allEntries]);
+
+	// Per-field suggestion options for filter value inputs (based on all entries)
+	const fieldSuggestions = useMemo(
+		() => collectFieldSuggestions(allEntries, plugin.settings.fieldMapping),
+		[allEntries]
+	);
 
 	// Convert `visible:` whitelist to hidden set on first render with available columns
 	const visibleConverted = useRef(false);
@@ -755,6 +762,7 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						onDeleteEntry={handleDeleteEntry}
 						initialPageSize={initialState?.pageSize}
 						onPageSizeChange={setPageSize}
+						suggestions={fieldSuggestions}
 					/>
 				)}
 			{viewType === "calendar" && (

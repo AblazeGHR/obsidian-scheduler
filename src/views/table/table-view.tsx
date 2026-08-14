@@ -20,6 +20,7 @@ import { expandRecurring } from "../../utils/recurrence";
 import { inferEntryFieldKinds, FieldKind } from "../../schema/field-types";
 import { DateCell } from "./date-cell";
 import { isInlinePath, toParentPathValue } from "../../utils/inline-editor";
+import { SuggestionOption } from "../../utils/suggest";
 
 // ============================================================
 // EditableCell — inline editing with date / tag / text support
@@ -181,9 +182,11 @@ interface FilterBarProps {
 	onSortChange: (sort: SortConfig[]) => void;
 	kinds?: Record<string, FieldKind>;
 	onCreateEntry?: () => void;
+	/** Field → suggestion options for filter value inputs. */
+	suggestions?: Map<string, SuggestionOption[]>;
 }
 
-function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry }: FilterBarProps) {
+function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenColsChange, entriesCount, totalCount, sort, onSortChange, kinds, onCreateEntry, suggestions }: FilterBarProps) {
 	function toggleColumn(col: string) {
 		const next = new Set(hiddenCols);
 		if (next.has(col)) {
@@ -225,6 +228,7 @@ function FilterBar({ columns, filters, onFiltersChange, hiddenCols, onHiddenCols
 							clauses={filters}
 							onClausesChange={onFiltersChange}
 							onCodeEdit={() => setShowCodeModal(true)}
+							suggestions={suggestions}
 						/>
 					</Popover>
 				</div>
@@ -507,6 +511,8 @@ interface TableViewProps {
 	initialPageSize?: number;
 	/** Called when the user changes the page sizing. */
 	onPageSizeChange?: (size: number) => void;
+	/** Field → suggestion options for filter value inputs. */
+	suggestions?: Map<string, SuggestionOption[]>;
 }
 
 const PAGE_SIZES = [10, 25, 50, 100, 0, -1]; // 0 = all, -1 = custom
@@ -527,6 +533,7 @@ function TableView({
 	onDeleteEntry,
 	initialPageSize,
 	onPageSizeChange,
+	suggestions,
 }: TableViewProps) {
 	const visibleCols = columns.filter((c) => !hiddenCols.has(c));
 
@@ -771,6 +778,7 @@ function TableView({
 				onSortChange={onSortChange}
 				kinds={fieldKinds}
 				onCreateEntry={onCreateEntry}
+				suggestions={suggestions}
 			/>
 
 			{selected.size > 0 && (

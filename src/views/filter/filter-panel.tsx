@@ -1,6 +1,8 @@
 import { h } from "preact";
 import { FilterClause, VisualClause, RawClause, AtomicCondition, FilterOperator } from "../../types";
 import { SearchableSelect } from "../shared/searchable-select";
+import { SuggestionInput } from "../shared/suggestion-input";
+import { SuggestionOption } from "../../utils/suggest";
 
 // ============================================================
 // FilterPanel — popover content with AND/OR/NOT clause builder
@@ -12,6 +14,8 @@ interface FilterPanelProps {
 	onClausesChange: (clauses: FilterClause[]) => void;
 	/** Callback for the global `.*` button (opens code-edit modal). */
 	onCodeEdit?: () => void;
+	/** Field → suggestion options for the value inputs. */
+	suggestions?: Map<string, SuggestionOption[]>;
 }
 
 /** All filter operators available in the dropdown. */
@@ -84,7 +88,7 @@ function expressionToClause(expr: string): FilterClause {
 	return { type: "visual", not, conditions };
 }
 
-export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: FilterPanelProps) {
+export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit, suggestions }: FilterPanelProps) {
 	function addClause() {
 		const cond: AtomicCondition = {
 			field: defaultField(columns),
@@ -234,15 +238,13 @@ export function FilterPanel({ columns, clauses, onClausesChange, onCodeEdit }: F
 												<option value={op}>{op}</option>
 											))}
 										</select>
-										<input
-											class="scheduler-filter-value"
-											type="text"
-											value={cond.value}
-											placeholder="value…"
-											onInput={(e: any) =>
-												updateCondition(i, j, { value: e.target.value })
-											}
-										/>
+									<SuggestionInput
+										class="scheduler-filter-value"
+										value={cond.value}
+										suggestions={suggestions?.get(cond.field) ?? []}
+										placeholder="value…"
+										onInput={(v) => updateCondition(i, j, { value: v })}
+									/>
 										<button
 											class="scheduler-filter-remove"
 											onClick={() => removeCondition(i, j)}

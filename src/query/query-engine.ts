@@ -82,7 +82,8 @@ export class QueryEngine {
 	/** Static: apply filters to entries (pure function, no state needed). */
 	static applyFilters(entries: PageEntry[], filters: FilterClause[]): PageEntry[] {
 		if (filters.length === 0) return entries;
-		return entries.filter((entry) => filters.every((c) => evaluateClause(entry, c)));
+		const titleByPath = new Map(entries.map((e) => [e.path, e.title]));
+		return entries.filter((entry) => filters.every((c) => evaluateClause(entry, c, titleByPath)));
 	}
 }
 

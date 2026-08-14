@@ -1,5 +1,6 @@
 import { PageEntry, FilterClause, AtomicCondition } from "../types";
 import { getFieldValue } from "../query/query-engine";
+import { toParentPathValue } from "./inline-editor";
 
 // ============================================================
 // Filter tree evaluator
@@ -9,25 +10,38 @@ import { getFieldValue } from "../query/query-engine";
 // conditions are ORed; each clause can optionally be negated.
 // ============================================================
 
-/** Evaluate a single AtomicCondition against a PageEntry. */
-export function evaluateAtomic(entry: PageEntry, cond: AtomicCondition): boolean {
+/** Evaluate a single AtomicCondition against a PageEntry.
+ *  `titleByPath` (path → title) enables matching `parent` conditions by the
+ *  parent entry's title as well as by its stored path/link. */
+export function evaluateAtomic(
+	entry: PageEntry,
+	cond: AtomicCondition,
+	titleByPath?: Map<string, string>
+): boolean {
 	const val = getFieldValue(entry, cond.field);
 	const fv = cond.value;
 
+	// For `parent`, the stored value is a path/link but users think in titles:
+	// also match the resolved title. Comparison operators keep using the raw
+	// value (a title has no meaningful ordering).
+	const values = cond.field === "parent"
+		? expandParentValues(val, titleByPath)
+		: [val];
+
 	switch (cond.operator) {
-		case "equals": return atomicEquals(val, fv);
-		case "not_equals": return !atomicEquals(val, fv);
-		case "contains": return atomicContains(val, fv);
+		case "equals": return values.some((v) => atomicEquals(v, fv));
+		case "not_equals": return !values.some((v) => atomicEquals(v, fv));
+		case "contains": return values.some((v) => atomicContains(v, fv));
 		case "greater_than": return atomicCompare(val, fv) > 0;
 		case "less_than": return atomicCompare(val, fv) < 0;
 		case "before": return atomicCompare(val, fv) < 0;
 		case "after": return atomicCompare(val, fv) > 0;
-		case "starts_with": return String(val ?? "").toLowerCase().startsWith(fv.toLowerCase());
-		case "ends_with": return String(val ?? "").toLowerCase().endsWith(fv.toLowerCase());
+		case "starts_with": return values.some((v) => String(v ?? "").toLowerCase().startsWith(fv.toLowerCase()));
+		case "ends_with": return values.some((v) => String(v ?? "").toLowerCase().endsWith(fv.toLowerCase()));
 		case "regex":
 			try {
 				const re = new RegExp(fv, fv.includes("(?i)") ? "" : "i");
-				return re.test(String(val ?? ""));
+				return values.some((v) => re.test(String(v ?? "")));
 			} catch {
 				return false;
 			}
@@ -36,8 +50,22 @@ export function evaluateAtomic(entry: PageEntry, cond: AtomicCondition): boolean
 	}
 }
 
+/** For a `parent` field value, return [path, title] so string operators match
+ *  either. Falls back to just the raw value when nothing is resolvable. */
+function expandParentValues(val: unknown, titleByPath?: Map<string, string>): unknown[] {
+	const path = toParentPathValue(val);
+	if (!path || !titleByPath) return [val];
+	const title = titleByPath.get(path);
+	if (!title || title === path) return [val];
+	return [val, title];
+}
+
 /** Evaluate a single FilterClause against a PageEntry. */
-export function evaluateClause(entry: PageEntry, clause: FilterClause): boolean {
+export function evaluateClause(
+	entry: PageEntry,
+	clause: FilterClause,
+	titleByPath?: Map<string, string>
+): boolean {
 	let result: boolean;
 
 	if (clause.type === "raw") {
@@ -51,7 +79,7 @@ export function evaluateClause(entry: PageEntry, clause: FilterClause): boolean 
 		// VisualClause — OR across conditions
 		result = clause.conditions.length === 0
 			? true
-			: clause.conditions.some((c) => evaluateAtomic(entry, c));
+			: clause.conditions.some((c) => evaluateAtomic(entry, c, titleByPath));
 	}
 
 	return clause.not ? !result : result;
@@ -60,7 +88,8 @@ export function evaluateClause(entry: PageEntry, clause: FilterClause): boolean 
 /** AND across all top-level clauses. If no clauses, return all entries. */
 export function evaluateFilterTree(entries: PageEntry[], clauses: FilterClause[]): PageEntry[] {
 	if (!clauses || clauses.length === 0) return entries;
-	return entries.filter((entry) => clauses.every((clause) => evaluateClause(entry, clause)));
+	const titleByPath = new Map(entries.map((e) => [e.path, e.title]));
+	return entries.filter((entry) => clauses.every((clause) => evaluateClause(entry, clause, titleByPath)));
 }
 
 /** Alias for evaluateFilterTree — same semantics, friendlier name for integration points. */
