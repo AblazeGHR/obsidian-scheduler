@@ -3259,10 +3259,10 @@ function formatCellValue(entry, column, parentTitles) {
       return fileBaseName(entry.path);
     case "parent": {
       const parentPath = toParentPathValue(entry.fields?.["parent"]);
-      if (parentPath) {
-        return parentTitles?.get(parentPath) ?? fileBaseName(parentPath);
-      }
-      return "";
+      if (!parentPath)
+        return "";
+      const title = parentTitles?.get(parentPath);
+      return title ? `${title}(${parentPath})` : parentPath;
     }
     default:
       const val = entry.fields?.[column];

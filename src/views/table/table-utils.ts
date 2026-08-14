@@ -51,10 +51,12 @@ export function formatCellValue(entry: PageEntry, column: string, parentTitles?:
 			return fileBaseName(entry.path);
 		case "parent": {
 			const parentPath = toParentPathValue(entry.fields?.["parent"]);
-			if (parentPath) {
-				return parentTitles?.get(parentPath) ?? fileBaseName(parentPath);
-			}
-			return "";
+			if (!parentPath) return "";
+			// Show `title(path)` so both the parent's name and its stored
+			// reference are visible. Fall back to the raw path when the target
+			// isn't in the current entry set (no title resolvable).
+			const title = parentTitles?.get(parentPath);
+			return title ? `${title}(${parentPath})` : parentPath;
 		}
 		default:
 			const val = entry.fields?.[column];
