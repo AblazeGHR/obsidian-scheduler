@@ -1,5 +1,5 @@
 import { PageEntry, FieldMapping } from "../types";
-import { formatDate } from "../views/table/table-utils";
+import { formatDate, fileBaseName } from "../views/table/table-utils";
 import { toParentPathValue } from "./inline-editor";
 
 // ============================================================
@@ -117,6 +117,8 @@ export function collectFieldSuggestions(entries: PageEntry[], mapping: FieldMapp
 		add(mapping.titleField, e.title);
 		add("title", e.title);
 		if (e.date) add(mapping.dateField, formatDate(e.date));
+		// `file` is a derived virtual field (entry.path), not a frontmatter field
+		add("file", e.path, fileBaseName(e.path));
 
 		for (const tf of mapping.tagFields) {
 			const raw = e.fields?.[tf];

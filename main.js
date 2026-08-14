@@ -1560,6 +1560,7 @@ function collectFieldSuggestions(entries, mapping) {
     add("title", e3.title);
     if (e3.date)
       add(mapping.dateField, formatDate(e3.date));
+    add("file", e3.path, fileBaseName(e3.path));
     for (const tf of mapping.tagFields) {
       const raw = e3.fields?.[tf];
       if (Array.isArray(raw)) {
