@@ -2321,7 +2321,28 @@
 .scheduler-suggestion {
     position: relative;
     display: inline-flex;
+    align-items: center;
     min-width: 0;
+}
+.scheduler-suggestion-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 22px;
+    padding: 0;
+    margin-left: 2px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    background: var(--background-primary);
+    color: var(--text-faint);
+    font-size: 10px;
+    cursor: pointer;
+    line-height: 1;
+}
+.scheduler-suggestion-btn:hover {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
 }
 .scheduler-suggestion-dropdown {
     z-index: 150;

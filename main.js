@@ -1594,114 +1594,60 @@ function collectFieldSuggestions(entries, mapping) {
 }
 
 // src/views/shared/suggestion-input.tsx
-var SUGGEST_LIMIT = 6;
+var SUGGEST_LIMIT = 8;
 function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput }) {
   const [open, setOpen] = d2(false);
-  const [activeIdx, setActiveIdx] = d2(-1);
-  const [localValue, setLocalValue] = d2(value);
-  const composingRef = A2(false);
   const inputRef = A2(null);
   const wrapRef = A2(null);
-  const ranked = T2(() => rankSuggestions(localValue, suggestions, SUGGEST_LIMIT), [localValue, suggestions]);
-  h2(() => {
-    if (!composingRef.current && value !== localValue) {
-      setLocalValue(value);
-    }
-  }, [value, localValue]);
-  h2(() => {
-    if (open && ranked.length === 0)
-      setOpen(false);
-  }, [ranked, open]);
-  function commitValue(v3) {
-    onInput(v3);
-    setActiveIdx(-1);
-    setOpen(true);
-  }
-  function handleInput(e3) {
-    const v3 = e3.target.value;
-    setLocalValue(v3);
-    if (composingRef.current)
-      return;
-    commitValue(v3);
-  }
-  function handleCompositionEnd(e3) {
-    composingRef.current = false;
-    const v3 = e3.currentTarget.value;
-    setLocalValue(v3);
-    commitValue(v3);
-  }
+  const ranked = T2(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
   function pick(opt) {
-    setLocalValue(opt.value);
     onInput(opt.value);
     setOpen(false);
-    setActiveIdx(-1);
     inputRef.current?.focus();
   }
-  function handleKey(e3) {
-    if (composingRef.current)
-      return;
-    if (e3.key === "Escape") {
-      setOpen(false);
-      return;
-    }
-    if (!open || ranked.length === 0)
-      return;
-    if (e3.key === "ArrowDown") {
-      e3.preventDefault();
-      setActiveIdx((i4) => Math.min(i4 + 1, ranked.length - 1));
-    } else if (e3.key === "ArrowUp") {
-      e3.preventDefault();
-      setActiveIdx((i4) => i4 <= 0 ? -1 : i4 - 1);
-    } else if ((e3.key === "Enter" || e3.key === "Tab") && activeIdx >= 0 && activeIdx < ranked.length) {
-      e3.preventDefault();
-      pick(ranked[activeIdx]);
-    }
-  }
-  return /* @__PURE__ */ u3(
-    "div",
-    {
-      class: `scheduler-suggestion ${cls ?? ""}${open && ranked.length > 0 ? " open" : ""}`,
-      ref: wrapRef,
-      children: [
-        /* @__PURE__ */ u3(
-          "input",
+  return /* @__PURE__ */ u3("div", { class: `scheduler-suggestion ${cls ?? ""}${open ? " open" : ""}`, ref: wrapRef, children: [
+    /* @__PURE__ */ u3(
+      "input",
+      {
+        ref: inputRef,
+        class: cls ?? "",
+        type: "text",
+        value,
+        placeholder,
+        onInput: (e3) => onInput(e3.target.value)
+      }
+    ),
+    /* @__PURE__ */ u3(
+      "button",
+      {
+        type: "button",
+        class: "scheduler-suggestion-btn",
+        onMouseDown: (e3) => e3.preventDefault(),
+        onClick: () => setOpen((o3) => !o3),
+        title: "Show suggestions for this field",
+        children: "\u25BE"
+      }
+    ),
+    open && ranked.length > 0 && /* @__PURE__ */ u3(
+      Popover,
+      {
+        anchorRef: wrapRef,
+        open,
+        className: "scheduler-suggestion-dropdown",
+        offsetY: 2,
+        onOutsideClick: () => setOpen(false),
+        children: /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-list", children: ranked.map((opt) => /* @__PURE__ */ u3(
+          "div",
           {
-            ref: inputRef,
-            class: cls ?? "",
-            type: "text",
-            value: localValue,
-            placeholder,
-            onInput: handleInput,
-            onCompositionStart: () => {
-              composingRef.current = true;
-            },
-            onCompositionEnd: handleCompositionEnd,
-            onFocus: () => setOpen(true),
-            onKeyDown: (e3) => handleKey(e3)
+            class: "scheduler-suggestion-item",
+            onMouseDown: (e3) => e3.preventDefault(),
+            onClick: () => pick(opt),
+            children: opt.label
           }
-        ),
-        open && ranked.length > 0 && /* @__PURE__ */ u3(
-          Popover,
-          {
-            anchorRef: wrapRef,
-            open,
-            className: "scheduler-suggestion-dropdown",
-            offsetY: 2,
-            onOutsideClick: () => setOpen(false),
-            children: /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-list", children: ranked.map((opt, idx) => /* @__PURE__ */ u3(
-              "div",
-              {
-                class: `scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === localValue ? " selected" : ""}`,
-                onMouseDown: (e3) => e3.preventDefault(),
-                onClick: () => pick(opt),
-                children: opt.label
-              }
-            )) })
-          }
-        )
-      ]
-    }
-  );
+        )) })
+      }
+    )
+  ] });
 }
 
 // src/views/filter/filter-panel.tsx
@@ -5059,13 +5005,6 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [dataVersion, setDataVersion] = d2(0);
   const [search, setSearch] = d2(initialState?.search ?? "");
   const [pageSize, setPageSize] = d2(initialState?.pageSize ?? 50);
-  const [searchLocal, setSearchLocal] = d2(initialState?.search ?? "");
-  const searchComposingRef = A2(false);
-  h2(() => {
-    if (!searchComposingRef.current && search !== searchLocal) {
-      setSearchLocal(search);
-    }
-  }, [search, searchLocal]);
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
   const [saveName, setSaveName] = d2("");
   const api = getDataviewApi(plugin.app);
@@ -5426,38 +5365,12 @@ ${titleLine}
           {
             class: "scheduler-search-input",
             type: "text",
-            value: searchLocal,
+            value: search,
             placeholder: "Search titles & fields\u2026",
-            onInput: (e3) => {
-              const v3 = e3.target.value;
-              setSearchLocal(v3);
-              if (searchComposingRef.current)
-                return;
-              setSearch(v3);
-            },
-            onCompositionStart: () => {
-              searchComposingRef.current = true;
-            },
-            onCompositionEnd: (e3) => {
-              searchComposingRef.current = false;
-              const v3 = e3.currentTarget.value;
-              setSearchLocal(v3);
-              setSearch(v3);
-            }
+            onInput: (e3) => setSearch(e3.target.value)
           }
         ),
-        search && /* @__PURE__ */ u3(
-          "button",
-          {
-            class: "scheduler-search-clear",
-            onClick: () => {
-              setSearch("");
-              setSearchLocal("");
-            },
-            title: "Clear search",
-            children: "\xD7"
-          }
-        )
+        search && /* @__PURE__ */ u3("button", { class: "scheduler-search-clear", onClick: () => setSearch(""), title: "Clear search", children: "\xD7" })
       ] }),
       /* @__PURE__ */ u3(ToolbarDropdown, { label: "Templates", children: [
         templates.length > 0 ? templates.map((t3) => /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item scheduler-dropdown-row", children: [
