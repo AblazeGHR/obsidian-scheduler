@@ -4,7 +4,7 @@ import { Popover } from "./popover";
 import { rankSuggestions, SuggestionOption } from "../../utils/suggest";
 
 interface SuggestionInputProps {
-	/** Current input value (controlled). */
+	/** Current value (controlled — committed on every non-IME change). */
 	value: string;
 	/** All candidate options for the input's field. */
 	suggestions: SuggestionOption[];
@@ -12,61 +12,74 @@ interface SuggestionInputProps {
 	placeholder?: string;
 	/** CSS class applied to the underlying <input>. */
 	class?: string;
-	/** Called on every change (typing, picking a suggestion, Enter/Tab). */
+	/** Called when the input value changes (typing, picking a suggestion). */
 	onInput: (value: string) => void;
 }
 
 const SUGGEST_LIMIT = 6;
 
 /**
- * A free-text input that, while focused/typing, shows a dropdown of the most
- * similar suggestions for the input's field (ranked by prefix/substring/edit
- * distance). Arrow keys move the highlight, Enter/Tab accept it, Esc dismisses.
- * The dropdown is rendered through Popover so it escapes code-block clipping.
+ * A free-text input with a suggestion dropdown, ranked by similarity to what
+ * the user is typing (prefix > substring > edit distance).
+ *
+ * The input binds to a LOCAL buffer (`localValue`) rather than the controlled
+ * `value` prop. This is what keeps IME composition intact: mid-composition the
+ * buffer always mirrors the DOM, so a parent re-render can never write a stale
+ * `value` back into the field and reset the IME candidate window. The buffer is
+ * committed to the parent on every non-IME change and on composition end.
  */
 export function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput }: SuggestionInputProps) {
 	const [open, setOpen] = useState(false);
 	const [activeIdx, setActiveIdx] = useState(-1);
+	const [localValue, setLocalValue] = useState(value);
+	const composingRef = useRef(false);
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const wrapRef = useRef<HTMLDivElement | null>(null);
-	// True while the IME is composing (e.g. typing pinyin). Inputs must NOT be
-	// written back from the controlled value mid-composition or the candidate
-	// window is reset/cut off.
-	const composingRef = useRef(false);
 
-	const ranked = useMemo(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
+	const ranked = useMemo(() => rankSuggestions(localValue, suggestions, SUGGEST_LIMIT), [localValue, suggestions]);
+
+	// Mirror externally-driven value changes (e.g. a suggestion picked by
+	// keyboard elsewhere, or the parent resetting the field). Never clobber
+	// text the user is still composing.
+	useEffect(() => {
+		if (!composingRef.current && value !== localValue) {
+			setLocalValue(value);
+		}
+	}, [value, localValue]);
 
 	// Close the dropdown whenever the options source disappears entirely
 	useEffect(() => {
 		if (open && ranked.length === 0) setOpen(false);
 	}, [ranked, open]);
 
-	function pick(opt: SuggestionOption) {
-		onInput(opt.value);
-		setOpen(false);
-		setActiveIdx(-1);
-		inputRef.current?.focus();
-	}
-
-	function commitValue(el: HTMLInputElement) {
-		onInput(el.value);
+	function commitValue(v: string) {
+		onInput(v);
 		setActiveIdx(-1);
 		setOpen(true);
 	}
 
 	function handleInput(e: Event) {
-		// Ignore events fired during IME composition; the value is committed on
-		// compositionend instead (commitValue).
-		if (composingRef.current) return;
-		commitValue(e.target as HTMLInputElement);
+		const v = (e.target as HTMLInputElement).value;
+		// Always mirror the DOM into the local buffer first, so re-renders can
+		// never roll the text back.
+		setLocalValue(v);
+		if (composingRef.current) return; // IME composing — commit on compositionend
+		commitValue(v);
 	}
 
 	function handleCompositionEnd(e: CompositionEvent) {
 		composingRef.current = false;
-		// Some browsers emit no trailing input event after compositionend, so
-		// commit the fully-composed value explicitly. A duplicate trailing input
-		// event commits the same value again — harmless.
-		commitValue(e.currentTarget as HTMLInputElement);
+		const v = (e.currentTarget as HTMLInputElement).value;
+		setLocalValue(v);
+		commitValue(v);
+	}
+
+	function pick(opt: SuggestionOption) {
+		setLocalValue(opt.value);
+		onInput(opt.value);
+		setOpen(false);
+		setActiveIdx(-1);
+		inputRef.current?.focus();
 	}
 
 	function handleKey(e: KeyboardEvent) {
@@ -100,7 +113,7 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 				ref={inputRef}
 				class={cls ?? ""}
 				type="text"
-				value={value}
+				value={localValue}
 				placeholder={placeholder}
 				onInput={handleInput}
 				onCompositionStart={() => { composingRef.current = true; }}
@@ -119,7 +132,7 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 					<div class="scheduler-suggestion-list">
 						{ranked.map((opt, idx) => (
 							<div
-								class={`scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === value ? " selected" : ""}`}
+								class={`scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === localValue ? " selected" : ""}`}
 								onMouseDown={(e: any) => e.preventDefault()}
 								onClick={() => pick(opt)}
 							>

@@ -203,10 +203,18 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	const [dataVersion, setDataVersion] = useState(0);
 	const [search, setSearch] = useState(initialState?.search ?? "");
 	const [pageSize, setPageSize] = useState(initialState?.pageSize ?? 50);
-	// True while the IME is composing — the search value must not be written
-	// back from the controlled state mid-composition or the IME candidate
-	// window gets reset (cuts off Chinese input).
+	// Search box binds to a local buffer so parent re-renders can never write a
+	// stale value back mid-IME-composition (which cut off Chinese input). The
+	// buffer is committed to `search` on every non-IME change and on
+	// composition end.
+	const [searchLocal, setSearchLocal] = useState(initialState?.search ?? "");
 	const searchComposingRef = useRef(false);
+	// Mirror externally-driven search changes into the local buffer
+	useEffect(() => {
+		if (!searchComposingRef.current && search !== searchLocal) {
+			setSearchLocal(search);
+		}
+	}, [search, searchLocal]);
 
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
@@ -682,23 +690,31 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					<input
 						class="scheduler-search-input"
 						type="text"
-						value={search}
+						value={searchLocal}
 						placeholder="Search titles & fields…"
 						onInput={(e: any) => {
+							const v = e.target.value;
+							setSearchLocal(v);
 							if (searchComposingRef.current) return;
-							setSearch(e.target.value);
+							setSearch(v);
 						}}
 						onCompositionStart={() => { searchComposingRef.current = true; }}
 						onCompositionEnd={(e: any) => {
 							searchComposingRef.current = false;
-							setSearch(e.currentTarget.value);
+							const v = e.currentTarget.value;
+							setSearchLocal(v);
+							setSearch(v);
 						}}
 					/>
-					{search && (
-						<button class="scheduler-search-clear" onClick={() => setSearch("")} title="Clear search">
-							&times;
-						</button>
-					)}
+				{search && (
+					<button
+						class="scheduler-search-clear"
+						onClick={() => { setSearch(""); setSearchLocal(""); }}
+						title="Clear search"
+					>
+						&times;
+					</button>
+				)}
 				</div>
 				<ToolbarDropdown label="Templates">
 					{templates.length > 0

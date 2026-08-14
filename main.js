@@ -1598,33 +1598,44 @@ var SUGGEST_LIMIT = 6;
 function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput }) {
   const [open, setOpen] = d2(false);
   const [activeIdx, setActiveIdx] = d2(-1);
+  const [localValue, setLocalValue] = d2(value);
+  const composingRef = A2(false);
   const inputRef = A2(null);
   const wrapRef = A2(null);
-  const composingRef = A2(false);
-  const ranked = T2(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
+  const ranked = T2(() => rankSuggestions(localValue, suggestions, SUGGEST_LIMIT), [localValue, suggestions]);
+  h2(() => {
+    if (!composingRef.current && value !== localValue) {
+      setLocalValue(value);
+    }
+  }, [value, localValue]);
   h2(() => {
     if (open && ranked.length === 0)
       setOpen(false);
   }, [ranked, open]);
-  function pick(opt) {
-    onInput(opt.value);
-    setOpen(false);
-    setActiveIdx(-1);
-    inputRef.current?.focus();
-  }
-  function commitValue(el) {
-    onInput(el.value);
+  function commitValue(v3) {
+    onInput(v3);
     setActiveIdx(-1);
     setOpen(true);
   }
   function handleInput(e3) {
+    const v3 = e3.target.value;
+    setLocalValue(v3);
     if (composingRef.current)
       return;
-    commitValue(e3.target);
+    commitValue(v3);
   }
   function handleCompositionEnd(e3) {
     composingRef.current = false;
-    commitValue(e3.currentTarget);
+    const v3 = e3.currentTarget.value;
+    setLocalValue(v3);
+    commitValue(v3);
+  }
+  function pick(opt) {
+    setLocalValue(opt.value);
+    onInput(opt.value);
+    setOpen(false);
+    setActiveIdx(-1);
+    inputRef.current?.focus();
   }
   function handleKey(e3) {
     if (composingRef.current)
@@ -1658,7 +1669,7 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
             ref: inputRef,
             class: cls ?? "",
             type: "text",
-            value,
+            value: localValue,
             placeholder,
             onInput: handleInput,
             onCompositionStart: () => {
@@ -1680,7 +1691,7 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
             children: /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-list", children: ranked.map((opt, idx) => /* @__PURE__ */ u3(
               "div",
               {
-                class: `scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === value ? " selected" : ""}`,
+                class: `scheduler-suggestion-item${idx === activeIdx ? " active" : ""}${opt.value === localValue ? " selected" : ""}`,
                 onMouseDown: (e3) => e3.preventDefault(),
                 onClick: () => pick(opt),
                 children: opt.label
@@ -5048,7 +5059,13 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [dataVersion, setDataVersion] = d2(0);
   const [search, setSearch] = d2(initialState?.search ?? "");
   const [pageSize, setPageSize] = d2(initialState?.pageSize ?? 50);
+  const [searchLocal, setSearchLocal] = d2(initialState?.search ?? "");
   const searchComposingRef = A2(false);
+  h2(() => {
+    if (!searchComposingRef.current && search !== searchLocal) {
+      setSearchLocal(search);
+    }
+  }, [search, searchLocal]);
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
   const [saveName, setSaveName] = d2("");
   const api = getDataviewApi(plugin.app);
@@ -5409,23 +5426,38 @@ ${titleLine}
           {
             class: "scheduler-search-input",
             type: "text",
-            value: search,
+            value: searchLocal,
             placeholder: "Search titles & fields\u2026",
             onInput: (e3) => {
+              const v3 = e3.target.value;
+              setSearchLocal(v3);
               if (searchComposingRef.current)
                 return;
-              setSearch(e3.target.value);
+              setSearch(v3);
             },
             onCompositionStart: () => {
               searchComposingRef.current = true;
             },
             onCompositionEnd: (e3) => {
               searchComposingRef.current = false;
-              setSearch(e3.currentTarget.value);
+              const v3 = e3.currentTarget.value;
+              setSearchLocal(v3);
+              setSearch(v3);
             }
           }
         ),
-        search && /* @__PURE__ */ u3("button", { class: "scheduler-search-clear", onClick: () => setSearch(""), title: "Clear search", children: "\xD7" })
+        search && /* @__PURE__ */ u3(
+          "button",
+          {
+            class: "scheduler-search-clear",
+            onClick: () => {
+              setSearch("");
+              setSearchLocal("");
+            },
+            title: "Clear search",
+            children: "\xD7"
+          }
+        )
       ] }),
       /* @__PURE__ */ u3(ToolbarDropdown, { label: "Templates", children: [
         templates.length > 0 ? templates.map((t3) => /* @__PURE__ */ u3("div", { class: "scheduler-dropdown-item scheduler-dropdown-row", children: [
