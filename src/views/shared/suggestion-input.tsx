@@ -29,6 +29,10 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 	const [activeIdx, setActiveIdx] = useState(-1);
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const wrapRef = useRef<HTMLDivElement | null>(null);
+	// True while the IME is composing (e.g. typing pinyin). Inputs must NOT be
+	// written back from the controlled value mid-composition or the candidate
+	// window is reset/cut off.
+	const composingRef = useRef(false);
 
 	const ranked = useMemo(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
 
@@ -44,7 +48,31 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 		inputRef.current?.focus();
 	}
 
+	function commitValue(el: HTMLInputElement) {
+		onInput(el.value);
+		setActiveIdx(-1);
+		setOpen(true);
+	}
+
+	function handleInput(e: Event) {
+		// Ignore events fired during IME composition; the value is committed on
+		// compositionend instead (commitValue).
+		if (composingRef.current) return;
+		commitValue(e.target as HTMLInputElement);
+	}
+
+	function handleCompositionEnd(e: CompositionEvent) {
+		composingRef.current = false;
+		// Some browsers emit no trailing input event after compositionend, so
+		// commit the fully-composed value explicitly. A duplicate trailing input
+		// event commits the same value again — harmless.
+		commitValue(e.currentTarget as HTMLInputElement);
+	}
+
 	function handleKey(e: KeyboardEvent) {
+		// While composing, arrow/enter keys drive the IME candidate window —
+		// never interpret them as suggestion navigation.
+		if (composingRef.current) return;
 		if (e.key === "Escape") {
 			setOpen(false);
 			return;
@@ -74,11 +102,9 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 				type="text"
 				value={value}
 				placeholder={placeholder}
-				onInput={(e: any) => {
-					onInput(e.target.value);
-					setActiveIdx(-1);
-					setOpen(true);
-				}}
+				onInput={handleInput}
+				onCompositionStart={() => { composingRef.current = true; }}
+				onCompositionEnd={handleCompositionEnd}
 				onFocus={() => setOpen(true)}
 				onKeyDown={(e: any) => handleKey(e)}
 			/>

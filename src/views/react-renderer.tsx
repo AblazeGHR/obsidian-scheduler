@@ -203,6 +203,10 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 	const [dataVersion, setDataVersion] = useState(0);
 	const [search, setSearch] = useState(initialState?.search ?? "");
 	const [pageSize, setPageSize] = useState(initialState?.pageSize ?? 50);
+	// True while the IME is composing — the search value must not be written
+	// back from the controlled state mid-composition or the IME candidate
+	// window gets reset (cuts off Chinese input).
+	const searchComposingRef = useRef(false);
 
 	// View templates (mirrored from settings so the toolbar updates after saving)
 	const [templates, setTemplates] = useState<ViewTemplate[]>(() => plugin.settings.templates ?? []);
@@ -680,7 +684,15 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 						type="text"
 						value={search}
 						placeholder="Search titles & fields…"
-						onInput={(e: any) => setSearch(e.target.value)}
+						onInput={(e: any) => {
+							if (searchComposingRef.current) return;
+							setSearch(e.target.value);
+						}}
+						onCompositionStart={() => { searchComposingRef.current = true; }}
+						onCompositionEnd={(e: any) => {
+							searchComposingRef.current = false;
+							setSearch(e.currentTarget.value);
+						}}
 					/>
 					{search && (
 						<button class="scheduler-search-clear" onClick={() => setSearch("")} title="Clear search">

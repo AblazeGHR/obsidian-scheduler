@@ -1600,6 +1600,7 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
   const [activeIdx, setActiveIdx] = d2(-1);
   const inputRef = A2(null);
   const wrapRef = A2(null);
+  const composingRef = A2(false);
   const ranked = T2(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
   h2(() => {
     if (open && ranked.length === 0)
@@ -1611,7 +1612,23 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
     setActiveIdx(-1);
     inputRef.current?.focus();
   }
+  function commitValue(el) {
+    onInput(el.value);
+    setActiveIdx(-1);
+    setOpen(true);
+  }
+  function handleInput(e3) {
+    if (composingRef.current)
+      return;
+    commitValue(e3.target);
+  }
+  function handleCompositionEnd(e3) {
+    composingRef.current = false;
+    commitValue(e3.currentTarget);
+  }
   function handleKey(e3) {
+    if (composingRef.current)
+      return;
     if (e3.key === "Escape") {
       setOpen(false);
       return;
@@ -1643,11 +1660,11 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
             type: "text",
             value,
             placeholder,
-            onInput: (e3) => {
-              onInput(e3.target.value);
-              setActiveIdx(-1);
-              setOpen(true);
+            onInput: handleInput,
+            onCompositionStart: () => {
+              composingRef.current = true;
             },
+            onCompositionEnd: handleCompositionEnd,
             onFocus: () => setOpen(true),
             onKeyDown: (e3) => handleKey(e3)
           }
@@ -5031,6 +5048,7 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
   const [dataVersion, setDataVersion] = d2(0);
   const [search, setSearch] = d2(initialState?.search ?? "");
   const [pageSize, setPageSize] = d2(initialState?.pageSize ?? 50);
+  const searchComposingRef = A2(false);
   const [templates, setTemplates] = d2(() => plugin.settings.templates ?? []);
   const [saveName, setSaveName] = d2("");
   const api = getDataviewApi(plugin.app);
@@ -5393,7 +5411,18 @@ ${titleLine}
             type: "text",
             value: search,
             placeholder: "Search titles & fields\u2026",
-            onInput: (e3) => setSearch(e3.target.value)
+            onInput: (e3) => {
+              if (searchComposingRef.current)
+                return;
+              setSearch(e3.target.value);
+            },
+            onCompositionStart: () => {
+              searchComposingRef.current = true;
+            },
+            onCompositionEnd: (e3) => {
+              searchComposingRef.current = false;
+              setSearch(e3.currentTarget.value);
+            }
           }
         ),
         search && /* @__PURE__ */ u3("button", { class: "scheduler-search-clear", onClick: () => setSearch(""), title: "Clear search", children: "\xD7" })
