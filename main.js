@@ -1597,56 +1597,33 @@ function collectFieldSuggestions(entries, mapping) {
 var SUGGEST_LIMIT = 8;
 function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput }) {
   const [open, setOpen] = d2(false);
-  const inputRef = A2(null);
   const wrapRef = A2(null);
   const ranked = T2(() => rankSuggestions(value, suggestions, SUGGEST_LIMIT), [value, suggestions]);
   function pick(opt) {
     onInput(opt.value);
-    setOpen(false);
-    inputRef.current?.focus();
   }
-  return /* @__PURE__ */ u3("div", { class: `scheduler-suggestion ${cls ?? ""}${open ? " open" : ""}`, ref: wrapRef, children: [
+  return /* @__PURE__ */ u3("div", { class: `scheduler-suggestion ${cls ?? ""}`, ref: wrapRef, children: [
     /* @__PURE__ */ u3(
       "input",
       {
-        ref: inputRef,
         class: cls ?? "",
         type: "text",
         value,
         placeholder,
-        onInput: (e3) => onInput(e3.target.value)
+        onInput: (e3) => onInput(e3.target.value),
+        onFocus: () => setOpen(true),
+        onBlur: () => setOpen(false)
       }
     ),
-    /* @__PURE__ */ u3(
-      "button",
+    open && ranked.length > 0 && /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-dropdown", children: ranked.map((opt) => /* @__PURE__ */ u3(
+      "div",
       {
-        type: "button",
-        class: "scheduler-suggestion-btn",
+        class: "scheduler-suggestion-item",
         onMouseDown: (e3) => e3.preventDefault(),
-        onClick: () => setOpen((o3) => !o3),
-        title: "Show suggestions for this field",
-        children: "\u25BE"
+        onClick: () => pick(opt),
+        children: opt.label
       }
-    ),
-    open && ranked.length > 0 && /* @__PURE__ */ u3(
-      Popover,
-      {
-        anchorRef: wrapRef,
-        open,
-        className: "scheduler-suggestion-dropdown",
-        offsetY: 2,
-        onOutsideClick: () => setOpen(false),
-        children: /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-list", children: ranked.map((opt) => /* @__PURE__ */ u3(
-          "div",
-          {
-            class: "scheduler-suggestion-item",
-            onMouseDown: (e3) => e3.preventDefault(),
-            onClick: () => pick(opt),
-            children: opt.label
-          }
-        )) })
-      }
-    )
+    )) })
   ] });
 }
 
