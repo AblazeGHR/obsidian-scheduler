@@ -82,11 +82,18 @@ export async function extractTasksWithInlineFields(app: App, file: TFile): Promi
 		});
 	}
 
-	// Resolve parent:: for indented tasks: each indented task inherits the
-	// nearest less-indented task above as its parent.
+	// Resolve parent:: for tasks: an indented task inherits the nearest
+	// less-indented task above as its parent; any task without a task-level
+	// parent (top-level, or indented under a non-task line) falls back to the
+	// containing document as its parent.
 	for (let i = 0; i < tasks.length; i++) {
 		const task = tasks[i];
-		if (task.indent === 0) continue;
+		if (task.indent === 0) {
+			// Top-level task: parent is the containing document.
+			delete task.fields["parent"];
+			task.fields["parent"] = file.path;
+			continue;
+		}
 
 		let parent: TaskEntry | null = null;
 		for (let j = i - 1; j >= 0; j--) {
@@ -96,11 +103,9 @@ export async function extractTasksWithInlineFields(app: App, file: TFile): Promi
 			}
 		}
 
-		if (parent) {
-			// Override any manually-set parent with the auto-computed value.
-			delete task.fields["parent"];
-			task.fields["parent"] = `${file.path}#L${parent.line}`;
-		}
+		// Override any manually-set parent with the auto-computed value.
+		delete task.fields["parent"];
+		task.fields["parent"] = parent ? `${file.path}#L${parent.line}` : file.path;
 	}
 
 	return tasks;

@@ -15,7 +15,7 @@ import { KanbanView } from "./kanban/kanban-view";
 import { exportToICal, triggerIcsFilePicker } from "../utils/ical";
 import { entriesToMarkdown } from "../utils/markdown-export";
 import { CodeblockViewState } from "../utils/codeblock-state";
-import { isInlinePath, parseInlinePath, applyInlineEdit } from "../utils/inline-editor";
+import { isInlinePath, parseInlinePath, applyInlineEdit, toParentPathValue } from "../utils/inline-editor";
 import { Popover, isInsidePopoverHost } from "./shared/popover";
 
 // ============================================================
@@ -250,18 +250,30 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 		}
 	}, [columns, initialState]);
 
-	// Global search: filter by title + any field value (case-insensitive)
+	// path→title map for resolving parent links to their target's title in search
+	const titleByPath = useMemo(
+		() => new Map(allEntries.map((e) => [e.path, e.title])),
+		[allEntries]
+	);
+
+	// Global search: filter by title + parent target title + any field value (case-insensitive)
 	const filteredEntries = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return allEntries;
 		return allEntries.filter((e) => {
 			if (e.title.toLowerCase().includes(q)) return true;
+			// `parent` stores a path/link — also match the target entry's title
+			const parentPath = toParentPathValue(e.fields?.["parent"]);
+			if (parentPath) {
+				const pt = titleByPath.get(parentPath);
+				if (pt && pt.toLowerCase().includes(q)) return true;
+			}
 			const haystack = Object.entries(e.fields ?? {})
 				.map(([k, v]) => `${k} ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
 				.join(" ");
 			return haystack.toLowerCase().includes(q);
 		});
-	}, [allEntries, search]);
+	}, [allEntries, search, titleByPath]);
 
 	/** Re-query data after an edit. Bumps dataVersion after a short delay so Dataview
 	 * has time to reindex the modified file. */
@@ -517,6 +529,11 @@ export function SchedulerApp({ plugin, initialView, newFileFolder, initialTempla
 					if (res) plugin.undo.applyRaw(res.path, res.before, res.after);
 					refreshData();
 				});
+			return;
+		}
+		// Clearing the document's parent link removes the frontmatter line entirely
+		if (field === "parent" && newValue === "") {
+			plugin.undo.apply(path, (data) => deleteFrontmatterField(data, field)).then(() => refreshData());
 			return;
 		}
 		plugin.undo.apply(path, (data) => setFrontmatterField(data, field, newValue)).then(() => refreshData());

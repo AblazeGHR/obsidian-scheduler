@@ -1,5 +1,6 @@
 import { PageEntry, FieldMapping } from "../../types";
 import { FieldKind } from "../../schema/field-types";
+import { toParentPathValue } from "../../utils/inline-editor";
 
 /** Fields that are internal to Dataview / the plugin and should not be shown as columns */
 const INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
@@ -49,9 +50,9 @@ export function formatCellValue(entry: PageEntry, column: string, parentTitles?:
 		case "file":
 			return fileBaseName(entry.path);
 		case "parent": {
-			const parentPath = entry.fields?.["parent"];
-			if (typeof parentPath === "string") {
-				return parentTitles?.get(parentPath) ?? fileBaseName(String(parentPath));
+			const parentPath = toParentPathValue(entry.fields?.["parent"]);
+			if (parentPath) {
+				return parentTitles?.get(parentPath) ?? fileBaseName(parentPath);
 			}
 			return "";
 		}

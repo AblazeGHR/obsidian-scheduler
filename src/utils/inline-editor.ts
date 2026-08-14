@@ -15,6 +15,21 @@ export function parseInlinePath(path: string): { filePath: string; line: number 
 	return { filePath: m[1], line: parseInt(m[2]) };
 }
 
+/** Normalize a `parent` field value into a canonical `path` / `path#L12` string.
+ *  Accepts plain strings and Dataview Link objects (from `[[wiki link]]`
+ *  frontmatter values), which expose the target path without a `.md` suffix. */
+export function toParentPathValue(v: unknown): string {
+	if (typeof v === "string") return v;
+	if (v && typeof v === "object") {
+		const path = (v as Record<string, unknown>)["path"];
+		if (typeof path === "string") {
+			if (/#L\d+$/.test(path)) return path;
+			return path.endsWith(".md") ? path : `${path}.md`;
+		}
+	}
+	return "";
+}
+
 // Apply an edit to a specific line's inline fields.
 // The transform receives the target line text and should return the new line text.
 // This wraps the file I/O and provides before/after snapshots for undo.

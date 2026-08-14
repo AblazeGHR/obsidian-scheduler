@@ -874,8 +874,11 @@ async function extractTasksWithInlineFields(app, file) {
   }
   for (let i4 = 0; i4 < tasks.length; i4++) {
     const task = tasks[i4];
-    if (task.indent === 0)
+    if (task.indent === 0) {
+      delete task.fields["parent"];
+      task.fields["parent"] = file.path;
       continue;
+    }
     let parent = null;
     for (let j3 = i4 - 1; j3 >= 0; j3--) {
       if (tasks[j3].indent < task.indent) {
@@ -883,10 +886,8 @@ async function extractTasksWithInlineFields(app, file) {
         break;
       }
     }
-    if (parent) {
-      delete task.fields["parent"];
-      task.fields["parent"] = `${file.path}#L${parent.line}`;
-    }
+    delete task.fields["parent"];
+    task.fields["parent"] = parent ? `${file.path}#L${parent.line}` : file.path;
   }
   return tasks;
 }
@@ -3158,6 +3159,56 @@ var NewEntryModal = class extends import_obsidian5.Modal {
   }
 };
 
+// src/utils/inline-editor.ts
+var import_obsidian6 = require("obsidian");
+var INLINE_PATH_RE = /#L\d+$/;
+function isInlinePath(path) {
+  return INLINE_PATH_RE.test(path);
+}
+function parseInlinePath(path) {
+  const m3 = path.match(/^(.+)#L(\d+)$/);
+  if (!m3)
+    return null;
+  return { filePath: m3[1], line: parseInt(m3[2]) };
+}
+function toParentPathValue(v3) {
+  if (typeof v3 === "string")
+    return v3;
+  if (v3 && typeof v3 === "object") {
+    const path = v3["path"];
+    if (typeof path === "string") {
+      if (/#L\d+$/.test(path))
+        return path;
+      return path.endsWith(".md") ? path : `${path}.md`;
+    }
+  }
+  return "";
+}
+async function applyInlineEdit(app, path, transform) {
+  const parsed = parseInlinePath(path);
+  if (!parsed)
+    return null;
+  const file = app.vault.getAbstractFileByPath(parsed.filePath);
+  if (!(file instanceof import_obsidian6.TFile))
+    return null;
+  let result = null;
+  await app.vault.process(file, (data) => {
+    const lines = data.split("\n");
+    if (parsed.line < 1 || parsed.line > lines.length)
+      return data;
+    const lineIdx = parsed.line - 1;
+    const originalLine = lines[lineIdx];
+    const newLine = transform(originalLine);
+    if (newLine === originalLine)
+      return data;
+    lines[lineIdx] = newLine;
+    const after = lines.join("\n");
+    result = { path: parsed.filePath, before: data, after };
+    return after;
+  });
+  return result;
+}
+
 // src/views/table/table-utils.ts
 var INTERNAL_FIELD_PREFIXES = ["file.", "settings", "recursiveSubTask", "maxRecursiveRender"];
 function isInternalField(key) {
@@ -3207,9 +3258,9 @@ function formatCellValue(entry, column, parentTitles) {
     case "file":
       return fileBaseName(entry.path);
     case "parent": {
-      const parentPath = entry.fields?.["parent"];
-      if (typeof parentPath === "string") {
-        return parentTitles?.get(parentPath) ?? fileBaseName(String(parentPath));
+      const parentPath = toParentPathValue(entry.fields?.["parent"]);
+      if (parentPath) {
+        return parentTitles?.get(parentPath) ?? fileBaseName(parentPath);
       }
       return "";
     }
@@ -3295,7 +3346,7 @@ function formatTagValue(values) {
 }
 
 // src/views/table/table-view.tsx
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/schema/field-types.ts
 var DATE_RE = /^\d{4}-\d{2}-\d{2}/;
@@ -3405,19 +3456,36 @@ function parseDateInput(s3) {
     return toISODate(d3);
   return null;
 }
+function normalizeParentLink(s3) {
+  const t3 = s3.trim();
+  if (!t3)
+    return "";
+  let link = t3;
+  if (link.startsWith("[[")) {
+    link = link.slice(2);
+    const pipe = link.indexOf("|");
+    if (pipe !== -1)
+      link = link.slice(0, pipe);
+    link = link.replace(/\]\]\s*$/, "").trim();
+  }
+  return link;
+}
 function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }) {
   const kind = getCellKind(column, mapping, kinds);
   const field = writeFieldFor(column, mapping);
   const raw = column === "date" ? entry.date : entry.fields?.[column];
   const display = formatCellValue(entry, column, parentTitles);
+  const parentEditable = column === "parent" && !isInlinePath(entry.path);
+  const parentRaw = column === "parent" ? toParentPathValue(entry.fields?.["parent"]) : "";
+  const seed = column === "parent" ? parentRaw : display;
   const [editing, setEditing] = d2(false);
-  if (kind === "file") {
+  if (kind === "file" && !parentEditable) {
     return /* @__PURE__ */ u3("td", { class: "scheduler-cell scheduler-cell-readonly", title: entry.path, children: display });
   }
   const cellRef = A2(null);
   h2(() => {
     if (editing && cellRef.current) {
-      cellRef.current.textContent = display;
+      cellRef.current.textContent = seed;
       cellRef.current.focus();
       const range = document.createRange();
       range.selectNodeContents(cellRef.current);
@@ -3435,7 +3503,11 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }) {
     setEditing(false);
     if (!onEdit)
       return;
-    if (kind === "date") {
+    if (column === "parent") {
+      const normalized = normalizeParentLink(val);
+      if (normalized !== toParentPathValue(entry.fields?.["parent"]))
+        onEdit(entry.path, field, normalized);
+    } else if (kind === "date") {
       const iso = parseDateInput(val);
       if (iso && iso !== toInputDate(raw))
         onEdit(entry.path, field, iso);
@@ -3463,7 +3535,7 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }) {
             commit();
           } else if (e3.key === "Escape") {
             if (cellRef.current)
-              cellRef.current.textContent = display;
+              cellRef.current.textContent = seed;
             commit();
           }
         }
@@ -3716,7 +3788,7 @@ function SortManager({ columns, sort, onSortChange }) {
           onDragEnd: () => setDragIndex(null),
           children: [
             /* @__PURE__ */ u3("span", { class: "scheduler-sort-grip", title: "Drag to reorder priority", children: "\u22EE\u22EE" }),
-            import_obsidian6.Platform.isMobile && /* @__PURE__ */ u3("span", { class: "scheduler-sort-move", children: [
+            import_obsidian7.Platform.isMobile && /* @__PURE__ */ u3("span", { class: "scheduler-sort-move", children: [
               /* @__PURE__ */ u3(
                 "button",
                 {
@@ -3923,7 +3995,7 @@ function TableView({
   function startResize(e3, col) {
     e3.preventDefault();
     e3.stopPropagation();
-    if (import_obsidian6.Platform.isMobile)
+    if (import_obsidian7.Platform.isMobile)
       return;
     resizeRef.current?.cancel();
     resizeRef.current = null;
@@ -4631,43 +4703,6 @@ function triggerIcsFilePicker(onText) {
   input.click();
 }
 
-// src/utils/inline-editor.ts
-var import_obsidian7 = require("obsidian");
-var INLINE_PATH_RE = /#L\d+$/;
-function isInlinePath(path) {
-  return INLINE_PATH_RE.test(path);
-}
-function parseInlinePath(path) {
-  const m3 = path.match(/^(.+)#L(\d+)$/);
-  if (!m3)
-    return null;
-  return { filePath: m3[1], line: parseInt(m3[2]) };
-}
-async function applyInlineEdit(app, path, transform) {
-  const parsed = parseInlinePath(path);
-  if (!parsed)
-    return null;
-  const file = app.vault.getAbstractFileByPath(parsed.filePath);
-  if (!(file instanceof import_obsidian7.TFile))
-    return null;
-  let result = null;
-  await app.vault.process(file, (data) => {
-    const lines = data.split("\n");
-    if (parsed.line < 1 || parsed.line > lines.length)
-      return data;
-    const lineIdx = parsed.line - 1;
-    const originalLine = lines[lineIdx];
-    const newLine = transform(originalLine);
-    if (newLine === originalLine)
-      return data;
-    lines[lineIdx] = newLine;
-    const after = lines.join("\n");
-    result = { path: parsed.filePath, before: data, after };
-    return after;
-  });
-  return result;
-}
-
 // src/views/react-renderer.tsx
 var ErrorBoundary = class extends C {
   constructor() {
@@ -4811,6 +4846,10 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
       visibleConverted.current = true;
     }
   }, [columns, initialState]);
+  const titleByPath = T2(
+    () => new Map(allEntries.map((e3) => [e3.path, e3.title])),
+    [allEntries]
+  );
   const filteredEntries = T2(() => {
     const q3 = search.trim().toLowerCase();
     if (!q3)
@@ -4818,10 +4857,16 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
     return allEntries.filter((e3) => {
       if (e3.title.toLowerCase().includes(q3))
         return true;
+      const parentPath = toParentPathValue(e3.fields?.["parent"]);
+      if (parentPath) {
+        const pt = titleByPath.get(parentPath);
+        if (pt && pt.toLowerCase().includes(q3))
+          return true;
+      }
       const haystack = Object.entries(e3.fields ?? {}).map(([k3, v3]) => `${k3} ${typeof v3 === "object" ? JSON.stringify(v3) : String(v3)}`).join(" ");
       return haystack.toLowerCase().includes(q3);
     });
-  }, [allEntries, search]);
+  }, [allEntries, search, titleByPath]);
   function refreshData() {
     setTimeout(() => setDataVersion((v3) => v3 + 1), 150);
   }
@@ -5018,6 +5063,10 @@ function SchedulerApp({ plugin, initialView, newFileFolder, initialTemplate, ini
           plugin.undo.applyRaw(res.path, res.before, res.after);
         refreshData();
       });
+      return;
+    }
+    if (field === "parent" && newValue === "") {
+      plugin.undo.apply(path, (data) => deleteFrontmatterField(data, field)).then(() => refreshData());
       return;
     }
     plugin.undo.apply(path, (data) => setFrontmatterField(data, field, newValue)).then(() => refreshData());

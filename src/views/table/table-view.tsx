@@ -19,6 +19,7 @@ import {
 import { expandRecurring } from "../../utils/recurrence";
 import { inferEntryFieldKinds, FieldKind } from "../../schema/field-types";
 import { DateCell } from "./date-cell";
+import { isInlinePath, toParentPathValue } from "../../utils/inline-editor";
 
 // ============================================================
 // EditableCell — inline editing with date / tag / text support
@@ -44,6 +45,23 @@ function parseDateInput(s: string): string | null {
 	return null;
 }
 
+/** Normalize a user-typed parent link into the stored `path` or `path#L12` form.
+ *  Accepts plain paths (`notes/2026.md#L12`) and Obsidian wiki links
+ *  (`[[notes/2026]]`, `[[notes/2026|alias]]`). Empty input clears the link. */
+function normalizeParentLink(s: string): string {
+	const t = s.trim();
+	if (!t) return "";
+	let link = t;
+	if (link.startsWith("[[")) {
+		link = link.slice(2);
+		// Drop any display alias and the closing brackets
+		const pipe = link.indexOf("|");
+		if (pipe !== -1) link = link.slice(0, pipe);
+		link = link.replace(/\]\]\s*$/, "").trim();
+	}
+	return link;
+}
+
 /**
  * Excel-style inline cell: shows plain text; on click the same text becomes
  * directly editable in place (contentEditable). No input box, no style change.
@@ -55,10 +73,18 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }: E
 	const raw = column === "date" ? entry.date : entry.fields?.[column];
 	const display = formatCellValue(entry, column, parentTitles);
 
+	// The "parent" cell of an inline entry is auto-derived (indent / document)
+	// and therefore read-only; for a document row it's a fillable link.
+	const parentEditable = column === "parent" && !isInlinePath(entry.path);
+	// When editing a parent link, seed the cell with the stored path/link rather
+	// than the resolved title, so the user edits the actual reference.
+	const parentRaw = column === "parent" ? toParentPathValue(entry.fields?.["parent"]) : "";
+	const seed = column === "parent" ? parentRaw : display;
+
 	const [editing, setEditing] = useState(false);
 
 	// The "file" column is the read-only source note — never editable inline.
-	if (kind === "file") {
+	if (kind === "file" && !parentEditable) {
 		return (
 			<td class="scheduler-cell scheduler-cell-readonly" title={entry.path}>
 				{display}
@@ -71,7 +97,7 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }: E
 	// (caret at end). Runs only when `editing` flips, so typing isn't clobbered.
 	useEffect(() => {
 		if (editing && cellRef.current) {
-			cellRef.current.textContent = display;
+			cellRef.current.textContent = seed;
 			cellRef.current.focus();
 			const range = document.createRange();
 			range.selectNodeContents(cellRef.current);
@@ -91,7 +117,10 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }: E
 		if (el) el.textContent = "";
 		setEditing(false);
 		if (!onEdit) return;
-		if (kind === "date") {
+		if (column === "parent") {
+			const normalized = normalizeParentLink(val);
+			if (normalized !== toParentPathValue(entry.fields?.["parent"])) onEdit(entry.path, field, normalized);
+		} else if (kind === "date") {
 			const iso = parseDateInput(val);
 			if (iso && iso !== toInputDate(raw)) onEdit(entry.path, field, iso);
 		} else if (kind === "tags") {
@@ -116,7 +145,7 @@ function EditableCell({ entry, column, mapping, kinds, parentTitles, onEdit }: E
 						e.preventDefault();
 						commit();
 					} else if (e.key === "Escape") {
-						if (cellRef.current) cellRef.current.textContent = display;
+						if (cellRef.current) cellRef.current.textContent = seed;
 						commit();
 					}
 				}}
