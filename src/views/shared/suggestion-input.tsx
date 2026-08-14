@@ -1,5 +1,6 @@
 import { h } from "preact";
 import { useState, useRef, useMemo } from "preact/hooks";
+import { Popover } from "./popover";
 import { rankSuggestions, SuggestionOption } from "../../utils/suggest";
 
 interface SuggestionInputProps {
@@ -49,7 +50,13 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 				onBlur={() => setOpen(false)}
 			/>
 			{open && ranked.length > 0 && (
-				<div class="scheduler-suggestion-dropdown">
+				<Popover
+					anchorRef={wrapRef}
+					open={open}
+					className="scheduler-suggestion-dropdown"
+					offsetY={2}
+					onOutsideClick={() => setOpen(false)}
+				>
 					{ranked.map((opt) => (
 						<div
 							class="scheduler-suggestion-item"
@@ -59,7 +66,7 @@ export function SuggestionInput({ value, suggestions, placeholder, class: cls, o
 							{opt.label}
 						</div>
 					))}
-				</div>
+				</Popover>
 			)}
 		</div>
 	);

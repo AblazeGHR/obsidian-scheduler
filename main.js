@@ -1615,15 +1615,25 @@ function SuggestionInput({ value, suggestions, placeholder, class: cls, onInput 
         onBlur: () => setOpen(false)
       }
     ),
-    open && ranked.length > 0 && /* @__PURE__ */ u3("div", { class: "scheduler-suggestion-dropdown", children: ranked.map((opt) => /* @__PURE__ */ u3(
-      "div",
+    open && ranked.length > 0 && /* @__PURE__ */ u3(
+      Popover,
       {
-        class: "scheduler-suggestion-item",
-        onMouseDown: (e3) => e3.preventDefault(),
-        onClick: () => pick(opt),
-        children: opt.label
+        anchorRef: wrapRef,
+        open,
+        className: "scheduler-suggestion-dropdown",
+        offsetY: 2,
+        onOutsideClick: () => setOpen(false),
+        children: ranked.map((opt) => /* @__PURE__ */ u3(
+          "div",
+          {
+            class: "scheduler-suggestion-item",
+            onMouseDown: (e3) => e3.preventDefault(),
+            onClick: () => pick(opt),
+            children: opt.label
+          }
+        ))
       }
-    )) })
+    )
   ] });
 }
 
